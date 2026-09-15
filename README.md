@@ -12,6 +12,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0%20%2F%20ODbL-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/dependencies-none-brightgreen.svg" alt="Zero Dependencies">
   <a href="./CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+  <a href="https://qm.qq.com/q/nHfgBDS68o"><img src="https://img.shields.io/badge/QQ%E7%BE%A4-619357751-12b7f5.svg" alt="QQ Group"></a>
   <img src="https://img.shields.io/badge/platform-Web%20%2F%20PWA-orange.svg" alt="Platform">
 </p>
 
@@ -24,6 +25,7 @@
   <a href="#项目架构">项目架构</a> •
   <a href="#城市数据移植">城市移植</a> •
   <a href="#城市主理人与鸣谢">主理人与鸣谢</a> •
+  <a href="#社区与技术交流">社区交流</a> •
   <a href="#开源许可协议">开源协议</a>
 </p>
 
@@ -39,7 +41,7 @@
 
 项目采用原生 Web 技术栈构建，具备**开箱即用、轻量高效、零构建依赖**的特点，旨在为交通爱好者、城市规划研究者以及前端开发者提供可定制的交互式线路图解决方案。
 
-目前引擎内置北京轨道交通与沈阳地铁线网作为完整实现与参考范例，底层采用通用引擎与城市业务数据完全解耦的架构设计。开发者可以基于标准化数据格式，快速移植并部署任意城市（如上海、广州、深圳、成都、武汉等）的轨道交通网络。
+目前引擎内置北京轨道交通、沈阳地铁、青岛轨道交通与合肥轨道交通线网作为完整实现与参考范例（上海线网主理人招募中），底层采用通用引擎与城市业务数据完全解耦的架构设计。开发者可以基于标准化数据格式，快速移植并部署任意城市（如上海、广州、深圳、成都、武汉等）的轨道交通网络。
 
 项目配套提供 **Drunk 线路图智能转换系统**，无需手动测量繁重的站点坐标，通过上传高清图片、矢量 PDF 或 Adobe Illustrator 工程，即可借助 AI 视觉大模型与矢量解析引擎一键生成符合规范的标准城市代码。
 
@@ -53,7 +55,7 @@
 - **深浅色主题适配**：内置深色（Dark）与浅色（Light）两套主题，支持跟随系统色彩偏好自动切换或手动锁定；高分屏下文字与矢量元素均保真呈现。
 - **多维车站检索**：支持站名中英文、拼音全拼与首字母简拼、多音字及历史站名别名模糊匹配；检索命中后支持视口平滑定位与聚焦动效。
 - **可定制的模块化车站信息板**：采用全解耦模块注册化架构（`core/station-board.js`）。各城市主理人可根据本市特点与运营需求，开箱即用或定制注入**文旅名胜指引**、**运行时刻信息**、**预计进站时间**、**换乘详情与走行指引**、**地面公交与打车接驳空间**、**站台结构图与电梯分布**、**母婴室/AED 设施指南**等丰富内容，所有模块支持自由开关、重排与跨选项卡调度。
-- **精细化站点与线路模型**：提供车站信息图卡（换乘线路、运营归属、出入口信息）、站台换乘与楼梯结构示意图、首末班车时刻表查询接口以及出站限时虚拟换乘映射。
+- **精细化站点与线路模型**：提供车站信息图卡（换乘线路、运营归属、出入口信息）、站台换乘与楼梯结构示意图、首末班车时刻表查询接口、出站限时虚拟换乘映射，并支持基于高德地理坐标自动标定的示意图站间距智能估算与呈现。
 - **位置辅助与服务联动**：基于浏览器 Geolocation API 计算临近站点与直线距离，支持一键调起外部地图导航与铁路枢纽服务。
 - **城市专属品牌色与官方矢量徽标**：支持各城市自主登记官方主题标志色（`themeColor`，自动衍生深浅调色板，驱动主要操作、悬浮态与高亮，支持城市间彻底隔离防污染）与地铁官方矢量 Logo（`svglogo`），首页卡片等大自适应渲染并支持留空降级为标准小火车图标。
 - **高内聚低耦合的多城市架构**：核心渲染引擎（`core/`）与城市业务配置（`city/`）彻底分离，新增城市仅需配置站点与走向数据，无需修改底层渲染逻辑。
@@ -181,18 +183,31 @@ openmap/
 │   │   ├── data_virtual_transfers.js # 虚拟换乘映射定义
 │   │   ├── staname.csv         # 拼音检索与多音字库
 │   │   └── stacard/            # 车站详情卡片与结构图组件
-│   └── shenyang/               # 社区贡献实现 (沈阳)
-│       ├── shenyang.js         # 城市特定业务逻辑 (换乘站呼出线/方城文化地标等)
-│       ├── style.css           # 城市专属样式表
-│       ├── data_stations.js    # 车站数据 (1~4、9、10号线等)
-│       ├── data_lines.js       # 线路走向与站间距配置
-│       ├── data_legend.js      # 图例结构与分组展示
-│       ├── data_timetable.js   # 首末班车时刻数据
-│       ├── data_notopen.js     # 在建线路规划走向
-│       ├── data_scattered.js   # 枢纽与地标装饰配置
-│       ├── data_virtual_transfers.js # 虚拟换乘映射
-│       ├── staname.csv         # 拼音检索与历史站名索引
-│       └── stacard/            # 车站详情卡片组件
+│   ├── shenyang/               # 社区贡献实现 (沈阳)
+│   │   ├── shenyang.js         # 城市特定业务逻辑 (换乘站呼出线/方城文化地标等)
+│   │   ├── style.css           # 城市专属样式表
+│   │   ├── data_stations.js    # 车站数据 (1~4、9、10号线等)
+│   │   ├── data_lines.js       # 线路走向与站间距配置
+│   │   ├── data_legend.js      # 图例结构与分组展示
+│   │   ├── data_timetable.js   # 首末班车时刻数据
+│   │   ├── data_notopen.js     # 在建线路规划走向
+│   │   ├── data_scattered.js   # 枢纽与地标装饰配置
+│   │   ├── data_virtual_transfers.js # 虚拟换乘映射
+│   │   ├── staname.csv         # 拼音检索与历史站名索引
+│   │   └── stacard/            # 车站详情卡片组件
+│   ├── hefei/                  # 社区贡献实现 (合肥)
+│   │   ├── hefei.js            # 城市主逻辑与模块配置
+│   │   ├── modules/            # 专属模块 (文旅、时刻表)
+│   │   ├── data_stations.js    # 车站数据 (1~8号线及S1线)
+│   │   ├── data_lines.js       # 线路走向与站间距配置
+│   │   └── ...                 # 图例、卡片与时刻表数据
+│   └── qingdao/                # 社区贡献实现 (青岛)
+│       ├── qingdao.js          # 城市主逻辑 (运营中心归属/综合交通换乘等)
+│       ├── modules/            # 专属模块 (在建工程、工程名提示、更名历史、时刻表)
+│       ├── data_stations.js    # 车站数据 (8条在运营及8段在建线路)
+│       ├── data_lines.js       # 线路走向与快线配置
+│       ├── assets/             # 海域轮廓底图与国铁/机场/轮渡图标
+│       └── ...                 # 图例、卡片、更名库与在建数据
 ├── css/                        # 样式系统
 │   ├── style.css               # 地图引擎核心样式与图层布局
 │   ├── cgo_clr.css             # 线路标志色与全局主题变量
@@ -221,7 +236,7 @@ openmap/
 *(注：Drunk 目前为早期开发验证阶段，生成结果请予以测试复核，欢迎参与共建)*
 
 ### 传统方式：手动编排配置
-1. **新建城市目录**：在 `city/` 目录下建立对应城市文件夹（例如 `city/shanghai/`），参考 `city/beijing/` 或 `city/shenyang/` 的数据文件结构。
+1. **新建城市目录**：在 `city/` 目录下建立对应城市文件夹（例如 `city/shanghai/`），参考 `city/beijing/`、`city/shenyang/`、`city/qingdao/` 或 `city/hefei/` 的数据文件结构。
 2. **注册城市信息**：在 `city/data.js` 的 `CITY_REGISTRY` 中添加城市元数据（ID、画布尺寸、默认中心点与初始缩放比例）。
 3. **录入站点与线路**：
    - 在 `data_stations.js` 中录入车站唯一 ID、画布坐标 `(x, y)`、中英文名称及文本对齐方式；
@@ -245,14 +260,33 @@ openmap/
 
 - **北京线网**：[NaL](https://github.com/NokiaimuL/)（城市主理人） · SierraQin（运营数据支持） · Freedom Space（市郊铁路校对）
 - **沈阳线网**：[jrzhang](https://github.com/beepingflijo)（城市主理人） · 从恒隆到细河（运营数据支持）
+- **青岛线网**：[YoTra青通](https://github.com/YoTraYoungTraffic)（城市主理人）
 - **合肥线网**：[Evin](https://github.com/walternie)（城市主理人）
-- **上海线网**：*主理人虚位以待，欢迎认领*
+- **上海线网**：[Ryan Si](https://github.com/ryan-si)（城市主理人）
+- **大连线网**：[jrzhang](https://github.com/beepingflijo)（城市主理人） · duckinglim（运营数据支持）
+- **长春线网**：[jrzhang](https://github.com/beepingflijo)（城市主理人）
 - **平台架构**：[NaL](https://github.com/NokiaimuL/) & [Ryan](https://github.com/ryan-si)
 - **地理数据**：[高德地图开放平台](https://lbs.amap.com/)
 
 > **关于上游维护与兼容性**：
 > 核心引擎将持续迭代演进（如寻路算法、时刻表联动、3D/实际走向视图等）。建议将新增城市数据通过 Pull Request 合入官方主库，官方团队将统一提供向后兼容支持与数据迁移维护。
 > 欢迎查阅 **[社区贡献指南 (CONTRIBUTING.md)](./CONTRIBUTING.md)** 了解更多提交流程。
+
+---
+
+## 社区与技术交流
+
+欢迎加入 **CGo OpenMap** 官方社群！无论你是轨道交通爱好者、前端技术开发者，还是想为自己的城市制作/认领线路图的城市主理人，都期待与你交流：
+
+- **官方 QQ 交流群**：**619357751**
+- **一键直达加群**：[👉 点击一键加入 CGo OpenMap 官方交流群](https://qm.qq.com/q/nHfgBDS68o)
+- **手机 QQ 扫码入群**：
+
+<p align="center">
+  <img src="./assets/images/qq.jpg" alt="CGo OpenMap 官方 QQ 交流群二维码" width="220" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);">
+  <br>
+  <em>扫一扫二维码，加入 CGo OpenMap 官方交流群 (群号: 619357751)</em>
+</p>
 
 ---
 

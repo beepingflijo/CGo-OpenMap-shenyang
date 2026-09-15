@@ -18,7 +18,7 @@
  * ==============================================================================
  */
 
-const CACHE_NAME = 'cgo-openmap-v260914.001758';
+const CACHE_NAME = 'cgo-openmap-v260915.0030';
 const ASSETS_TO_CACHE = [
     // 页面与入口
     './',
@@ -63,6 +63,7 @@ const ASSETS_TO_CACHE = [
 
     // 城市配置与业务数据 (示例：上海)
     './city/shanghai/shanghai.js',
+    './city/shanghai/style.css',
     './city/shanghai/stacard/script.js',
     './city/shanghai/data_stations.js',
     './city/shanghai/data_lines.js',
@@ -74,6 +75,9 @@ const ASSETS_TO_CACHE = [
     './city/shanghai/data_urls.js',
     './city/shanghai/amap_data.json',
     './city/shanghai/staname.csv',
+    './city/shanghai/assets/icon-railway.svg',
+    './city/shanghai/assets/icon-airport.svg',
+    './city/shanghai/assets/icon-maglev.svg',
 
     // 城市配置与业务数据 (沈阳)
     './city/shenyang/shenyang.js',
@@ -114,6 +118,31 @@ const ASSETS_TO_CACHE = [
     './city/hefei/amap_data.json',
     './city/hefei/staname.csv',
 
+    // 城市配置与业务数据 (青岛)
+    './city/qingdao/qingdao.js',
+    './city/qingdao/stacard/script.js',
+    './city/qingdao/data_stations.js',
+    './city/qingdao/data_lines.js',
+    './city/qingdao/data_virtual_transfers.js',
+    './city/qingdao/data_scattered.js',
+    './city/qingdao/data_notopen.js',
+    './city/qingdao/data_legend.js',
+    './city/qingdao/data_timetable.js',
+    './city/qingdao/data_station_names.js',
+    './city/qingdao/data_construction.js',
+    './city/qingdao/modules/qingdao_station_name_history.js',
+    './city/qingdao/modules/qingdao_engineering_name_notice.js',
+    './city/qingdao/modules/qingdao_timetable.js',
+    './city/qingdao/modules/qingdao_construction.js',
+    './city/qingdao/amap_data.json',
+    './city/qingdao/staname.csv',
+    './city/qingdao/assets/qingdao_sea.svg',
+    './city/qingdao/assets/Aircraft.svg',
+    './city/qingdao/assets/China_Railway.svg',
+    './city/qingdao/assets/Long_Distance_Bus.svg',
+    './city/qingdao/assets/Ship.svg',
+    './city/qingdao/assets/Streetcar.svg',
+
     // 城市配置与业务数据 (大连)
     './city/dalian/dalian.js',
     './city/dalian/modules/dalian_map.js',
@@ -124,32 +153,44 @@ const ASSETS_TO_CACHE = [
     './city/dalian/data_lines.js',
     './city/dalian/data_virtual_transfers.js',
     './city/dalian/data_scattered.js',
+    './city/dalian/data_notopen.js',
     './city/dalian/data_legend.js',
     './city/dalian/data_timetable.js',
-    './city/dalian/data_notopen.js',
     './city/dalian/amap_data.json',
-    './city/dalian/assets/compass.svg',
     './city/dalian/assets/airport.svg',
-    './city/dalian/assets/railway.svg',
+    './city/dalian/assets/compass.svg',
     './city/dalian/assets/dalian_sea.svg',
-    './city/dalian/assets/tram-201.svg',
+    './city/dalian/assets/railway.svg',
     './city/dalian/assets/tram-201-interval.svg',
+    './city/dalian/assets/tram-201.svg',
     './city/dalian/assets/tram-202.svg',
 
     // 城市配置与业务数据 (长春)
-    './city/changchun/README.md',
     './city/changchun/changchun.js',
+    './city/changchun/modules/changchun_service_info.js',
     './city/changchun/stacard/script.js',
     './city/changchun/data_stations.js',
     './city/changchun/data_lines.js',
-    './city/changchun/amap_data.json',
-    './city/changchun/modules/changchun_service_info.js',
     './city/changchun/data_virtual_transfers.js',
     './city/changchun/data_scattered.js',
+    './city/changchun/data_notopen.js',
     './city/changchun/data_legend.js',
     './city/changchun/data_timetable.js',
-    './city/changchun/data_notopen.js',
+    './city/changchun/amap_data.json',
 
+    // 青岛线路徽标（核心统一从根目录 assets/svg/ 读取）
+    './assets/svg/icon@01.svg',
+    './assets/svg/icon@02.svg',
+    './assets/svg/icon@03.svg',
+    './assets/svg/icon@04.svg',
+    './assets/svg/icon@05.svg',
+    './assets/svg/icon@06.svg',
+    './assets/svg/icon@07.svg',
+    './assets/svg/icon@08.svg',
+    './assets/svg/icon@09.svg',
+    './assets/svg/icon@15.svg',
+    './assets/svg/icon@lg.svg',
+    './assets/svg/icon@xha.svg',
 
     // 图标与清单素材
     './assets/icons/icon-192.png',
@@ -161,6 +202,7 @@ const ASSETS_TO_CACHE = [
     './assets/icons/beian.png',
     './assets/icons/cgowx.png',
     './assets/icons/favicon.ico',
+    './assets/images/qq.jpg',
     './manifest.json',
 ];
 

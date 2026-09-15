@@ -20,6 +20,22 @@
 
 ---
 
+## 💬 官方交流与主理人社区
+
+在开始制作或移植前，强烈建议加入官方交流群，与核心团队及各地城市主理人实时交流、获取技术答疑与模板支持：
+
+- **官方 QQ 交流群**：**619357751**
+- **一键直达加群**：[👉 点击加入 CGo OpenMap 官方交流群](https://qm.qq.com/q/nHfgBDS68o)
+- **手机 QQ 扫码**：
+
+<p align="center">
+  <img src="./assets/images/qq.jpg" alt="官方 QQ 交流群二维码" width="200" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <br>
+  <em>扫码加入 CGo OpenMap 官方交流群 (619357751)</em>
+</p>
+
+---
+
 ## 🛡️ 官方版本兼容性承诺（合入主库 vs 独立分支）
 
 CGo OpenMap 核心引擎正在飞速演进（包括未来规划的换乘寻路引擎、时刻表联动、实际走向模式联动、3D 视图等重大升级）。
@@ -39,7 +55,7 @@ CGo OpenMap 核心引擎正在飞速演进（包括未来规划的换乘寻路�
 
 ### 第一步：Fork 并准备数据
 1. Fork 本仓库至你的 GitHub 账号，并克隆到本地；
-2. 仔细阅读 **[城市移植手册 (PORTING.md)](./PORTING.md)**，并参考现有的北京（`city/beijing/`）与沈阳（`city/shenyang/`）数据实现；
+2. 仔细阅读 **[城市移植手册 (PORTING.md)](./PORTING.md)**，并参考现有的北京（`city/beijing/`）、沈阳（`city/shenyang/`）、青岛（`city/qingdao/`）与合肥（`city/hefei/`）数据实现；
 3. **准备基础数据（两种方式任选）**：
    - **智能提取（推荐）**：启动静态服务访问 `http://localhost:8080/drunk/`，使用 **Drunk 转换工作台** 上传底图/PDF/AI 自动提取全网站点与走向并导出标准代码。  
      *(⚠️ 注：Drunk 系统目前处于早期开发验证阶段，仅供测试使用，数据需人工复核。极其欢迎开发者共同参与 Drunk 转换系统的算法与交互开发！)*
