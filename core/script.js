@@ -66,19 +66,26 @@ function rebuildSidebarHistory() {
         }
         div.innerHTML = `
             <div class="section-header">
-                <span>${sectionTitle}</span>
-                <span class="header-color-squares">
-                ${(station.relatedLines || []).slice().sort((a, b) => window.getLineSortIndex(a) - window.getLineSortIndex(b)).map(lid => {
-            const line = linesData.find(l => l.id === lid);
-            return line ? `<span class="header-color-square" style="background:${line.color};" title="${line.name}"></span>` : '';
-        }).join('')}
-                </span>
+                <span class="section-title-text"></span>
+                <span class="header-color-squares"></span>
                 <cgo-icon name="expand-more" class="section-arrow"></cgo-icon>
             </div>
             <div class="section-body">
-                <div style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;cursor:pointer;border:1px dashed var(--divider);margin:10px;border-radius:6px;" onclick="selectStation('${sid}')">点击此处查看详情</div>
+                <div class="station-history-detail-trigger" style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;cursor:pointer;border:1px dashed var(--divider);margin:10px;border-radius:6px;">点击此处查看详情</div>
             </div>
         `;
+        div.querySelector('.section-title-text').textContent = sectionTitle;
+        const squaresContainer = div.querySelector('.header-color-squares');
+        (station.relatedLines || []).slice().sort((a, b) => window.getLineSortIndex(a) - window.getLineSortIndex(b)).forEach(lid => {
+            const line = linesData.find(l => l.id === lid);
+            if (!line) return;
+            const square = document.createElement('span');
+            square.className = 'header-color-square';
+            square.style.background = line.color;
+            square.title = line.name;
+            squaresContainer.appendChild(square);
+        });
+        div.querySelector('.station-history-detail-trigger').addEventListener('click', () => selectStation(sid));
         container.appendChild(div);
     });
 }
@@ -189,17 +196,13 @@ Object.defineProperty(window, 'LINE_SYNC_GROUPS', {
  * 车站 SVG 图标模板字典
  * 包括：换乘站(tsf)、虚拟换乘站(tsfo)、普通站(dot)、暂缓开通站(no)、国铁火车站(rdot)
  */
-const SVGTemplates = {
-    tsf: `<svg viewBox="0 0 17.5 17.5"><circle cx="8.75" cy="8.75" r="8.75" style="fill: var(--map-bg);"/><circle cx="8.75" cy="8.75" r="8" style="fill: var(--station-stroke);"/><circle cx="8.75" cy="8.75" r="7.1" style="fill: var(--map-bg);"/><path d="M6.21,8.01c.12-2.35,2.26-4.22,4.88-4.22.23,0,.46.01.68.04-.55-.18-1.15-.27-1.77-.27-2.8,0-5.09,1.96-5.3,4.45h-1.4l2.34,2.47c.78-.82,1.56-1.65,2.34-2.47h-1.78.01Z" style="fill: var(--station-stroke);"/><path d="M11.85,7.02c-.78.82-1.56,1.65-2.34,2.47h1.78c-.12,2.35-2.26,4.22-4.88,4.22-.23,0-.46-.01-.68-.04.55.18,1.15.27,1.77.27,2.8,0,5.09-1.96,5.3-4.45h1.4l-2.34-2.47h0Z" style="fill: var(--station-stroke);"/></svg>`,
-    tsfo: `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" style="fill: var(--map-bg);"/><circle cx="5" cy="5" r="4.21" style="fill:{{COLOR}};"/><circle cx="5" cy="5" r="3.5" style="fill: var(--map-bg);"/></svg>`,
-    dot: `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" style="fill: var(--map-bg);"/><circle cx="5" cy="5" r="4.21" style="fill:{{COLOR}};"/><circle cx="5" cy="5" r="3.5" style="fill: var(--map-bg);"/></svg>`,
-    no: `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" style="fill: var(--map-bg);"/><path d="M7.5,5c0-.1-.02-.19-.03-.29l1.7-.13c-.05-.46-.15-.9-.33-1.3l-1.54.73c-.08-.18-.18-.34-.3-.5l1.41-.96c-.26-.37-.59-.69-.95-.95l-.97,1.41c-.15-.12-.32-.22-.5-.3l.74-1.54c-.4-.18-.84-.29-1.3-.34l-.14,1.7c-.1-.01-.19-.03-.29-.03s-.19.02-.29.03l-.13-1.7c-.46.05-.9.15-1.3.33l.73,1.54c-.18.08-.34.18-.5.3l-.96-1.41c-.37.26-.69.59-.95.95l1.41.97c-.12.15-.22.32-.3.5l-1.54-.74c-.18.4-.29.84-.34,1.3l1.7.14c-.01.1-.03.19-.03.29s.02.19.03.29l-1.7.13c.05.46.15.9.33,1.3l1.54-.73c.08.18.18.34.3.5l-1.41.96c.26.37.59.69.95.95l.97-1.41c.15.12.32.22.5.3l-.74,1.54c.4.18.84.29,1.3.34l.14-1.7c.1.01.19.03.29.03s.19-.02.29-.03l.13,1.7c.46-.05.9-.15,1.3-.33l-.73-1.54c.18-.08.34-.18.5-.3l.96,1.41c.37-.26.69-.58.95-.95l-1.41-.97c.12-.15.22-.32.3-.5l1.54.74c.18-.4.29-.84.34-1.3l-1.7-.14c.01-.1.03-.19.03-.29Z" style="fill: var(--not-open-color);"/><circle cx="5" cy="5" r="3.5" style="fill: var(--map-bg);"/></svg>`,
-    rdot: `<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" style="fill: var(--map-bg);"/><circle cx="5" cy="5" r="4.21" style="fill:#78848b;"/><circle cx="5" cy="5" r="3.5" style="fill: var(--map-bg);"/></svg>`
-};
+// 车站图元模板的唯一真源在 core/station-icons.js，Drunk 编辑模式共用同一份，
+// 以保证编辑器画布上的图元尺寸与配色就是线路图上的真实效果。
+const { SVGTemplates } = window.CGoStationIcons;
 
-// 默认圆角半径常量 (px)
-const RADIUS_90 = 18; // 90度拐角圆角半径
-const RADIUS_45 = 8;  // 45度拐角圆角半径
+// 折线倒角算法与半径常量的唯一真源在 core/path-geometry.js，
+// Drunk 编辑模式共用同一份实现以保证「所见即所得」。此处仅取引用。
+const { RADIUS_90, RADIUS_45 } = window.CGoPathGeometry;
 
 /**
  * 规范化 SVG 徽标文件路径
@@ -237,6 +240,21 @@ let HeadlessSvgRenderer = null;
 let isMapDragging = false;        // 地图是否处于拖拽状态
 
 /**
+ * 当前城市允许的缩放范围（城市可在配置中声明 minScale / maxScale，缺省 0.5 ~ 3.0）。
+ * 例如与邻城衔接的城市需要缩得更小，才能在同一视口里同时看到两座城市。
+ */
+function getScaleLimits() {
+    const city = getActiveCity();
+    const min = typeof city.minScale === 'number' ? city.minScale : 0.5;
+    const max = typeof city.maxScale === 'number' ? city.maxScale : 3.0;
+    return { min, max };
+}
+function clampScale(v) {
+    const { min, max } = getScaleLimits();
+    return Math.min(max, Math.max(min, v));
+}
+
+/**
  * 初始化车站卡片系统 (StaCard API)
  */
 async function initStaCardSystem() {
@@ -248,6 +266,22 @@ async function initStaCardSystem() {
             console.warn("[StaCard] 城市车站卡片初始化异常:", e);
         }
     }
+}
+
+/**
+ * 应用城市开通时刻表 (城市可选能力)
+ *
+ * 未开通区段与车站的预计开通时刻由各城 data_opening.js 维护，
+ * 共享层 city/shenyang/shared/opening-schedule.js 负责按当前时刻把状态转为
+ * 已开通或保持未开通。这里只提供通用入口，未接入该能力的城市整段不产生任何影响。
+ * 在模块顶层、init() 之前调用：既要早于 processData()，让派生出的车站站型与经停线路
+ * 与最终状态一致；也要早于 DOMContentLoaded，好让 core/notice.js 推送「新开通线路」通知时
+ * 能读到本次已生效的条目。
+ */
+function applyOpeningSchedule() {
+    if (!window.CGoOpening || typeof window.CGoOpening.applySchedule !== 'function') return;
+    const schedule = (typeof CGO_OPENING_SCHEDULE !== 'undefined') ? CGO_OPENING_SCHEDULE : [];
+    window.CGoOpening.applySchedule(schedule);
 }
 
 /**
@@ -942,20 +976,10 @@ function renderLines() {
             });
             layers.interaction.push(pathInteraction);
         };
-        if (line.hasbranch) {
-            drawSegment(line['pathPoints-main'], 'seg-main');
-            drawSegment(line['pathPoints-branch1'], 'seg-way1');
-            drawSegment(line['pathPoints-branch2'], 'seg-way2');
-        } else {
-            let points = line.pathPoints;
-            if (!points || points.length === 0) {
-                points = line.stationIds.map(sid => {
-                    const s = processedStations[sid];
-                    return s ? { x: s.x, y: s.y } : null;
-                }).filter(p => p !== null);
-            }
-            drawSegment(points, 'seg-main');
-        }
+        // 走向来源的判定统一在 core/path-geometry.js（Drunk 编辑模式共用同一份），
+        // 避免两边各写一份判定后悄悄漂移。
+        window.CGoPathGeometry.lineSegments(line, processedStations)
+            .forEach(seg => drawSegment(seg.points, seg.cls));
         layers.outer.forEach(p => visualGroup.appendChild(p));
         layers.inner.forEach(p => visualGroup.appendChild(p));
         layers.overlay.forEach(p => visualGroup.appendChild(p));
@@ -1170,8 +1194,9 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
         panel.style.display = 'block';
         panel.style.opacity = '1';
         mapContent.classList.add('animate-zoom');
-        currentX = (viewportW / 2) - (s.x * currentScale);
-        currentY = (viewportH / 2) - (s.y * currentScale);
+        const focus = getViewportCenter();
+        currentX = focus.x - (s.x * currentScale);
+        currentY = focus.y - (s.y * currentScale);
         enforceBoundaries();
         updateMapTransform();
     } else {
@@ -1187,16 +1212,19 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
             document.body.classList.add('mobile-split-active');
             infoPanel.style.display = 'flex';
             currentScale = 1.4;
-            const targetVisualX = viewportW / 2;
-            const targetVisualY = viewportH * 0.2;
+            // 底部抽屉与浮层遮挡由 getViewportCenter 统一扣除，落点即上半可用区的中心
+            const focus = getViewportCenter();
+            const targetVisualX = focus.x;
+            const targetVisualY = focus.y;
             currentX = targetVisualX - (s.x * currentScale);
             currentY = targetVisualY - (s.y * currentScale);
         } else {
             document.body.classList.remove('mobile-split-active');
             if (pageX === undefined || pageY === undefined) {
                 mapContent.classList.add('animate-zoom');
-                currentX = (viewportW / 2) - (s.x * currentScale);
-                currentY = (viewportH / 2) - (s.y * currentScale);
+                const focus = getViewportCenter();
+                currentX = focus.x - (s.x * currentScale);
+                currentY = focus.y - (s.y * currentScale);
                 showPanelAt(viewportW / 2 - 160, viewportH / 2 - 100);
             } else {
                 showPanelAt(pageX, pageY);
@@ -1277,9 +1305,7 @@ function bindEvents() {
     const btnOut = document.getElementById('mz-out');
     const updateZoom = (val) => {
         hideLineTooltipNow();
-        let newScale = parseFloat(val);
-        if (newScale < 0.5) newScale = 0.5;
-        if (newScale > 3.0) newScale = 3.0;
+        const newScale = clampScale(parseFloat(val));
         mapContent.classList.add('animate-zoom');
         const containerW = mapContainer.clientWidth;
         const containerH = mapContainer.clientHeight;
@@ -1294,7 +1320,12 @@ function bindEvents() {
         if (zoomVal) zoomVal.innerText = Math.round(newScale * 100) + '%';
         updateMapTransform();
     };
-    if (mzSlider) mzSlider.addEventListener('input', (e) => updateZoom(e.target.value));
+    if (mzSlider) {
+        const { min, max } = getScaleLimits();
+        mzSlider.min = String(min);
+        mzSlider.max = String(max);
+        mzSlider.addEventListener('input', (e) => updateZoom(e.target.value));
+    }
     if (btnIn) btnIn.addEventListener('click', () => updateZoom(currentScale + 0.1));
     if (btnOut) btnOut.addEventListener('click', () => updateZoom(currentScale - 0.1));
     const stationClickHandler = (e) => {
@@ -1454,17 +1485,93 @@ function initLegendPin() {
     }
 }
 /**
- * 地图初始居中 (根据城市配置 center 与默认缩放等级重置视口中心)
+ * 获取浮动标题栏在地图画布顶部需要的避让留白像素（防止顶栏遮挡最上方的车站与线路）
+ */
+function getMapTopOffset() {
+    const isFloating = document.documentElement.getAttribute('header-mode') === 'floating' ||
+        document.body.getAttribute('header-mode') === 'floating' ||
+        Boolean(document.querySelector('.tool-header[header-mode="floating"]'));
+    if (!isFloating) return 0;
+    const header = document.querySelector('.tool-header');
+    if (header) {
+        const island = header.querySelector('.header-island');
+        if (island) {
+            const rect = island.getBoundingClientRect();
+            return Math.max(76, Math.ceil(rect.bottom + 12));
+        }
+    }
+    return 76;
+}
+
+/**
+ * 视口内边距：浮在画布边缘的控件（左侧缩放条、打开的面板浮层、移动端底部抽屉）所占的尺寸，
+ * 由功能模块通过 `window.CGoViewportInsets = { left, right, bottom }`（px）声明——
+ * 引擎只消费不定义，谁开的面板谁报数。缺省或全为 0 时，边界与居中计算与不加内边距时完全一致。
+ */
+function getViewportInsets() {
+    const raw = window.CGoViewportInsets || {};
+    const pick = (value) => (typeof value === 'number' && isFinite(value) && value > 0 ? value : 0);
+    return { left: pick(raw.left), right: pick(raw.right), bottom: pick(raw.bottom) };
+}
+
+/**
+ * 当前「可视可用区」的中心：所有把某个车站居中到眼前的动作都以它为落点，
+ * 浮层一打开，自动定位的车站就不会被面板压住。
+ * 底部取「移动端三档抽屉的 0.6 档」与模块声明的内边距中的较大者——两者占同一块底部区域。
+ */
+function getViewportCenter() {
+    const insets = getViewportInsets();
+    const containerW = mapContainer.clientWidth;
+    const containerH = mapContainer.clientHeight;
+    const isSplitMode = document.body.classList.contains('mobile-split-active');
+    const bottomOffset = Math.max(isSplitMode ? containerH * 0.6 : 0, insets.bottom);
+    return {
+        x: insets.left + Math.max(0, containerW - insets.left - insets.right) / 2,
+        y: Math.max(0, containerH - bottomOffset) / 2
+    };
+}
+
+/**
+ * 地图初始居中 (根据城市配置 center 与默认缩放等级重置视口中心，自动避让浮动标题栏)
  */
 function centerMap() {
     const city = getActiveCity();
     const containerW = mapContainer.clientWidth;
     const containerH = mapContainer.clientHeight;
+    const topOffset = getMapTopOffset();
+    const isSplitMode = document.body.classList.contains('mobile-split-active');
+    const insets = getViewportInsets();
+    const bottomOffset = Math.max(isSplitMode ? containerH * 0.62 : 0, insets.bottom);
+    const availableW = Math.max(200, containerW - insets.left - insets.right);
+    const availableH = Math.max(200, containerH - topOffset - bottomOffset);
+
     const targetX = city.center ? city.center.x : 900;
     const targetY = city.center ? city.center.y : 640;
-    currentX = (containerW / 2) - (targetX * currentScale);
-    currentY = (containerH / 2) - (targetY * currentScale);
+    currentX = insets.left + (availableW / 2) - (targetX * currentScale);
+    currentY = topOffset + (availableH / 2) - (targetY * currentScale);
+    if (typeof enforceBoundaries === 'function') enforceBoundaries();
     updateMapTransform();
+}
+
+/**
+ * 按目标缩放与平移直接设置地图视图，供功能模块取景用（如行程规划的「查看全程」）。
+ * 引擎的平移 / 缩放是模块私有量，外部没法落位，故留这一个最小的设置口——
+ * 取景算法留在调用方，这里只负责落位、夹取边界并同步缩放控件读数。
+ * @param {{x?:number, y?:number, scale?:number}} view
+ * @returns {boolean} 是否已应用
+ */
+function setMapView(view) {
+    if (!view) return false;
+    if (Number.isFinite(view.scale)) currentScale = clampScale(view.scale);
+    if (Number.isFinite(view.x)) currentX = view.x;
+    if (Number.isFinite(view.y)) currentY = view.y;
+    enforceBoundaries();
+    updateMapTransform();
+    const slider = document.getElementById('mz-slider');
+    if (slider) slider.value = currentScale;
+    const zoomVal = document.getElementById('zoom-val');
+    if (zoomVal) zoomVal.innerText = Math.round(currentScale * 100) + '%';
+    return true;
 }
 
 /**
@@ -1472,10 +1579,26 @@ function centerMap() {
  */
 function localUpdateMapTransform() {
     mapContent.style.transform = `translate(${currentX}px, ${currentY}px) scale(${currentScale})`;
+    markMapMoving();
 }
 
 /**
- * 地图边界限制算法 (防止用户将地图完全拖出可视视口外)
+ * 拖动 / 缩放期间把地图提升为独立合成层（will-change: transform），由 GPU 直接平移缩放已栅格化的图层，
+ * 避免每一帧重绘全部站名文字；停手片刻后撤销提升，让浏览器按最终缩放比例重新清晰栅格化。
+ * （常驻 will-change 会让放大后的文字发糊，所以只在交互期间开启。）
+ */
+let mapMovingTimer = null;
+function markMapMoving() {
+    if (!mapContent.classList.contains('is-moving')) mapContent.classList.add('is-moving');
+    clearTimeout(mapMovingTimer);
+    // 带 CSS 过渡的移动（按钮缩放、飞跃定位、切城滑动）要等过渡结束再撤销
+    const settle = mapContent.classList.contains('nb-glide') || document.documentElement.classList.contains('nb-fadein') ? 950
+        : mapContent.classList.contains('animate-zoom') ? 450 : 220;
+    mapMovingTimer = setTimeout(() => mapContent.classList.remove('is-moving'), settle);
+}
+
+/**
+ * 地图边界限制算法 (防止用户将地图完全拖出可视视口外，并预留浮动标题栏顶部保护留白)
  */
 function localEnforceBoundaries() {
     const city = getActiveCity();
@@ -1488,23 +1611,29 @@ function localEnforceBoundaries() {
 
     // 移动端分屏模式下底栏高度偏移补偿 (60% 高度抽屉)
     const isSplitMode = document.body.classList.contains('mobile-split-active');
-    const bottomOffset = isSplitMode ? containerH * 0.62 : 0;
+    const insets = getViewportInsets();
+    // 底部遮挡：抽屉与浮层占同一块区域，取较大者
+    const bottomOffset = Math.max(isSplitMode ? containerH * 0.62 : 0, insets.bottom);
+    const topOffset = getMapTopOffset();
+    // 水平可用区扣掉左右内边距；内边距为 0 时下述算式与原来的 [0, containerW] 逐字等价
+    const availW = Math.max(0, containerW - insets.left - insets.right);
 
-    if (mapW >= containerW) {
-        if (currentX > 0) currentX = 0;
-        if (currentX < containerW - mapW) currentX = containerW - mapW;
+    if (mapW >= availW) {
+        if (currentX > insets.left) currentX = insets.left;
+        const minX = insets.left + availW - mapW;
+        if (currentX < minX) currentX = minX;
     } else {
-        currentX = (containerW - mapW) / 2;
+        currentX = insets.left + (availW - mapW) / 2;
     }
     if (mapH >= containerH) {
-        if (currentY > 0) currentY = 0;
+        if (currentY > topOffset) currentY = topOffset;
         const minY = containerH - mapH - bottomOffset;
         if (currentY < minY) currentY = minY;
     } else {
         if (isSplitMode) {
             currentY = (containerH * 0.4 - mapH) / 2;
         } else {
-            currentY = (containerH - mapH) / 2;
+            currentY = topOffset + (containerH - topOffset - mapH) / 2;
         }
     }
 }
@@ -1603,6 +1732,9 @@ function highlightLine(lineId, currentStationId = null, fromSync = false) {
         if (highlightLayer) {
             if (!highlightLayer.querySelector(`[data-visual-id="${lineId}"]`)) {
                 const clone = el.cloneNode(true);
+                // 高亮层只是线路的视觉副本，不能继承 active 状态；否则原线路和副本会分别应用阴影滤镜，
+                // 换乘站关联线路越多，Android Edge 上看到的阴影叠加层就越多。
+                clone.classList.remove('active');
                 const interactPath = clone.querySelector('.line-interaction');
                 if (interactPath) interactPath.remove();
                 highlightLayer.appendChild(clone);
@@ -1915,6 +2047,7 @@ function renderUserModePanel(station, initialTabIndex = 0) {
             selectStation,
             injectInlineSvgs,
             initPanelDrag,
+            initMobileSheetDrag,
             adjustPanelPosition
         }
     };
@@ -2036,6 +2169,18 @@ function renderUserModePanel(station, initialTabIndex = 0) {
         });
     });
     injectInlineSvgs(infoPanel);
+    // 移动端：注入抽屉把手并初始化三档拖拽
+    if (window.innerWidth <= 640) {
+        // 把手内容动态注入到 panel-header 顶部
+        const panelHeader = infoPanel.querySelector('.panel-header');
+        if (panelHeader && !panelHeader.querySelector('.sheet-grabber')) {
+            const grabberEl = document.createElement('div');
+            grabberEl.className = 'sheet-grabber';
+            grabberEl.innerHTML = '<span class="sheet-grabber-bar"></span>';
+            panelHeader.insertBefore(grabberEl, panelHeader.firstChild);
+        }
+        initMobileSheetDrag();
+    }
     initPanelDrag();
 
     if (initialTabIndex > 0) {
@@ -2046,13 +2191,37 @@ function renderUserModePanel(station, initialTabIndex = 0) {
     }
 }
 function toggleMobilePanelSize(station) {
-    const isExpanded = document.body.classList.toggle('mobile-panel-expanded');
-    const btn = document.querySelector('.panel-expand-btn');
-    updateExpandIcon(btn, isExpanded);
-    if (typeof mapContainer !== 'undefined' && typeof currentScale !== 'undefined') {
+    // 三档循环：收起 → 半屏 → 全屏 → 半屏
+    const isCollapsed = document.body.classList.contains('panel-sheet-collapsed');
+    const isExpanded  = document.body.classList.contains('mobile-panel-expanded');
+
+    if (isCollapsed) {
+        // 收起 → 半屏
+        document.body.classList.remove('panel-sheet-collapsed');
+        document.body.classList.remove('mobile-panel-docked-full');
+        // mobile-split-active 应已就均存在；如果尚未添加则补上
+        if (!document.body.classList.contains('mobile-split-active')) {
+            document.body.classList.add('mobile-split-active');
+        }
+    } else if (!isExpanded) {
+        // 半屏 → 全屏
+        document.body.classList.add('mobile-panel-expanded');
+        document.body.classList.remove('panel-sheet-collapsed');
+        // 落定后添加 docked-full（用于触发顶部填色）
+        setTimeout(() => {
+            if (document.body.classList.contains('mobile-panel-expanded')) {
+                document.body.classList.add('mobile-panel-docked-full');
+            }
+        }, 400);
+    } else {
+        // 全屏 → 半屏
+        document.body.classList.remove('mobile-panel-expanded');
+        document.body.classList.remove('mobile-panel-docked-full');
+    }
+    if (typeof mapContainer !== 'undefined' && typeof currentScale !== 'undefined' && station) {
         const viewportW = mapContainer.clientWidth;
         const viewportH = mapContainer.clientHeight;
-        const targetVisualY = isExpanded ? (viewportH * 0.2) : (viewportH * 0.2);
+        const targetVisualY = viewportH * 0.2;
         const targetVisualX = viewportW / 2;
         currentX = targetVisualX - (station.x * currentScale);
         currentY = targetVisualY - (station.y * currentScale);
@@ -2097,6 +2266,9 @@ function resetMapState() {
     if (selector) selector.remove();
     document.body.classList.remove('mobile-split-active');
     document.body.classList.remove('mobile-panel-expanded');
+    document.body.classList.remove('panel-sheet-collapsed');
+    document.body.classList.remove('panel-sheet-dragging');
+    document.body.classList.remove('mobile-panel-docked-full');
     clearHighlights();
     lastSelectedStationId = null;
     if (window.innerWidth > 640 && document.body.classList.contains('legend-pinned') && dynamicContainer) {
@@ -2108,6 +2280,267 @@ function resetMapState() {
     updateMapTransform();
     updateShareMeta(null); // Restore original title/meta
     setTimeout(() => mapContent.classList.remove('animate-zoom'), 300);
+}
+
+
+/**
+ * 移动端三档抽屉拖拽系统 (Mobile Three-Stage Sheet Drag)
+ * 三档：收起(panel-sheet-collapsed) / 半屏(mobile-split-active) / 全屏(mobile-panel-expanded)
+ * 技术：Pointer Event，速度估算，临界阻尼弹簧落位动画
+ */
+function initMobileSheetDrag() {
+    if (window.innerWidth > 640) return;
+
+    const panel = document.getElementById('info-panel');
+    if (!panel) return;
+
+    // 清理旧监听（避免重复绑定）
+    if (panel._mobileSheetDragCleanup) {
+        panel._mobileSheetDragCleanup();
+    }
+
+    // ── 常量 ──────────────────────────────────────────────────────────
+    const STAGE_STEP_MIN_DISTANCE = 26;   // px：换档最小净位移
+    const STAGE_STEP_MIN_VELOCITY = 0.6;  // px/ms：换档最小速度
+    const EXTREME_FLICK_VELOCITY  = 1.8;  // px/ms：允许跨档甩动速度
+    const VELOCITY_STALE_MS       = 90;   // ms：停顿超过此值，速度归零
+    const SETTLE_OMEGA            = 14;   // rad/s：落位弹簧角频率（临界阻尼）
+    const SETTLE_MAX_DURATION     = 900;  // ms：落位动画最长时长
+    const STAGES = ['collapsed', 'half', 'full'];
+
+    // ── 档位计算 ─────────────────────────────────────────────────────
+    function getDetents() {
+        const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        // 90px = 20px 把手感应区 + 70px panel-header min-height，与 CSS 一致
+        const COLLAPSED_EXPOSE = 90;
+        // safe-area-inset-top 无法直接通过 JS getComputedStyle 读取，
+        // 安全区高度用 env() 在 CSS 中已处理， JS 这里暗设 0
+        const safeTop = 0;
+        return {
+            full:      safeTop + 60,
+            half:      vh * 0.40,
+            // 确保 collapsed 至少在 half 档以下
+            collapsed: Math.max(vh * 0.40 + COLLAPSED_EXPOSE, vh - COLLAPSED_EXPOSE)
+        };
+    }
+
+    function getCurrentStage() {
+        if (document.body.classList.contains('panel-sheet-collapsed')) return 'collapsed';
+        if (document.body.classList.contains('mobile-panel-expanded'))  return 'full';
+        return 'half';
+    }
+
+    function applyStage(stageName, animate) {
+        const detents = getDetents();
+        const targetTop = detents[stageName];
+
+        // 更新 body 类
+        document.body.classList.remove('panel-sheet-collapsed', 'mobile-panel-expanded', 'mobile-panel-docked-full');
+        if (stageName === 'collapsed') {
+            document.body.classList.add('panel-sheet-collapsed');
+        } else if (stageName === 'full') {
+            document.body.classList.add('mobile-panel-expanded');
+            // 落位完成后开启顶部填色
+            setTimeout(() => {
+                if (document.body.classList.contains('mobile-panel-expanded')) {
+                    document.body.classList.add('mobile-panel-docked-full');
+                }
+            }, animate ? 420 : 0);
+        }
+        // mobile-split-active 在所有三档都保持（是面板"打开"的标记）
+        if (!document.body.classList.contains('mobile-split-active')) {
+            document.body.classList.add('mobile-split-active');
+        }
+        return targetTop;
+    }
+
+    // ── 弹簧落位动画 ─────────────────────────────────────────────────
+    let settleRaf = null;
+    function animateSettle(startTop, targetTop, releaseVelocity, onDone) {
+        if (settleRaf) { cancelAnimationFrame(settleRaf); settleRaf = null; }
+        const distance = targetTop - startTop;
+        let t = 0;
+        let lastTs = null;
+        // 临界阻尼：x(t) = (startTop - targetTop + v0/ω * t) * e^(-ωt) + targetTop
+        function frame(ts) {
+            if (!lastTs) lastTs = ts;
+            t += Math.min(ts - lastTs, 32); // 最大单帧 32ms 防跳变
+            lastTs = ts;
+            // 临界阻尼位移
+            const omega = SETTLE_OMEGA;
+            const x0 = startTop - targetTop;          // 初始偏移
+            const v0 = releaseVelocity || 0;           // 初始速度
+            const A = x0;
+            const B = v0 + omega * x0;
+            const exp = Math.exp(-omega * t / 1000);
+            const pos = targetTop + (A + B * t / 1000) * exp;
+            panel.style.top = pos + 'px';
+            if (t < SETTLE_MAX_DURATION && Math.abs(pos - targetTop) > 0.3) {
+                settleRaf = requestAnimationFrame(frame);
+            } else {
+                panel.style.top = '';
+                if (onDone) onDone();
+            }
+        }
+        settleRaf = requestAnimationFrame(frame);
+    }
+
+    // ── 拖拽状态 ─────────────────────────────────────────────────────
+    const DRAG_START_THRESHOLD = 6;   // 位移超过该值才判定为拖拽；以下视为轻点，交给 click
+    let drag = null;
+
+    function onPointerDown(e) {
+        if (window.innerWidth > 640) return;
+        const target = e.target;
+        // 按钮 / 链接 / 表单控件上按下时不接管：一旦面板捕获指针，浏览器就会把随后的
+        // click 派发给面板而不是该控件，导致面板内按钮（底栏、标题栏关闭等）全都点不动
+        if (target.closest('button, a, input, select, textarea, label')) return;
+        const isGrabber = target.closest('.sheet-grabber, .panel-header');
+        const isContent = !isGrabber;
+
+        // 内容区：只有当面板是半屏或全屏时才接管（且向上拖才能升档）
+        // 把手/头部：任何时候都可以拖
+        if (isContent) {
+            const currentStage = getCurrentStage();
+            if (currentStage === 'collapsed') return; // 收起时内容不可见，不处理
+        }
+
+        // 阻止触摸事件触发浏览器滚动（仅在把手上）
+        if (isGrabber) e.preventDefault();
+
+        if (settleRaf) { cancelAnimationFrame(settleRaf); settleRaf = null; }
+        // 禁用 CSS transition （必须用 important 才能覆盖带 !important 的 CSS 规则）
+        panel.style.setProperty('transition', 'none', 'important');
+
+        const startRect = panel.getBoundingClientRect();
+        drag = {
+            startY:    e.clientY,
+            startTop:  startRect.top,
+            currentTop: startRect.top,
+            lastY:     e.clientY,
+            lastAt:    performance.now(),
+            velocity:  0,
+            startStage: getCurrentStage(),
+            isGrabber,
+            pointerId: e.pointerId,
+            captured:  false      // 指针捕获与拖拽态延迟到真正拖动时（见 onPointerMove）
+        };
+    }
+
+    function onPointerMove(e) {
+        if (!drag) return;
+        const detents = getDetents();
+        const dy = e.clientY - drag.startY;
+        // 轻点不进入拖拽：只有位移超过阈值才捕获指针并切到拖拽态，
+        // 否则 click 会被派发到面板上，面板内的按钮就点不动了
+        if (!drag.captured) {
+            if (Math.abs(dy) < DRAG_START_THRESHOLD) return;
+            panel.setPointerCapture && panel.setPointerCapture(drag.pointerId);
+            drag.captured = true;
+            document.body.classList.add('panel-sheet-dragging');
+            document.body.classList.remove('mobile-panel-docked-full');   // 拖拽时收回顶部填色
+        }
+        const rawTop = drag.startTop + dy;
+        const clamped = Math.max(detents.full, Math.min(detents.collapsed, rawTop));
+
+        const now = performance.now();
+        const elapsed = Math.max(1, now - drag.lastAt);
+        const instant = (e.clientY - drag.lastY) / elapsed;
+        drag.velocity = elapsed > VELOCITY_STALE_MS
+            ? instant
+            : drag.velocity * 0.6 + instant * 0.4;
+        drag.lastY = e.clientY;
+        drag.lastAt = now;
+        drag.currentTop = clamped;
+
+        // 必须用 important 才能覆盖带 !important 的 CSS body 类选择器规则
+        panel.style.setProperty('top', clamped + 'px', 'important');
+    }
+
+    function onPointerUp(e) {
+        if (!drag) return;
+        if (drag.captured) {
+            panel.releasePointerCapture && panel.releasePointerCapture(drag.pointerId);
+            document.body.classList.remove('panel-sheet-dragging');
+        }
+        // 恢复 transition：先清除内联属性，再交回 CSS 控制
+        panel.style.removeProperty('transition');
+        panel.style.removeProperty('top');
+
+        const detents = getDetents();
+        const dy = e.clientY - drag.startY;
+        const releaseVelocity = performance.now() - drag.lastAt > VELOCITY_STALE_MS ? 0 : drag.velocity;
+        const committed = Math.abs(dy) >= STAGE_STEP_MIN_DISTANCE
+            || Math.abs(releaseVelocity) >= STAGE_STEP_MIN_VELOCITY;
+        let nextStage;
+
+        if (Math.abs(dy) < 7 && drag.isGrabber) {
+            // 轻点把手：三档循环
+            if (drag.startStage === 'full') {
+                nextStage = 'half';
+            } else if (drag.startStage === 'half') {
+                nextStage = 'full';
+            } else {
+                nextStage = 'half'; // collapsed → half
+            }
+        } else if (!committed) {
+            nextStage = drag.startStage;
+        } else {
+            const travel = detents.collapsed - detents.full;
+            const extremeDist = Math.max(120, travel * 0.28);
+            const fast = Math.abs(releaseVelocity) >= EXTREME_FLICK_VELOCITY && Math.abs(dy) >= extremeDist;
+            const goingUp = fast ? releaseVelocity < 0 : dy < 0;
+            const startIdx = STAGES.indexOf(drag.startStage);
+            if (goingUp) {
+                nextStage = fast ? 'full' : STAGES[Math.min(STAGES.length - 1, startIdx + 1)];
+            } else {
+                nextStage = fast ? 'collapsed' : STAGES[Math.max(0, startIdx - 1)];
+            }
+        }
+
+        const currentTop = drag.currentTop;
+        drag = null;
+
+        const targetTop = applyStage(nextStage, true);
+        animateSettle(currentTop, targetTop, releaseVelocity);
+    }
+
+    function onPointerCancel(e) {
+        if (!drag) return;
+        if (drag.captured) {
+            panel.releasePointerCapture && panel.releasePointerCapture(drag.pointerId);
+            document.body.classList.remove('panel-sheet-dragging');
+        }
+        panel.style.removeProperty('transition');
+        panel.style.removeProperty('top');
+        // 就近吸附
+        const detents = getDetents();
+        const pos = drag.currentTop;
+        const midFH = (detents.full + detents.half) / 2;
+        const midHC = (detents.half + detents.collapsed) / 2;
+        let stage;
+        if (pos < midFH) stage = 'full';
+        else if (pos < midHC) stage = 'half';
+        else stage = 'collapsed';
+        const currentTop = drag.currentTop;
+        drag = null;
+        const targetTop = applyStage(stage, true);
+        animateSettle(currentTop, targetTop, 0);
+    }
+
+    panel.addEventListener('pointerdown',   onPointerDown,  { passive: false });
+    panel.addEventListener('pointermove',   onPointerMove,  { passive: true });
+    panel.addEventListener('pointerup',     onPointerUp);
+    panel.addEventListener('pointercancel', onPointerCancel);
+
+    // 注册清理函数
+    panel._mobileSheetDragCleanup = () => {
+        panel.removeEventListener('pointerdown',   onPointerDown);
+        panel.removeEventListener('pointermove',   onPointerMove);
+        panel.removeEventListener('pointerup',     onPointerUp);
+        panel.removeEventListener('pointercancel', onPointerCancel);
+        if (settleRaf) cancelAnimationFrame(settleRaf);
+    };
 }
 
 function handleShare(station, lineId = "") {
@@ -2228,49 +2661,17 @@ function updateShareMeta(station) {
 
 /**
  * 平滑贝塞尔曲线折线倒角算法 (Corner Rounding & Smoothing Algorithm)
- * 
- * 核心数学原理：
- * 1. 遍历折线点阵中的每一对前后相邻线段向量 v1 (Prev -> Curr) 与 v2 (Curr -> Next)；
- * 2. 归一化为单位方向向量 u1, u2；
- * 3. 利用点积 (Dot Product) 判断拐角夹角类型：
- *    - 当 dot 接近 0 (|u1 · u2| < 0.1) 时为 90° 直角，默认半径 RADIUS_90 (18px)；
- *    - 否则为 45° 或其它斜角，默认半径 RADIUS_45 (8px)；
- *    - 若点对象显式指定了 `pCurr.r`，则优先采用该自定义圆角半径；
- * 4. 为避免线段过短导致圆角相互重叠畸变，采用 `limitFactor` (默认 0.9) 限制最大半径；
- * 5. 使用二次贝塞尔曲线指令 `Q` 以拐角顶点 pCurr 为控制点，从切点 (startX, startY) 平滑过渡到 (endX, endY)。
- * 
+ *
+ * 实现已抽至 `core/path-geometry.js`，由本引擎与 Drunk 编辑模式共用——
+ * 编辑器预览与实际渲染必须是逐字节相同的 path 指令，否则在 Drunk 里调出来的
+ * 走向与圆角上线后会是另一个样子。此处保留同名同签名的薄封装，调用方无需改动。
+ *
  * @param {Array<{x: number, y: number, r?: number}>} points - 折线点阵坐标数组
  * @param {boolean|number} [roundingParam=false] - 是否启用严格倒角限制或指定限制比例因子
  * @returns {string} SVG Path 数据指令字符串 (如 "M 10 10 L 20 20 Q 30 20 30 30...")
  */
 function generateRoundedPath(points, roundingParam = false) {
-    if (!points || points.length < 2) return "";
-    let d = `M ${points[0].x} ${points[0].y}`;
-    let limitFactor = 0.9;
-    if (typeof roundingParam === 'number') {
-        limitFactor = roundingParam;
-    } else if (roundingParam === true) {
-        limitFactor = 0.5;
-    }
-    for (let i = 1; i < points.length - 1; i++) {
-        const pPrev = points[i - 1], pCurr = points[i], pNext = points[i + 1];
-        const v1 = { x: pCurr.x - pPrev.x, y: pCurr.y - pPrev.y };
-        const v2 = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
-        const len1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
-        const len2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-        if (len1 < 0.01 || len2 < 0.01) continue;
-        const u1 = { x: v1.x / len1, y: v1.y / len1 };
-        const u2 = { x: v2.x / len2, y: v2.y / len2 };
-        let targetRadius = pCurr.r !== undefined ? pCurr.r :
-            (Math.abs(u1.x * u2.x + u1.y * u2.y) < 0.1 ? RADIUS_90 : RADIUS_45);
-        const r = Math.min(targetRadius, len1 * limitFactor, len2 * limitFactor);
-        const startX = pCurr.x - u1.x * r, startY = pCurr.y - u1.y * r;
-        const endX = pCurr.x + u2.x * r, endY = pCurr.y + u2.y * r;
-        d += ` L ${startX} ${startY} Q ${pCurr.x} ${pCurr.y} ${endX} ${endY}`;
-    }
-    const last = points[points.length - 1];
-    d += ` L ${last.x} ${last.y}`;
-    return d;
+    return window.CGoPathGeometry.generateRoundedPath(points, roundingParam);
 }
 
 /**
@@ -2327,8 +2728,7 @@ function updateTooltipPos(x, y) {
 function triggerUpdateZoom(newScale) {
     const slider = document.getElementById('mz-slider');
     if (slider) {
-        if (newScale < 0.5) newScale = 0.5;
-        if (newScale > 3.0) newScale = 3.0;
+        newScale = clampScale(newScale);
         slider.value = newScale;
         slider.dispatchEvent(new Event('input'));
     }
@@ -2844,7 +3244,9 @@ function initContextMenu() {
         const navStation = subwayGroup.length > 0 ? subwayGroup[0] : railGroup[0];
         if (navStation && navStation.type !== 'no') {
             const isRail = railGroup.length > 0 && subwayGroup.length === 0;
-            const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(name, isRail) : `https://uri.amap.com/search?keyword=${encodeURIComponent(name)}`;
+            // 第三参传 station 供城市侧判断站型（如区分有轨电车站 / 火车站），
+            // 「有轨」属城市私有知识，core 只负责把事实数据交出去
+            const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(name, isRail, { station: navStation }) : `https://uri.amap.com/search?keyword=${encodeURIComponent(name)}`;
             html += `<div class="ctx-divider">导航</div>`;
             html += `<a href="${mapUrl}" target="_blank" rel="noreferrer" class="ctx-menu-btn"><cgo-icon name="map" size="16"></cgo-icon> 高德导航</a>`;
         }
@@ -2862,7 +3264,7 @@ function initContextMenu() {
             type = 'rail';
         }
         html += getStationButtons(station, type);
-        const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(station.cn, type === 'rail') : `https://uri.amap.com/search?keyword=${encodeURIComponent(station.cn)}`;
+        const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(station.cn, type === 'rail', { station }) : `https://uri.amap.com/search?keyword=${encodeURIComponent(station.cn)}`;
         html += `<a href="${mapUrl}" target="_blank" rel="noreferrer" class="ctx-menu-btn"><cgo-icon name="map" size="16"></cgo-icon> 高德导航</a>`;
         return html;
     };
@@ -3381,8 +3783,7 @@ function initInputControls() {
     const slider = document.getElementById('map-container');
     if (!slider) return;
     const zoomToPoint = (targetScale, clientX, clientY) => {
-        if (targetScale < 0.5) targetScale = 0.5;
-        if (targetScale > 3.0) targetScale = 3.0;
+        targetScale = clampScale(targetScale);
         const rect = slider.getBoundingClientRect();
         const centerX = (clientX !== undefined) ? (clientX - rect.left) : (rect.width / 2);
         const centerY = (clientY !== undefined) ? (clientY - rect.top) : (rect.height / 2);
@@ -3566,6 +3967,10 @@ function initInputControls() {
 }
 
 initContextMenu();
+
+// 开通时刻的应用要早于渲染，也要早于 DOMContentLoaded（notice.js 在后者推送新开通通知）
+applyOpeningSchedule();
+
 init();
 
 /**
@@ -3602,6 +4007,9 @@ init();
             document.body.classList.remove('legend-pinned');
             document.body.classList.remove('pinned-hidden');
             document.body.classList.remove('mobile-panel-expanded');
+            document.body.classList.remove('panel-sheet-collapsed');
+            document.body.classList.remove('panel-sheet-dragging');
+            document.body.classList.remove('mobile-panel-docked-full');
             if (overlay) overlay.style.display = 'none';
             if (pinBtn) pinBtn.style.display = 'none';
             renderLegend(); // Correctly calls renderDefaultLegend via renderLegend check
@@ -3629,6 +4037,9 @@ init();
         } else {
             document.body.classList.remove('mobile-split-active');
             document.body.classList.remove('mobile-panel-expanded');
+            document.body.classList.remove('panel-sheet-collapsed');
+            document.body.classList.remove('panel-sheet-dragging');
+            document.body.classList.remove('mobile-panel-docked-full');
             if (pinBtn) pinBtn.style.display = '';
 
             if (userWantsPin) {
@@ -3701,6 +4112,10 @@ init();
     window.linesData = linesData;
     window.enforceBoundaries = enforceBoundaries;
     window.updateMapTransform = updateMapTransform;
+    window.getScaleLimits = getScaleLimits;
+    window.setMapView = setMapView;
+    // 供城市或扩展模块在自定义边界规则中复用引擎自带的边界限制
+    window.localEnforceBoundaries = localEnforceBoundaries;
     window.stationsData = typeof stationsData !== 'undefined' ? stationsData : undefined;
 
     // 共享 DOM 常量挂载

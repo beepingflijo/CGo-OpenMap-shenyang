@@ -18,7 +18,7 @@
  * ==============================================================================
  */
 
-const CACHE_NAME = 'cgo-openmap-v260915.0030';
+const CACHE_NAME = 'cgo-openmap-v260928.0907';
 const ASSETS_TO_CACHE = [
     // 页面与入口
     './',
@@ -26,6 +26,29 @@ const ASSETS_TO_CACHE = [
     './main.html',
     './readme.html',
     './privacy.html',
+
+    // 线路图在线编辑器 (city-editor)
+    './city-editor/index.html',
+    './city-editor/css/editor.css',
+    './city-editor/js/editor.js',
+    // 编辑器示例工程（sample/cityedit_sample.json）引用的线路徽标模板
+    './assets/svg/icon@bh.svg',
+
+    // Drunk 转换工作台与城市编辑模式 (drunk)
+    // 注：drunk/tools/selfcheck.js 是 Node 端自检脚本，浏览器不会请求，故不预缓存
+    './drunk/index.html',
+    './drunk/css/drunk.css',
+    './drunk/js/drunk_logger.js',
+    './drunk/js/drunk_sanitizer.js',
+    './drunk/js/city_project_io.js',
+    './drunk/js/city_knowledge_matcher.js',
+    './drunk/js/pdf_vector_extractor.js',
+    './drunk/js/deepseek_vision.js',
+    './drunk/js/vision_detector.js',
+    './drunk/js/ocr_align_solver.js',
+    './drunk/js/topology_tracer.js',
+    './drunk/js/openmap_codegen.js',
+    './drunk/js/drunk_pipeline.js',
 
     // 样式表
     './css/style.css',
@@ -40,7 +63,10 @@ const ASSETS_TO_CACHE = [
     './core/tool-theme.js',
     './core/station-board.js',
     './core/script.js',
+    './core/city-neighbors.js',
     './core/help.js',
+    './core/path-geometry.js',
+    './core/station-icons.js',
     './core/settings.js',
     './core/notice.js',
 
@@ -83,24 +109,105 @@ const ASSETS_TO_CACHE = [
     './city/shenyang/shenyang.js',
     './city/shenyang/modules/shenyang_map.js',
     './city/shenyang/modules/shenyang_station_board.js',
+    './city/shenyang/modules/shenyang_station_title.js',
     './city/shenyang/modules/shenyang_cultural.js',
     './city/shenyang/modules/shenyang_service_info.js',
+    './city/shenyang/modules/shenyang_calligraphy.js',
     './city/shenyang/stacard/script.js',
     './city/shenyang/stacard/data.js',
+    './city/shenyang/data_calligraphy.js',
     './city/shenyang/data_stations.js',
     './city/shenyang/data_lines.js',
     './city/shenyang/data_virtual_transfers.js',
     './city/shenyang/data_scattered.js',
     './city/shenyang/data_notopen.js',
+    './city/shenyang/data_opening.js',
     './city/shenyang/data_legend.js',
     './city/shenyang/data_timetable.js',
+    './city/shenyang/shared/timetable-renderer.js',
+    './city/shenyang/shared/stacard-engine.js',
+    './city/shenyang/shared/station-title.js',
+    './city/shenyang/shared/viewport-inset.js',
+    './city/shenyang/shared/tip-card.js',
+    './city/shenyang/shared/calligraphy.js',
+    './city/shenyang/shared/calligraphy.css',
+    './city/shenyang/shared/opening-schedule.js',
+    './city/shenyang/shared/opening-schedule.css',
+    // 行程规划（三城共用）：线路接续声明解析 / 数据构建器 / 规划内核 / 面板
+    './city/shenyang/shared/line-link.js',
+    './city/shenyang/shared/route-data.js',
+    './city/shenyang/shared/route-planner.js',
+    './city/shenyang/shared/route-panel.js',
+    './city/shenyang/shared/route-panel.css',
+    // 跨城市「查找最近车站」（三城共用）：接管核心 LBS 的 confirm，改用 cgo-modal 三选一
+    './city/shenyang/shared/nearest-station.js',
+    './city/shenyang/shared/nearest-station.css',
+    // 固定侧栏「浮岛卡片」改造（三城共用）：几何跟随标题栏浮岛、卡片等距、标题栏线路标
+    './city/shenyang/shared/sidebar-refit.js',
+    './city/shenyang/shared/sidebar-refit.css',
     './city/shenyang/amap_data.json',
     './city/shenyang/staname.csv',
     './city/shenyang/style.css',
     './city/shenyang/assets/airport.svg',
     './city/shenyang/assets/compass.svg',
     './city/shenyang/assets/fangcheng.svg',
+    './city/shenyang/assets/fangcheng_mono.svg',
     './city/shenyang/assets/railway.svg',
+    './city/shenyang/assets/transfer-badge.svg',
+    './city/shenyang/assets/tram-5.svg',
+
+    // 1号线站名题字（书法家题写）
+    './city/shenyang/assets/calligraphy/qihaojie.png',
+    './city/shenyang/assets/calligraphy/sihaojie.png',
+    './city/shenyang/assets/calligraphy/shenyangzhan.png',
+    './city/shenyang/assets/calligraphy/taiyuanjie.png',
+    './city/shenyang/assets/calligraphy/nanshichang.png',
+    './city/shenyang/assets/calligraphy/qingniandajie.png',
+    './city/shenyang/assets/calligraphy/huaiyuanmen.png',
+    './city/shenyang/assets/calligraphy/yunfengbeijie.png',
+    './city/shenyang/assets/calligraphy/zhongjie.png',
+    './city/shenyang/assets/calligraphy/dongzhongjie.png',
+    './city/shenyang/assets/calligraphy/pangjiangjie.png',
+    './city/shenyang/assets/calligraphy/limingguangchang.png',
+
+    // 1号线东延段站名题字（辽宁 / 沈阳书法界名家题写）
+    './city/shenyang/assets/calligraphy/xinhuijie.png',
+    './city/shenyang/assets/calligraphy/xinningjie.png',
+    './city/shenyang/assets/calligraphy/dongdayingjie.png',
+    './city/shenyang/assets/calligraphy/nongyedaxue.png',
+    './city/shenyang/assets/calligraphy/qianling.png',
+    './city/shenyang/assets/calligraphy/donglinggongyuan.png',
+    './city/shenyang/assets/calligraphy/shuiquan.png',
+    './city/shenyang/assets/calligraphy/boguanbeidajie.png',
+    './city/shenyang/assets/calligraphy/zhiwuyuan.png',
+    './city/shenyang/assets/calligraphy/shuangma.png',
+
+    // 2号线站名题字（作家 / 诗人题写，逐站实拍采集中）
+    './city/shenyang/assets/calligraphy/aotizhongxin.png',
+    './city/shenyang/assets/calligraphy/gongyezhanlanguan.png',
+    './city/shenyang/assets/calligraphy/hangkonghangtiandaxue.png',
+    './city/shenyang/assets/calligraphy/jinrongzhongxin.png',
+    './city/shenyang/assets/calligraphy/qingniangongyuan.png',
+    './city/shenyang/assets/calligraphy/quanyunlu.png',
+    './city/shenyang/assets/calligraphy/renminguangchang.png',
+    './city/shenyang/assets/calligraphy/shenyangbeizhan.png',
+    './city/shenyang/assets/calligraphy/shijidasha.png',
+    './city/shenyang/assets/calligraphy/shitushuguan.png',
+    './city/shenyang/assets/calligraphy/wulihe.png',
+    './city/shenyang/assets/calligraphy/zhongyiyaodaxue.png',
+
+    // 3号线站名题字（2026 年全线开通后安装，书法家题写；待考站题写者尚未考证）
+    './city/shenyang/assets/calligraphy/shayang.png',
+    './city/shenyang/assets/calligraphy/nanbamalu.png',
+    './city/shenyang/assets/calligraphy/jiaxingjie.png',
+    './city/shenyang/assets/calligraphy/fangxingguangchang.png',
+    './city/shenyang/assets/calligraphy/sanhaojie.png',
+    './city/shenyang/assets/calligraphy/zhongkeyuanjinshusuo.png',
+    './city/shenyang/assets/calligraphy/nanta.png',
+    './city/shenyang/assets/calligraphy/wenfulu.png',
+    './city/shenyang/assets/calligraphy/fuminjie.png',
+    './city/shenyang/assets/calligraphy/jiangdongjie.png',
+    './city/shenyang/assets/calligraphy/fangjialan.png',
 
     // 城市配置与业务数据 (合肥)
     './city/hefei/hefei.js',
@@ -118,8 +225,80 @@ const ASSETS_TO_CACHE = [
     './city/hefei/amap_data.json',
     './city/hefei/staname.csv',
 
+    // 城市配置与业务数据 (悉尼)
+    './city/sydney/sydney.js',
+    './city/sydney/style.css',
+    './city/sydney/stacard/script.js',
+    './city/sydney/data_stations.js',
+    './city/sydney/data_lines.js',
+    './city/sydney/data_virtual_transfers.js',
+    './city/sydney/data_scattered.js',
+    './city/sydney/data_notopen.js',
+    './city/sydney/data_legend.js',
+    './city/sydney/data_timetable.js',
+    './city/sydney/staname.csv',
+    './city/sydney/assets/sydney_deco.svg',
+    './city/sydney/assets/PublicSans-var-latin.woff2',
+    './city/sydney/assets/line/T1.svg',
+    './city/sydney/assets/line/T2.svg',
+    './city/sydney/assets/line/T3.svg',
+    './city/sydney/assets/line/T4.svg',
+    './city/sydney/assets/line/T5.svg',
+    './city/sydney/assets/line/T6.svg',
+    './city/sydney/assets/line/T7.svg',
+    './city/sydney/assets/line/T8.svg',
+    './city/sydney/assets/line/T9.svg',
+    './city/sydney/assets/line/M1.svg',
+    './city/sydney/assets/line/CONV.svg',
+    './city/sydney/assets/line/MW.svg',
+    './city/sydney/assets/line/WSA.svg',
+
+    // 城市配置与业务数据 (香港)
+    './city/hongkong/hongkong.js',
+    './city/hongkong/style.css',
+    './city/hongkong/stacard/script.js',
+    './city/hongkong/data_stations.js',
+    './city/hongkong/data_lines.js',
+    './city/hongkong/data_virtual_transfers.js',
+    './city/hongkong/data_scattered.js',
+    './city/hongkong/data_notopen.js',
+    './city/hongkong/data_legend.js',
+    './city/hongkong/data_timetable.js',
+    './city/hongkong/staname.csv',
+    './city/hongkong/data_fares.js',
+    './city/hongkong/data_buses.js',
+    './city/hongkong/assets/hongkong_deco.svg',
+    './city/hongkong/assets/line/AEL.svg',
+    './city/hongkong/assets/line/DRL.svg',
+    './city/hongkong/assets/line/EAL.svg',
+    './city/hongkong/assets/line/ISL.svg',
+    './city/hongkong/assets/line/KTL.svg',
+    './city/hongkong/assets/line/SIL.svg',
+    './city/hongkong/assets/line/TKL.svg',
+    './city/hongkong/assets/line/TWL.svg',
+    './city/hongkong/assets/line/TML.svg',
+    './city/hongkong/assets/line/TCL.svg',
+    './city/hongkong/assets/line/LR.svg',
+    './city/hongkong/assets/line/HSR.svg',
+
+    // 城市配置与业务数据 (深圳)
+    './city/shenzhen/shenzhen.js',
+    './city/shenzhen/style.css',
+    './city/shenzhen/stacard/script.js',
+    './city/shenzhen/data_stations.js',
+    './city/shenzhen/data_lines.js',
+    './city/shenzhen/data_virtual_transfers.js',
+    './city/shenzhen/data_scattered.js',
+    './city/shenzhen/data_notopen.js',
+    './city/shenzhen/data_legend.js',
+    './city/shenzhen/data_timetable.js',
+    './city/shenzhen/assets/shenzhen_deco.svg',
+    './city/shenzhen/assets/line/L6B.svg',
+    './city/shenzhen/amap_data.json',
+
     // 城市配置与业务数据 (青岛)
     './city/qingdao/qingdao.js',
+    './city/qingdao/style.css',
     './city/qingdao/stacard/script.js',
     './city/qingdao/data_stations.js',
     './city/qingdao/data_lines.js',
@@ -131,12 +310,15 @@ const ASSETS_TO_CACHE = [
     './city/qingdao/data_station_names.js',
     './city/qingdao/data_construction.js',
     './city/qingdao/modules/qingdao_station_name_history.js',
+    './city/qingdao/modules/qingdao_travel_guide.js',
     './city/qingdao/modules/qingdao_engineering_name_notice.js',
     './city/qingdao/modules/qingdao_timetable.js',
     './city/qingdao/modules/qingdao_construction.js',
+    './city/qingdao/modules/qingdao_line_badges.js',
     './city/qingdao/amap_data.json',
     './city/qingdao/staname.csv',
     './city/qingdao/assets/qingdao_sea.svg',
+    './city/qingdao/assets/compass.svg',
     './city/qingdao/assets/Aircraft.svg',
     './city/qingdao/assets/China_Railway.svg',
     './city/qingdao/assets/Long_Distance_Bus.svg',
@@ -146,14 +328,17 @@ const ASSETS_TO_CACHE = [
     // 城市配置与业务数据 (大连)
     './city/dalian/dalian.js',
     './city/dalian/modules/dalian_map.js',
+    './city/dalian/modules/dalian_sea.js',
     './city/dalian/modules/dalian_timetable.js',
     './city/dalian/modules/dalian_transfers.js',
+    './city/dalian/modules/dalian_station_title.js',
     './city/dalian/stacard/script.js',
     './city/dalian/data_stations.js',
     './city/dalian/data_lines.js',
     './city/dalian/data_virtual_transfers.js',
     './city/dalian/data_scattered.js',
     './city/dalian/data_notopen.js',
+    './city/dalian/data_opening.js',
     './city/dalian/data_legend.js',
     './city/dalian/data_timetable.js',
     './city/dalian/amap_data.json',
@@ -168,15 +353,40 @@ const ASSETS_TO_CACHE = [
     // 城市配置与业务数据 (长春)
     './city/changchun/changchun.js',
     './city/changchun/modules/changchun_service_info.js',
+    './city/changchun/modules/changchun_station_title.js',
     './city/changchun/stacard/script.js',
     './city/changchun/data_stations.js',
     './city/changchun/data_lines.js',
     './city/changchun/data_virtual_transfers.js',
     './city/changchun/data_scattered.js',
     './city/changchun/data_notopen.js',
+    './city/changchun/data_opening.js',
     './city/changchun/data_legend.js',
     './city/changchun/data_timetable.js',
     './city/changchun/amap_data.json',
+    './city/changchun/assets/ccgj.svg',
+    './city/changchun/assets/railway.svg',
+    './city/changchun/assets/transfer-badge.svg',
+    './city/changchun/assets/tram-54.svg',
+    './city/changchun/assets/tram-55.svg',
+
+    // 城市配置与业务数据 (福州)
+    './city/fuzhou/fuzhou.js',
+    './city/fuzhou/modules/fuzhou_timetable.js',
+    './city/fuzhou/modules/fuzhou_site_space.js',
+    './city/fuzhou/modules/fuzhou_cultural.js',
+    './city/fuzhou/stacard/script.js',
+    './city/fuzhou/data_stations.js',
+    './city/fuzhou/data_lines.js',
+    './city/fuzhou/data_virtual_transfers.js',
+    './city/fuzhou/data_scattered.js',
+    './city/fuzhou/data_notopen.js',
+    './city/fuzhou/data_legend.js',
+    './city/fuzhou/data_timetable.js',
+    './city/fuzhou/data_site_space.js',
+    './city/fuzhou/staname.csv',
+    './city/fuzhou/amap_data.json',
+    './city/fuzhou/assets/fuzhou_sea.svg',
 
     // 青岛线路徽标（核心统一从根目录 assets/svg/ 读取）
     './assets/svg/icon@01.svg',
@@ -192,31 +402,64 @@ const ASSETS_TO_CACHE = [
     './assets/svg/icon@lg.svg',
     './assets/svg/icon@xha.svg',
 
+    // 城市配置与业务数据 (兰州)
+    './city/lanzhou/lanzhou.js',
+    './city/lanzhou/style.css',
+    './city/lanzhou/stacard/script.js',
+    './city/lanzhou/data_stations.js',
+    './city/lanzhou/data_lines.js',
+    './city/lanzhou/data_virtual_transfers.js',
+    './city/lanzhou/data_scattered.js',
+    './city/lanzhou/data_notopen.js',
+    './city/lanzhou/data_legend.js',
+    './city/lanzhou/data_timetable.js',
+    './city/lanzhou/data_station_names.js',
+    './city/lanzhou/modules/lanzhou_station_names.js',
+    './city/lanzhou/modules/lanzhou_timetable.js',
+    './city/lanzhou/modules/lanzhou_travel_guide.js',
+    './city/lanzhou/modules/lanzhou_operation_status.js',
+    './city/lanzhou/modules/lanzhou_fare_table.js',
+    './city/lanzhou/staname.csv',
+    './city/lanzhou/amap_data.json',
+    './city/lanzhou/assets/lanzhou_river.svg',
+    './city/lanzhou/assets/pricetable.jpg',
+
+    // 福州线路徽标
+    './assets/svg/icon@fz_BE.svg',
+
     // 图标与清单素材
     './assets/icons/icon-192.png',
     './assets/icons/icon-512.png',
-    './assets/icons/location.png',
-    './assets/icons/search.png',
     './assets/icons/mapicon.png',
     './assets/icons/mapicon2.png',
     './assets/icons/beian.png',
     './assets/icons/cgowx.png',
     './assets/icons/favicon.ico',
-    './assets/images/qq.jpg',
+    './assets/images/qq.png',
     './manifest.json',
 ];
 
-// 1. Service Worker 安装：预缓存核心资产
+// 1. Service Worker 安装：预缓存核心资产（容错机制：单个非核心文件失败不阻断 SW 激活）
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(ASSETS_TO_CACHE))
+            .then(async (cache) => {
+                await Promise.allSettled(
+                    ASSETS_TO_CACHE.map(async (url) => {
+                        try {
+                            await cache.add(url);
+                        } catch (err) {
+                            console.warn('[SW] 预缓存单项跳过:', url, err);
+                        }
+                    })
+                );
+            })
             .then(() => self.skipWaiting())
-            .catch(err => console.error('[SW] 缓存失败:', err))
+            .catch(err => console.error('[SW] 缓存安装异常:', err))
     );
 });
 
-// 2. Service Worker 激活：清理陈旧缓存
+// 2. Service Worker 激活：清理陈旧缓存并立即接管页面
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
@@ -243,8 +486,45 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 默认静态资产：优先读取缓存，离线时优雅回退
-    event.respondWith(
-        caches.match(event.request, { ignoreSearch: true }).then(cached => cached || fetch(event.request).catch(() => {}))
-    );
+    // 页面导航请求（HTML 页面）：网络优先策略 (Network-First)
+    // 确保代码更新后刷新浏览器永远呈现最新页面与样式；离线时优雅降级回退至缓存
+    if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+        event.respondWith((async () => {
+            try {
+                const networkRes = await fetch(event.request);
+                if (networkRes && networkRes.status === 200) {
+                    const cache = await caches.open(CACHE_NAME);
+                    cache.put(event.request, networkRes.clone());
+                }
+                return networkRes;
+            } catch (err) {
+                const cached = await caches.match(event.request, { ignoreSearch: true });
+                if (cached) return cached;
+                return caches.match('./index.html');
+            }
+        })());
+        return;
+    }
+
+    // 静态资源（CSS/JS/图片等）：精准匹配优先 -> 网络获取并更新缓存 -> 离线模糊回退
+    event.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        
+        // 优先精确匹配（如果版本号 query 完全一致且已缓存）
+        const exactMatch = await cache.match(event.request);
+        if (exactMatch) return exactMatch;
+
+        // 精确未命中（例如资源刚升级了 ?v= 版本号）：网络优先拉取最新版本并写入缓存
+        try {
+            const networkRes = await fetch(event.request);
+            if (networkRes && networkRes.status === 200) {
+                cache.put(event.request, networkRes.clone());
+            }
+            return networkRes;
+        } catch (err) {
+            // 离线环境：模糊匹配回退
+            const fuzzyMatch = await cache.match(event.request, { ignoreSearch: true });
+            if (fuzzyMatch) return fuzzyMatch;
+        }
+    })());
 });

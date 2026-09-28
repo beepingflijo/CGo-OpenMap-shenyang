@@ -63,8 +63,8 @@ const stationsData = {
         "en": "Changchun Zhan",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0126": {
@@ -87,8 +87,8 @@ const stationsData = {
         "en": "Renmin Guangchang",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0127-1": {
@@ -100,8 +100,8 @@ const stationsData = {
         "en": "Renmin Guangchang",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0128": {
@@ -112,8 +112,8 @@ const stationsData = {
         "en": "Jiefang Dalu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0129": {
@@ -136,8 +136,8 @@ const stationsData = {
         "en": "Gongnong Guangchang",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0131": {
@@ -160,8 +160,8 @@ const stationsData = {
         "en": "Weixing Guangchang",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0133": {
@@ -184,8 +184,8 @@ const stationsData = {
         "en": "Huaqing Lu",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0135": {
@@ -248,6 +248,30 @@ const stationsData = {
             "y": 0
         }
     },
+    "0140": {
+        "type": "no",
+        "x": 1080,
+        "y": 1920,
+        "cn": "柳家",
+        "en": "Liujia",
+        "align": "right",
+        "offset": {
+            "x": 6,
+            "y": 0
+        }
+    },
+    "0141": {
+        "type": "no",
+        "x": 1080,
+        "y": 1980,
+        "cn": "永春南",
+        "en": "Yongchun Nan",
+        "align": "right",
+        "offset": {
+            "x": 6,
+            "y": 0
+        }
+    },
     "0221": {
         "type": "tsf",
         "x": 100,
@@ -293,7 +317,7 @@ const stationsData = {
         "align": "bottom",
         "offset": {
             "x": 0,
-            "y": 4
+            "y": 8
         }
     },
     "0225": {
@@ -305,7 +329,7 @@ const stationsData = {
         "align": "top",
         "offset": {
             "x": 0,
-            "y": -4
+            "y": -32
         }
     },
     "0226": {
@@ -350,7 +374,7 @@ const stationsData = {
         "y": 864,
         "cn": "万福街",
         "en": "Wanfu Jie",
-        "align": "bottom",
+        "align": "bottom-right",
         "offset": {
             "x": 0,
             "y": 4
@@ -376,8 +400,8 @@ const stationsData = {
         "en": "Jiefang Qiao",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0232": {
@@ -400,8 +424,8 @@ const stationsData = {
         "en": "Wenhua Guangchang",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0233-1": {
@@ -413,8 +437,8 @@ const stationsData = {
         "en": "Wenhua Guangchang",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0235": {
@@ -449,8 +473,8 @@ const stationsData = {
         "en": "Jilin Dalu",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0238": {
@@ -474,7 +498,7 @@ const stationsData = {
         "align": "top",
         "offset": {
             "x": 0,
-            "y": -4
+            "y": -8
         }
     },
     "0240": {
@@ -581,8 +605,8 @@ const stationsData = {
         "en": "Weimanhuanggong",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0322": {
@@ -605,8 +629,8 @@ const stationsData = {
         "en": "Furong Qiao",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0326": {
@@ -617,8 +641,8 @@ const stationsData = {
         "en": "Xi'an Qiao",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0327": {
@@ -629,8 +653,8 @@ const stationsData = {
         "en": "Nanchang Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0328": {
@@ -641,8 +665,8 @@ const stationsData = {
         "en": "Chaoyang Qiao",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0330": {
@@ -653,8 +677,8 @@ const stationsData = {
         "en": "Huxi Qiao",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0331": {
@@ -689,8 +713,8 @@ const stationsData = {
         "en": "Mengjiatun",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0334": {
@@ -701,8 +725,8 @@ const stationsData = {
         "en": "Huguang Lu",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0335": {
@@ -810,8 +834,8 @@ const stationsData = {
         "en": "Zhiye Jishu Daxue",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0344": {
@@ -858,8 +882,8 @@ const stationsData = {
         "en": "Jinxin Jie",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0348": {
@@ -870,8 +894,8 @@ const stationsData = {
         "en": "Boshuo Lu",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0349": {
@@ -882,8 +906,8 @@ const stationsData = {
         "en": "Jinhe Jie",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0350": {
@@ -894,8 +918,8 @@ const stationsData = {
         "en": "Nongboyuan",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0351": {
@@ -1002,21 +1026,8 @@ const stationsData = {
         "en": "Dongdaqiao",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
-        }
-    },
-    "0424-1": {
-        "type": "no",
-        "hideLabel": true,
-        "x": 1298,
-        "y": 614,
-        "cn": "东大桥",
-        "en": "Dongdaqiao",
-        "align": "top-right",
-        "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0425": {
@@ -1075,8 +1086,8 @@ const stationsData = {
         "en": "Weihai Lu",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0431": {
@@ -1147,8 +1158,8 @@ const stationsData = {
         "en": "Fuzhi Dalu",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0438": {
@@ -1207,8 +1218,8 @@ const stationsData = {
         "en": "Tengyue Jie",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0624": {
@@ -1219,8 +1230,8 @@ const stationsData = {
         "en": "Zhinong Dajie",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0625": {
@@ -1231,8 +1242,8 @@ const stationsData = {
         "en": "Feiyue Guangchang",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0626": {
@@ -1243,8 +1254,8 @@ const stationsData = {
         "en": "Ouya Maichang",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0627": {
@@ -1255,8 +1266,8 @@ const stationsData = {
         "en": "Guanggu Dajie",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0628": {
@@ -1292,8 +1303,8 @@ const stationsData = {
         "en": "Baihuayuan",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0630": {
@@ -1304,8 +1315,8 @@ const stationsData = {
         "en": "Shifayuan",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0631": {
@@ -1352,8 +1363,8 @@ const stationsData = {
         "en": "Nanxi Shidi Gongyuan",
         "align": "bottom-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": 4
         }
     },
     "0637": {
@@ -1364,8 +1375,8 @@ const stationsData = {
         "en": "Wujiadian",
         "align": "top-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": -4
         }
     },
     "0638": {
@@ -1482,10 +1493,10 @@ const stationsData = {
         "y": 1088,
         "cn": "南湖广场(吉大南湖校区)",
         "en": "Nanhu Guangchang(Jida Nanhu Xiaoqu)",
-        "align": "top-left",
+        "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0729-1": {
@@ -1495,10 +1506,10 @@ const stationsData = {
         "y": 1088,
         "cn": "南湖广场(吉大南湖校区)",
         "en": "Nanhu Guangchang(Jida Nanhu Xiaoqu)",
-        "align": "top-left",
+        "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0730": {
@@ -1507,10 +1518,10 @@ const stationsData = {
         "y": 1088,
         "cn": "南湖公园",
         "en": "Nanhu Gongyuan",
-        "align": "bottom",
+        "align": "top",
         "offset": {
             "x": 0,
-            "y": 4
+            "y": -4
         }
     },
     "0732": {
@@ -1717,6 +1728,19 @@ const stationsData = {
             "y": -4
         }
     },
+    "0501": {
+        "type": "no",
+        "hideLabel": true,
+        "x": 1288,
+        "y": 624,
+        "cn": "东大桥",
+        "en": "Dongdaqiao",
+        "align": "top-right",
+        "offset": {
+            "x": 6,
+            "y": -4
+        }
+    },
     "0502": {
         type: "no",
         "x": 1238,
@@ -1725,8 +1749,8 @@ const stationsData = {
         "en": "Shengfu'er Zhongxin",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0503": {
@@ -1734,11 +1758,11 @@ const stationsData = {
         "x": 1178,
         "y": 734,
         "cn": "大经路",
-        "en": "Daijing Lu",
+        "en": "Dajing Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0505": {
@@ -1759,9 +1783,9 @@ const stationsData = {
         "y": 930,
         "cn": "红旗街",
         "en": "Hongqi Jie",
-        "align": "left",
+        "align": "right",
         "offset": {
-            "x": -6,
+            "x": 6,
             "y": 0
         }
     },
@@ -1771,9 +1795,9 @@ const stationsData = {
         "y": 1010,
         "cn": "长影旧址博物馆",
         "en": "Changying Jiuzhi Bowuguan",
-        "align": "left",
+        "align": "bottom-right",
         "offset": {
-            "x": -6,
+            "x": 0,
             "y": 0
         }
     },
@@ -1785,8 +1809,8 @@ const stationsData = {
         "en": "Shengwei Dangxiao",
         "align": "bottom-right",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": 6,
+            "y": 4
         }
     },
     "0513": {
@@ -1797,8 +1821,8 @@ const stationsData = {
         "en": "Weishan Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0514": {
@@ -1809,8 +1833,8 @@ const stationsData = {
         "en": "Anxin Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0515": {
@@ -1821,8 +1845,8 @@ const stationsData = {
         "en": "Yueda Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0516": {
@@ -1833,8 +1857,8 @@ const stationsData = {
         "en": "Shunda Lu",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0517": {
@@ -1845,8 +1869,8 @@ const stationsData = {
         "en": "Shiwei Dangxiao",
         "align": "top-left",
         "offset": {
-            "x": 0,
-            "y": 0
+            "x": -6,
+            "y": -4
         }
     },
     "0518": {
@@ -1857,8 +1881,360 @@ const stationsData = {
         "en": "Zhuoyue Dajie",
         "align": "top-left",
         "offset": {
+            "x": -6,
+            "y": -4
+        }
+    },
+    "G5401": {
+        type: "no",
+        "x": 965,
+        "y": 930,
+        "cn": "工农大路",
+        "en": "",
+        "align": "top-left",
+        "offset": {
             "x": 0,
             "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5402": {
+        type: "dot",
+        "x": 935,
+        "y": 960,
+        "cn": "长影",
+        "en": "",
+        "align": "top-left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5403": {
+        type: "dot",
+        "x": 905,
+        "y": 984,
+        "cn": "湖西路",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5404": {
+        type: "dot",
+        "x": 859,
+        "y": 984,
+        "cn": "长久路",
+        "en": "",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5405": {
+        type: "dot",
+        "x": 813,
+        "y": 984,
+        "cn": "宽平大路",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5406": {
+        type: "dot",
+        "x": 767,
+        "y": 984,
+        "cn": "宽平大桥",
+        "en": "",
+        "align": "top-right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5407": {
+        type: "dot",
+        "x": 721,
+        "y": 984,
+        "cn": "迎春路",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5408": {
+        type: "dot",
+        "x": 673,
+        "y": 978,
+        "cn": "东风大街",
+        "en": "",
+        "align": "bottom-left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5409": {
+        type: "dot",
+        "x": 650,
+        "y": 955,
+        "cn": "创业大街",
+        "en": "",
+        "align": "bottom-left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5410": {
+        type: "dot",
+        "x": 628,
+        "y": 933,
+        "cn": "南阳路",
+        "en": "",
+        "align": "bottom-left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5411": {
+        type: "dot",
+        "x": 620,
+        "y": 905,
+        "cn": "电车公司",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5412": {
+        type: "dot",
+        "x": 620,
+        "y": 875,
+        "cn": "景阳大路",
+        "en": "",
+        "align": "left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5413": {
+        type: "dot",
+        "x": 620,
+        "y": 845,
+        "cn": "皓月大路",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5414": {
+        type: "dot",
+        "x": 620,
+        "y": 815,
+        "cn": "绿园",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5415": {
+        type: "dot",
+        "x": 620,
+        "y": 785,
+        "cn": "农丰市场",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5416": {
+        type: "dot",
+        "x": 620,
+        "y": 755,
+        "cn": "西安大路",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5511": {
+        type: "dot",
+        "x": 580,
+        "y": 925,
+        "cn": "和平大街",
+        "en": "",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5512": {
+        type: "dot",
+        "x": 540,
+        "y": 925,
+        "cn": "洛阳街",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5513": { 
+        type: "dot",
+        "x": 500,
+        "y": 925,
+        "cn": "西环城路",
+        "en": "",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5514": {
+        type: "dot",
+        "x": 460,
+        "y": 925,
+        "cn": "绿地长春上海城",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.8, en: 1.0 }
+    },
+    "G5515": { 
+        type: "dot",
+        "x": 420,
+        "y": 925,
+        "cn": "翔天街",
+        "en": "",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5516": {
+        type: "dot",
+        "x": 380,
+        "y": 925,
+        "cn": "腾跃街",
+        "en": "",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5517": {
+        type: "dot",
+        "x": 345,
+        "y": 910,
+        "cn": "市八十七中学南",
+        "en": "",
+        "align": "top-right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5518": {
+        type: "dot",
+        "x": 315,
+        "y": 880,
+        "cn": "站前街",
+        "en": "",
+        "align": "right",
+        "offset": {
+            "x": 6,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "G5519": {
+        type: "dot",
+        "x": 290,
+        "y": 855,
+        "cn": "长春西站",
+        "en": "",
+        "align": "right",
+        hideLabel: true,
+        "offset": {
+            "x": 6,
+            "y": 0
+        },
+        textScale: { cn: 0.9, en: 1.0 }
+    },
+    "CCT": { 
+        "type": "rdot",
+        "x": 1110,
+        "y": 540,
+        "cn": "长春站",
+        "en": "Changchun Railway Station",
+        "align": "top-left",
+        hideLabel: true,
+        "offset": {
+            "x": -6,
+            "y": -4
+        }
+    },
+    "CRT": { 
+        "type": "rdot",
+        "x": 268,
+        "y": 845,
+        "cn": "长春西站",
+        "en": "Changchunxi Railway Station",
+        "align": "top",
+        hideLabel: true,
+        "offset": {
+            "x": 0,
+            "y": -8
         }
     },
 };

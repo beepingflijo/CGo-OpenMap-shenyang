@@ -6,6 +6,12 @@
 > 
 > 本指南将手把手带你从零开始：**安装必备工具 ➔ 配置 DeepSeek Harness ➔ 启动项目 ➔ 指挥 AI 制作你的城市地铁图**！
 
+> [!IMPORTANT]
+> **🚨 核心开发大前提：项目所有内容必须为纯前端**  
+> **CGo OpenMap 项目的所有内容必须为纯前端，禁止在项目中使用任何其他技术（如 Node.js 服务端、PM2 进程管理守护、Express 后端服务、React/Vue/Angular 重型框架及打包构建工具）**！  
+> **唯一例外**：若涉及**监控车站、监控网页**等特殊后台巡检任务，**可以破例**使用 Node.js / PM2 进行后台监控处理；**其他所有主要地图功能一律严格禁止破例**。  
+> *说明：虽然在本地辅助开发中会使用电脑上的 Node.js 作为运行 `dsh` 智能体命令行与轻量静态测试服务器（如 `npx serve .`）的运行宿主，但项目本身的所有源码、配置与成果均为 100% 纯原生静态前端网页（HTML/SVG/Vanilla JS/CSS），无需编译打包，可直接部署在任意静态托管空间中。*
+
 ---
 
 ## 📑 目录
@@ -131,6 +137,11 @@ DeepSeek Harness（`dsh`）是 DeepSeek 官方开源的智能体框架，能直�
    - 点击「45°/90°吸附」一键修正微小手抖，恢复专业正交斜角；
 5. **一键导出代码**：
    点击「导出城市工程」，复制生成的代码，然后直接在 DeepSeek Harness 里对 AI 说：“*请帮我把这些代码保存到对应城市目录*”，整网地铁图瞬间搞定！
+
+> 💡 **城市做好之后想改怎么办？** 同一个工作台就是编辑器。
+> 访问 `drunk/index.html?city={你的城市id}`（或在线路图「偏好设置 → 编辑此图」里点进去），
+> 就能把已经上线的城市读进画布，直接拖站、改字、调站名朝向，
+> 导出时**只会改写你动过的那几条**，其余内容一个字节都不会变。
 
 ---
 
@@ -258,7 +269,7 @@ DeepSeek Harness（`dsh`）是 DeepSeek 官方开源的智能体框架，能直�
 - **扫码加入**：
 
 <p align="center">
-  <img src="./assets/images/qq.jpg" alt="QQ 交流群二维码" width="180" style="border-radius: 8px;">
+  <img src="./assets/images/qq.png" alt="QQ 交流群二维码" width="180" style="border-radius: 8px;">
 </p>
 
 祝你借助 DeepSeek Harness 和 CGo OpenMap 玩得开心！如有任何疑问，欢迎随时在群里或 GitHub Issue 交流讨论 🚇✨

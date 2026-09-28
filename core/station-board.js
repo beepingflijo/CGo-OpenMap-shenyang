@@ -566,15 +566,12 @@
                 });
             }
 
-            // 5. 移动端展开/收起按钮
-            const expandBtn = infoPanel.querySelector('.panel-expand-btn');
-            if (expandBtn && typeof helpers.toggleMobilePanelSize === 'function') {
-                expandBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    helpers.toggleMobilePanelSize(station);
-                });
-                if (document.body.classList.contains('mobile-panel-expanded') && typeof helpers.updateExpandIcon === 'function') {
-                    helpers.updateExpandIcon(expandBtn, true);
+            // 5. 移动端抽屉把手 + 三档拖拽系统
+            if (window.innerWidth <= 640) {
+                if (typeof helpers.initMobileSheetDrag === 'function') {
+                    helpers.initMobileSheetDrag();
+                } else if (typeof initMobileSheetDrag === 'function') {
+                    initMobileSheetDrag();
                 }
             }
 
@@ -597,6 +594,10 @@
             if (typeof helpers.initPanelDrag === 'function') {
                 helpers.initPanelDrag();
             }
+            // 将 initMobileSheetDrag 加入 helpers 以支持新版本的模块调用
+            if (window.innerWidth <= 640 && typeof helpers.initMobileSheetDrag !== 'function') {
+                if (typeof initMobileSheetDrag === 'function') initMobileSheetDrag();
+            }
         }
     };
 
@@ -613,16 +614,13 @@
         slot: 'header',
         order: 10,
         render(context) {
-            const expandBtnHtml = (window.innerWidth <= 640)
-                ? `<button class="panel-expand-btn" title="展开/收起">
-                     <cgo-icon name="expand-less" size="18"></cgo-icon>
-                   </button>`
-                : '';
+            // 把手在移动端展示，由 CSS 控制：桌面端隐藏
+            const grabberHtml = `<div class="sheet-grabber"><span class="sheet-grabber-bar"></span></div>`;
             return `
                 <button class="panel-close-btn" title="关闭面板">
                     <cgo-icon name="close" size="24"></cgo-icon>
                 </button>
-                ${expandBtnHtml}
+                ${grabberHtml}
             `;
         }
     });
@@ -880,7 +878,8 @@
             const btnWhiteTiny = `padding:8px 0; background:var(--btn-info-bg); color:var(--text-main); border:1px solid var(--border-color); font-size:11px; box-shadow:0 2px 5px rgba(0,0,0,0.05); ${baseBtnStyle}`;
 
             const isSuburbanOrRail = isSuburbanStation || isRwyStation;
-            const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(station.cn, isSuburbanOrRail) : `https://uri.amap.com/search?keyword=${encodeURIComponent(station.cn)}`;
+            // 第三参传 station 供城市侧判断站型（如区分有轨电车站 / 火车站）
+            const mapUrl = city.getNavigationUrl ? city.getNavigationUrl(station.cn, isSuburbanOrRail, { station }) : `https://uri.amap.com/search?keyword=${encodeURIComponent(station.cn)}`;
             const url12306 = city.getRailway12306Url ? city.getRailway12306Url(station.cn) : `https://kyfw.12306.cn/otn/leftTicket/init?linktypeid=dc&fs=${encodeURIComponent((station.cn || '').replace(/站$/, ''))}`;
             const isRwy2Station = station.relatedLines && station.relatedLines.includes('Rwy2');
 
@@ -890,7 +889,10 @@
                 || null;
 
             if (isNoStation) {
-                return '<div style="padding:10px; color:#999;">该车站目前尚未运营</div>';
+                // 城市登记了该站的开通时刻时，由共享层输出开通日期与倒计时；
+                // 未接入该能力的城市仍回落下面这行通用文案。
+                const pendingHtml = window.CGoOpening?.renderPendingNotice?.(station) || '';
+                return pendingHtml || '<div style="padding:10px; color:#999;">该车站目前尚未运营</div>';
             }
 
             if (isRwyStation) {
@@ -937,6 +939,13 @@
                 <a href="${mapUrl}" target="_blank" onclick="resetMapState()" style="${btnWhite}">高德导航</a>
             `;
             return `<div style="display:flex; gap:12px;">${btnsHtml}</div>`;
+        },
+        /**
+         * 未开通车站的倒计时按秒刷新，交由共享层接管；
+         * 未接入该能力（无 window.CGoOpening）或本就不是未开通站时为空操作。
+         */
+        onMounted(container) {
+            window.CGoOpening?.mountPendingNotice?.(container);
         }
     });
 
