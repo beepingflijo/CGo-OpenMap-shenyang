@@ -336,11 +336,14 @@
      * 视为无差异（由城市侧用 sameRows 判定后决定是否传入）。
      */
     function buildLabel(label, meta) {
+        const translate = (text) => (window.CGoI18n && typeof window.CGoI18n.tr === "function")
+            ? window.CGoI18n.tr(text)
+            : text;
         const parts = [];
-        if (meta?.seasonLabel) parts.push(escapeHtml(meta.seasonLabel));
-        if (meta?.dayTypeLabel) parts.push(escapeHtml(meta.dayTypeLabel));
+        if (meta?.seasonLabel) parts.push(escapeHtml(translate(meta.seasonLabel)));
+        if (meta?.dayTypeLabel) parts.push(escapeHtml(translate(meta.dayTypeLabel)));
         const head = escapeHtml(label);
-        return parts.length ? `${head}<br><small>${parts.join(" ")}</small>` : head;
+        return parts.length ? `${head}<br><small>${parts.join(" · ")}</small>` : head;
     }
 
     /** 卡片外壳；innerHtml 为若干 renderInfoRow 的拼接 */

@@ -464,7 +464,9 @@
 
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "261019.2140";
+        const version = "261020.1845";
+        // 共享层行程面板文案表：未接入 i18n 运行时也要读中文兜底
+        document.write(`<script src="./city/shenyang/shared/base/i18n.bundles.js?v=${version}"><\/script>`);
         // 公共栅格化零件（沿革视频导出与分享卡海报共用；本城导出层先于 poster.js 加载，故置于最前）
         document.write(`<script src="./city/shenyang/shared/base/svg-raster.js?v=${version}"><\/script>`);
         // 开通沿革时间线（发展史动态演示的数据源，约定全局 CGO_OPENING_HISTORY）

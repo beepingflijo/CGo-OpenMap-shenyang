@@ -77,14 +77,28 @@
      * 事件契约见各城 data_opening_history.js 文件头 —— 新增一种状态只在下表加一行。
      */
     const KIND_LABEL = { rename: "车站更名" };
+    const KIND_KEY = { rename: "oh.rename" };
     const STATE_LABEL = {
         station: { open: "车站开通", suspended: "车站未开通", removed: "车站移除", interchange: "站内换乘启用" },
         line: { open: "区段开通", suspended: "区段停运", removed: "区段移除" }
     };
+    const STATE_KEY = {
+        station: {
+            open: "oh.stationOpen", suspended: "oh.stationSuspended",
+            removed: "oh.stationRemoved", interchange: "oh.stationInterchange"
+        },
+        line: { open: "oh.lineOpen", suspended: "oh.lineSuspended", removed: "oh.lineRemoved" }
+    };
     const badgeOf = (step) => {
-        if (step.kind === "station-state") return STATE_LABEL.station[step.state] || step.state || step.kind;
-        if (step.kind === "line-state") return STATE_LABEL.line[step.state] || step.state || step.kind;
-        return KIND_LABEL[step.kind] || step.kind;
+        if (step.kind === "station-state") {
+            return ohT(STATE_KEY.station[step.state], STATE_LABEL.station[step.state] || step.state || step.kind);
+        }
+        if (step.kind === "line-state") {
+            return ohT(STATE_KEY.line[step.state], STATE_LABEL.line[step.state] || step.state || step.kind);
+        }
+        return KIND_KEY[step.kind]
+            ? ohT(KIND_KEY[step.kind], KIND_LABEL[step.kind])
+            : (KIND_LABEL[step.kind] || step.kind);
     };
     /** 撤站类步骤（车站停运 / 拆除、区段停运 / 移除）：既不是「新增」也不是「转乘」，两笔账都不动 */
     const isWithdrawal = (step) => (step.kind === "station-state" || step.kind === "line-state")
@@ -95,6 +109,18 @@
 
     /** SVG 选择器里的站点 ID 转义（防城市用奇怪字符做 ID） */
     const esc = (v) => (window.CSS && CSS.escape ? CSS.escape(String(v)) : String(v));
+    /** 界面文案：优先共享层 i18n，未接入运行时的城市回退中文 */
+    const ohT = (key, fallback, vars) => {
+        const i18n = window.CGoI18n;
+        if (i18n && typeof i18n.t === "function") {
+            const value = i18n.t(key, vars);
+            if (value !== key) return value;
+        }
+        if (!fallback) return key;
+        return String(fallback).replace(/\{(\w+)\}/g, (match, name) => (
+            vars && vars[name] != null ? String(vars[name]) : match
+        ));
+    };
 
     /* ======================================================================
      * 样式注入：按脚本自身 URL 找同名 css
@@ -2547,46 +2573,46 @@
             <div class="cgo-oh">
                 <div class="cgo-oh-fixed">
                     <div class="cgo-oh-now">
-                        <span class="cgo-oh-date">尚未开始</span>
+                        <span class="cgo-oh-date">${ohT("oh.notStarted", "尚未开始")}</span>
                         <span class="cgo-oh-badge" hidden></span>
                     </div>
                     <!-- 信息区与导出进度卡同版式：标题 / 描述 / 状态三块 -->
-                    <p class="cgo-oh-title">尚未选择事件</p>
-                    <p class="cgo-oh-desc">点「播放」从空白画布起笔，镜头跟着画笔把线网逐段画出来；也可用操作行的清单按钮跳到任一年份。</p>
+                    <p class="cgo-oh-title">${ohT("oh.noEvent", "尚未选择事件")}</p>
+                    <p class="cgo-oh-desc">${ohT("oh.intro", "点「播放」从空白画布起笔，镜头跟着画笔把线网逐段画出来；也可用操作行的清单按钮跳到任一年份。")}</p>
                     <div class="cgo-oh-status" hidden></div>
                     <div class="cgo-oh-sum">
-                        <span>线路 <b data-oh="lines">0</b> 条</span>
-                        <span>运营车站 <b data-oh="stations">0</b> 座</span>
-                        <span>里程 <b data-oh="mileage">0</b> km</span>
+                        <span>${ohT("oh.statLines", "线路 {n} 条", { n: `<b data-oh="lines">0</b>` })}</span>
+                        <span>${ohT("oh.statStations", "运营车站 {n} 座", { n: `<b data-oh="stations">0</b>` })}</span>
+                        <span>${ohT("oh.statMileage", "里程 {n} km", { n: `<b data-oh="mileage">0</b>` })}</span>
                     </div>
                     <div class="cgo-oh-track"><div class="cgo-oh-bar"></div></div>
                     <div class="cgo-oh-actions cgo-mt-actions">
-                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="back" title="返回工具列表">
+                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="back" title="${ohT("tools.backToTools", "返回工具列表")}">
                             <cgo-icon name="back" size="14"></cgo-icon>
                         </button>
-                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="play" title="播放 / 暂停">
+                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="play" title="${ohT("oh.playPause", "播放 / 暂停")}">
                             <cgo-icon name="play" size="14"></cgo-icon>
                         </button>
-                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="replay" title="重播">
+                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="replay" title="${ohT("oh.replay", "重播")}">
                             <cgo-icon name="refresh" size="14"></cgo-icon>
                         </button>
-                        <button type="button" class="cgo-mt-quick cgo-oh-set-btn" data-oh="setSpeed" title="运镜速度">
+                        <button type="button" class="cgo-mt-quick cgo-oh-set-btn" data-oh="setSpeed" title="${ohT("oh.speed", "运镜速度")}">
                             <span>${SPEED.def} px/s</span>
                         </button>
-                        <button type="button" class="cgo-mt-quick cgo-oh-set-btn" data-oh="setZoom" title="特写倍数">
+                        <button type="button" class="cgo-mt-quick cgo-oh-set-btn" data-oh="setZoom" title="${ohT("oh.zoomLevel", "特写倍数")}">
                             <span>${ZOOM.def.toFixed(1)}×</span>
                         </button>
-                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="toggleInfo" title="查看事件清单" aria-pressed="false">
+                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="toggleInfo" title="${ohT("oh.showList", "查看事件清单")}" aria-pressed="false">
                             <cgo-icon name="view-list" size="14"></cgo-icon>
                         </button>
                         ${canExportVideo() ? `
-                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="exportToggle" title="导出视频" aria-pressed="false">
+                        <button type="button" class="cgo-mt-quick cgo-oh-icon-btn" data-oh="exportToggle" title="${ohT("oh.exportVideo", "导出视频")}" aria-pressed="false">
                             <cgo-icon name="download" size="14"></cgo-icon>
                         </button>` : ""}
                     </div>
                     <div class="cgo-oh-set" data-oh="speedSet" hidden>
                         <div class="cgo-oh-field">
-                            <label for="cgo-oh-speed">运镜速度</label>
+                            <label for="cgo-oh-speed">${ohT("oh.speed", "运镜速度")}</label>
                             <input type="range" id="cgo-oh-speed" data-oh="speed"
                                 min="${SPEED.min}" max="${SPEED.max}" step="${SPEED.step}" value="${SPEED.def}">
                             <output data-oh="speedOut">${SPEED.def} px/s</output>
@@ -2594,7 +2620,7 @@
                     </div>
                     <div class="cgo-oh-set" data-oh="zoomSet" hidden>
                         <div class="cgo-oh-field">
-                            <label for="cgo-oh-zoom">特写</label>
+                            <label for="cgo-oh-zoom">${ohT("oh.zoom", "特写")}</label>
                             <input type="range" id="cgo-oh-zoom" data-oh="zoom"
                                 min="${ZOOM.min}" max="${ZOOM.max}" step="${ZOOM.step}" value="${ZOOM.def}">
                             <output data-oh="zoomOut">${ZOOM.def.toFixed(1)}×</output>
@@ -2602,58 +2628,58 @@
                     </div>
                     <div class="cgo-oh-set cgo-oh-export" data-oh="exportSet" hidden>
                         <div class="cgo-oh-field">
-                            <label for="cgo-oh-exp-from">起始</label>
+                            <label for="cgo-oh-exp-from">${ohT("oh.start", "起始")}</label>
                             <cgo-toolbar-select id="cgo-oh-exp-from" data-oh="expFrom"></cgo-toolbar-select>
                         </div>
                         <div class="cgo-oh-field">
-                            <label for="cgo-oh-exp-to">结束</label>
+                            <label for="cgo-oh-exp-to">${ohT("oh.end", "结束")}</label>
                             <cgo-toolbar-select id="cgo-oh-exp-to" data-oh="expTo"></cgo-toolbar-select>
                         </div>
                         <div class="cgo-oh-field">
-                            <label>卡面</label>
-                            <div class="cgo-oh-card-modes" data-oh="expMode" role="group" aria-label="进度卡内容（两项可分别开关，都关则不显示卡片）">
-                                <button type="button" class="cgo-mt-quick cgo-oh-card-btn is-on" data-face="summary" aria-pressed="true" title="显示当前事件的摘要">
-                                    <cgo-icon name="card" size="14"></cgo-icon><span>当前事件</span>
+                            <label>${ohT("oh.cardFace", "卡面")}</label>
+                            <div class="cgo-oh-card-modes" data-oh="expMode" role="group" aria-label="${ohT("oh.cardModesAria", "进度卡内容（两项可分别开关，都关则不显示卡片）")}">
+                                <button type="button" class="cgo-mt-quick cgo-oh-card-btn is-on" data-face="summary" aria-pressed="true" title="${ohT("oh.showSummary", "显示当前事件的摘要")}">
+                                    <cgo-icon name="card" size="14"></cgo-icon><span>${ohT("oh.currentEvent", "当前事件")}</span>
                                 </button>
-                                <button type="button" class="cgo-mt-quick cgo-oh-card-btn" data-face="list" aria-pressed="false" title="显示事件清单（卡片纵向撑满）">
-                                    <cgo-icon name="view-list" size="14"></cgo-icon><span>事件列表</span>
+                                <button type="button" class="cgo-mt-quick cgo-oh-card-btn" data-face="list" aria-pressed="false" title="${ohT("oh.showListCard", "显示事件清单（卡片纵向撑满）")}">
+                                    <cgo-icon name="view-list" size="14"></cgo-icon><span>${ohT("oh.eventList", "事件列表")}</span>
                                 </button>
                             </div>
                         </div>
                         <div class="cgo-oh-field" data-oh="expCardField">
-                            <label>位置</label>
-                            <div class="cgo-rt-need-opts" data-oh="expCard" role="group" aria-label="进度卡位置">
+                            <label>${ohT("oh.position", "位置")}</label>
+                            <div class="cgo-rt-need-opts" data-oh="expCard" role="group" aria-label="${ohT("oh.cardPosAria", "进度卡位置")}">
                                 <!-- 只开「当前事件」：四角；开了「事件列表」：卡片纵向撑满，只剩左右。
                                      两个开关都关时整行隐藏（不显示卡片，位置也就无从谈起）。 -->
-                                <button type="button" class="cgo-rt-need-opt is-on" data-for="summary" data-card="br">右下</button>
-                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="bl">左下</button>
-                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="tr">右上</button>
-                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="tl">左上</button>
-                                <button type="button" class="cgo-rt-need-opt" data-for="list" data-card="right">右</button>
-                                <button type="button" class="cgo-rt-need-opt" data-for="list" data-card="left">左</button>
+                                <button type="button" class="cgo-rt-need-opt is-on" data-for="summary" data-card="br">${ohT("oh.posBr", "右下")}</button>
+                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="bl">${ohT("oh.posBl", "左下")}</button>
+                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="tr">${ohT("oh.posTr", "右上")}</button>
+                                <button type="button" class="cgo-rt-need-opt" data-for="summary" data-card="tl">${ohT("oh.posTl", "左上")}</button>
+                                <button type="button" class="cgo-rt-need-opt" data-for="list" data-card="right">${ohT("oh.posRight", "右")}</button>
+                                <button type="button" class="cgo-rt-need-opt" data-for="list" data-card="left">${ohT("oh.posLeft", "左")}</button>
                             </div>
                         </div>
                         <div class="cgo-oh-exp-actions">
-                            <button type="button" class="cgo-mt-launch" data-oh="expStart">导出 MP4</button>
+                            <button type="button" class="cgo-mt-launch" data-oh="expStart">${ohT("oh.exportMp4", "导出 MP4")}</button>
                         </div>
                     </div>
                 </div>
                 <ul class="cgo-oh-list"></ul>
-                <p class="cgo-oh-note">演示只覆盖有开通记录的区段，底图线网在放映期间由本演示接管，关闭后恢复。</p>
+                <p class="cgo-oh-note">${ohT("oh.note", "演示只覆盖有开通记录的区段，底图线网在放映期间由本演示接管，关闭后恢复。")}</p>
                 <!-- 导出进度走 CGoUI 的 <cgo-modal> 浮层：面板本身可被拖动 / 缩放 / 滚动，
                      进度与取消放在浮层里就不会跟着乱动（用户验收反馈）。
                      ⚠️ 不写 close-on-overlay：Boolean 属性「存在即真」，不写才是「点遮罩不关」。 -->
-                <cgo-modal data-oh="expModal" title="正在导出视频">
+                <cgo-modal data-oh="expModal" title="${ohT("oh.exporting", "正在导出视频")}">
                     <dl class="cgo-oh-exp-meta">
-                        <div><dt>事件范围</dt><dd data-oh="expRange">—</dd></div>
-                        <div><dt>运镜速度</dt><dd data-oh="expSpeed">—</dd></div>
-                        <div><dt>放大倍数</dt><dd data-oh="expZoom">—</dd></div>
-                        <div><dt>当前事件</dt><dd data-oh="expNow">—</dd></div>
+                        <div><dt>${ohT("oh.expRange", "事件范围")}</dt><dd data-oh="expRange">—</dd></div>
+                        <div><dt>${ohT("oh.speed", "运镜速度")}</dt><dd data-oh="expSpeed">—</dd></div>
+                        <div><dt>${ohT("oh.expZoom", "放大倍数")}</dt><dd data-oh="expZoom">—</dd></div>
+                        <div><dt>${ohT("oh.currentEvent", "当前事件")}</dt><dd data-oh="expNow">—</dd></div>
                     </dl>
                     <div class="cgo-oh-exp-track"><div class="cgo-oh-exp-bar" data-oh="expBar"></div></div>
                     <p class="cgo-oh-exp-status" data-oh="expStatus"></p>
                     <div class="cgo-oh-exp-modal-actions">
-                        <button type="button" class="cgo-mt-quick" data-oh="expCancel">取消导出</button>
+                        <button type="button" class="cgo-mt-quick" data-oh="expCancel">${ohT("oh.cancelExport", "取消导出")}</button>
                     </div>
                 </cgo-modal>
             </div>
@@ -2672,7 +2698,7 @@
         const listOn = root.classList.contains("is-list");
         btn.classList.toggle("is-on", listOn);
         btn.setAttribute("aria-pressed", String(listOn));
-        btn.title = listOn ? "返回信息区" : "查看事件清单";
+        btn.title = listOn ? ohT("oh.hideList", "返回信息区") : ohT("oh.showList", "查看事件清单");
         // 刚展开清单：等这一帧布局稳定后再把当前拍滚进视野（clientHeight 此刻才有值）
         if (listOn) requestAnimationFrame(scrollListToActive);
     }
@@ -2707,16 +2733,16 @@
      * 清单行、信息区状态行与导出进度卡同源同序；图标一律取 CGoUI（禁用 emoji，见铁律五）。
      */
     const COUNT_CHIPS = [
-        { key: "enter", icon: "add", label: "新增车站" },
-        { key: "remove", icon: "zoom-out", label: "拆除车站" },
-        { key: "up", icon: "sparkle", label: "升级车站" },
-        { key: "down", icon: "reverse", label: "降级车站" }
+        { key: "enter", icon: "add", label: "新增车站", labelKey: "oh.chipEnter" },
+        { key: "remove", icon: "zoom-out", label: "拆除车站", labelKey: "oh.chipRemove" },
+        { key: "up", icon: "sparkle", label: "升级车站", labelKey: "oh.chipUp" },
+        { key: "down", icon: "reverse", label: "降级车站", labelKey: "oh.chipDown" }
     ];
 
     /** 计数 chips（按 COUNT_CHIPS 顺序；为 0 的不渲染） */
     function chipsHTML(counts) {
         return COUNT_CHIPS.map((c) => (counts && counts[c.key]
-            ? `<span class="cgo-oh-item-add" title="${c.label}"><cgo-icon name="${c.icon}" size="12"></cgo-icon>${counts[c.key]}</span>`
+            ? `<span class="cgo-oh-item-add" title="${ohT(c.labelKey, c.label)}"><cgo-icon name="${c.icon}" size="12"></cgo-icon>${counts[c.key]}</span>`
             : "")).join("");
     }
 
@@ -2888,8 +2914,8 @@
         clearMarks();
         if (state.els) {
             state.els.badge.hidden = true;
-            state.els.date.textContent = "尚未开始";
-            state.els.desc.textContent = "点「播放」从空白画布起笔，镜头跟着画笔把线网逐段画出来；也可用操作行的清单按钮跳到任一年份。";
+            state.els.date.textContent = ohT("oh.notStarted", "尚未开始");
+            state.els.desc.textContent = ohT("oh.intro", "点「播放」从空白画布起笔，镜头跟着画笔把线网逐段画出来；也可用操作行的清单按钮跳到任一年份。");
             state.els.lines.textContent = "0";
             state.els.stations.textContent = "0";
             state.els.mileage.textContent = "0.0";
@@ -3358,8 +3384,8 @@
         window.CGoMapTools.registerTool({
             id: TOOL_ID,
             icon: "route",
-            name: "线网发展史",
-            desc: "从空白画布起笔，镜头跟着画笔逐段画出线网，可跳看任一年份的形态",
+            name: ohT("oh.title", "线网发展史"),
+            desc: ohT("oh.desc", "从空白画布起笔，镜头跟着画笔逐段画出线网，可跳看任一年份的形态"),
             when: hasData,
             mount: mount,
             unmount: unmount

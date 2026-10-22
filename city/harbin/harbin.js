@@ -238,7 +238,9 @@
 
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "261019.2140";
+        const version = "261020.1845";
+        // 共享层行程面板文案表：未接入 i18n 运行时也要读中文兜底
+        document.write(`<script src="./city/shenyang/shared/base/i18n.bundles.js?v=${version}"><\/script>`);
         // 环线方向文案（内环 / 外环）：须早于行程规划与时刻表渲染
         document.write(`<script src="./city/shenyang/shared/route/loop-direction.js?v=${version}"><\/script>`);
         // 行程规划：数据构建器 → 内核 → 面板（顺序不可颠倒）

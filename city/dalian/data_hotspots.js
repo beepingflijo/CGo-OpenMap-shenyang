@@ -11,21 +11,21 @@
  */
 const DALIAN_HOTSPOTS = [
     // ── 交通枢纽 ──
-    { name: "大连站", sid: "0301", kind: "hub", icon: "railway", exit: "A" },
-    { name: "大连北站", sid: "0102", kind: "hub", icon: "railway", exit: "C" },
-    { name: "周水子机场", sid: "0219", kind: "hub", icon: "plane", exit: "A" },
+    { name: "大连站", i18n: { en: { name: "Dalian Railway Station" }, "zh-Hant": { name: "大連站" } }, sid: "0301", kind: "hub", icon: "railway", exit: "A" },
+    { name: "大连北站", i18n: { en: { name: "Dalian North Railway Station" }, "zh-Hant": { name: "大連北站" } }, sid: "0102", kind: "hub", icon: "railway", exit: "C" },
+    { name: "周水子机场", i18n: { en: { name: "Zhoushuizi Airport" }, "zh-Hant": { name: "周水子機場" } }, sid: "0219", kind: "hub", icon: "plane", exit: "A" },
     // ── 名胜景点 ──
-    { name: "金石滩旅游度假区", sid: "0311", kind: "poi", tag: "5A", exit: "B" },
-    { name: "中山广场近代建筑群", sid: "0206", kind: "poi", tag: "全国文保", exit: "B" },
+    { name: "金石滩旅游度假区", i18n: { en: { name: "Jinshitan Tourist Resort", tag: "5A" }, "zh-Hant": { name: "金石灘旅遊度假區", tag: "5A" } }, sid: "0311", kind: "poi", tag: "5A", exit: "B" },
+    { name: "中山广场近代建筑群", i18n: { en: { name: "Modern Architecture of Zhongshan Square", tag: "National Heritage Site" }, "zh-Hant": { name: "中山廣場近代建築群", tag: "全國文保" } }, sid: "0206", kind: "poi", tag: "全国文保", exit: "B" },
     // 旅顺博物馆：藏有侵略史迹相关史料，圆点用中性灰（tone: "somber"），不配线路色
-    { name: "旅顺博物馆", sid: "0806", kind: "poi", tag: "全国文保", exit: "1号门", tone: "somber" },
+    { name: "旅顺博物馆", i18n: { en: { name: "Lüshun Museum", tag: "National Heritage Site" }, "zh-Hant": { name: "旅順博物館", tag: "全國文保" } }, sid: "0806", kind: "poi", tag: "全国文保", exit: "1号门", tone: "somber" },
     // 以下按「官方交通建议含地铁」补录（2026-10-09 搜索核实）：
     // 老虎滩海洋公园：本地宝「地铁 5 号线直达虎滩公园站 C 口出站」（站取 0502 虎滩公园）
-    { name: "老虎滩海洋公园", sid: "0502", kind: "poi", tag: "4A", exit: "C" },
+    { name: "老虎滩海洋公园", i18n: { en: { name: "Laohutan Ocean Park", tag: "4A" }, "zh-Hant": { name: "老虎灘海洋公園", tag: "4A" } }, sid: "0502", kind: "poi", tag: "4A", exit: "C" },
     // 日俄监狱旧址：侵略史迹，圆点用中性灰（tone: "somber"），不配线路色；
     // 交通见本地宝「地铁 12 号线旅顺站（B 口）+ 公交」（本站出口表只有 1 号门 / 2 号门，
     // 与旅顺博物馆同站同口兜底）
-    { name: "日俄监狱旧址", sid: "0806", kind: "poi", tag: "全国文保", exit: "1号门", tone: "somber" }
+    { name: "日俄监狱旧址", i18n: { en: { name: "Former Russo-Japanese Prison Site", tag: "National Heritage Site" }, "zh-Hant": { name: "日俄監獄舊址", tag: "全國文保" } }, sid: "0806", kind: "poi", tag: "全国文保", exit: "1号门", tone: "somber" }
 ];
 window.DALIAN_HOTSPOTS = DALIAN_HOTSPOTS;
 window.CGO_HOTSPOTS = DALIAN_HOTSPOTS;

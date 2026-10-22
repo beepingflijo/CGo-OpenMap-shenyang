@@ -282,7 +282,9 @@
 
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "261019.2140";
+        const version = "261020.1845";
+        // 共享层行程面板文案表：未接入 i18n 运行时也要读中文兜底
+        document.write(`<script src="./city/shenyang/shared/base/i18n.bundles.js?v=${version}"><\/script>`);
         // 首末班车共享渲染层（须早于城市时刻表模块）
         document.write(`<script src="./city/shenyang/shared/station/timetable-renderer.js?v=${version}"><\/script>`);
         // 行程规划：数据构建器 → 内核 → 面板（顺序不可颠倒）

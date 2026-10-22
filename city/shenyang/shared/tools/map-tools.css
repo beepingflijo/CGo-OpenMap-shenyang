@@ -217,6 +217,11 @@
     -webkit-text-stroke: var(--sta-stroke-width-en, 1.75px) var(--map-bg);
 }
 
+/* 第三行（外文环境下的中文对照行）同样加描边，否则色块铺上来后它最先糊掉 */
+#map-content.cgo-mt-terrain #labels-layer .label-group .cgo-sta-third {
+    -webkit-text-stroke: var(--sta-stroke-width-en, 1.75px) var(--map-bg);
+}
+
 /* ── 悬停读数胶囊（样式对齐上游 /map）────────────────────────────── */
 .cgo-mt-hover {
     position: fixed;

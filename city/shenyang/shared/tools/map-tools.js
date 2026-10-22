@@ -211,24 +211,32 @@
             id: "fare",
             icon: "payment",
             name: "票价图",
+            nameKey: "tools.fareMap",
             desc: "选一个车站，看从该站出发到各站的票价",
-            title: (name) => `${name}到各站票价`
+            descKey: "tools.fareDesc",
+            title: (name) => mtT("tools.fareTitle", "{name}到各站票价", { name })
         },
         iso: {
             id: "iso",
             icon: "time",
             name: "等时圈",
+            nameKey: "tools.isochrone",
             desc: "选一个车站，看乘地铁多少分钟能到各站",
-            title: (name) => `从${name}出发`
+            descKey: "tools.isoDesc",
+            title: (name) => mtT("tools.isoTitle", "从{name}出发", { name })
         },
         meet: {
             id: "meet",
             icon: "user",
             name: "多人汇合",
+            nameKey: "tools.meetup",
             desc: "选两个车站，找大家用时接近、都方便到的汇合站；出图后再点一座车站可加入第三人",
-            title: (name) => `${name} 汇合图`
+            descKey: "tools.meetDesc",
+            title: (name) => mtT("tools.meetTitle", "{name} 汇合图", { name })
         }
     };
+    const toolName = (tool) => mtT(TOOLS[tool].nameKey, TOOLS[tool].name);
+    const toolDesc = (tool) => mtT(TOOLS[tool].descKey, TOOLS[tool].desc);
 
     /**
      * 外部注册的「免选站」工具（如 shared/tools/opening-history.js 的线网发展史）。
@@ -279,6 +287,31 @@
     const emit = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
     const stations = () => window.processedStations || {};
     const stationName = (sid) => stations()[sid]?.cn || String(sid || "");
+    /**
+     * 界面文案：优先走共享层 i18n（沈阳 / 大连加载了 i18n.js），其余城市回退中文。
+     * 直接在这里取而不是等 DOM 覆盖层，是因为悬停读数这类组件每次指针移动都重写一遍，
+     * 覆盖层永远慢一帧、还会与下一次重写打架。
+     */
+    const mtT = (key, fallback, vars) => {
+        const i18n = window.CGoI18n;
+        if (i18n && typeof i18n.t === "function") {
+            const value = i18n.t(key, vars);
+            if (value !== key) return value;
+        }
+        if (!fallback) return key;
+        return String(fallback).replace(/\{(\w+)\}/g, (match, name) => (
+            vars && vars[name] != null ? String(vars[name]) : match
+        ));
+    };
+    /** 展示用站名：外文环境取多语言名，取不到回退中文（事件载荷仍用中文，不动业务口径） */
+    const stationLabel = (sid) => {
+        const i18n = window.CGoI18n;
+        if (i18n && typeof i18n.stationName === "function") {
+            const name = i18n.stationName(sid, stations()[sid]);
+            if (name) return name;
+        }
+        return stationName(sid);
+    };
     const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
     /** 站名可能含 & < > 等字符，拼进 HTML 标题前先转义 */
     const esc = (text) => String(text).replace(/[&<>"']/g, (ch) => (
@@ -376,7 +409,7 @@
             section.dataset.cgoHighId = "tools";
             section.innerHTML = `
                 <div class="section-header">
-                    <span class="section-title-text">${SECTION_TITLE}</span>
+                    <span class="section-title-text">${esc(mtT("tools.title", SECTION_TITLE))}</span>
                     <cgo-icon name="expand-more" class="section-arrow"></cgo-icon>
                 </div>
                 <div class="section-body"></div>
@@ -432,7 +465,7 @@
             const back = document.createElement("button");
             back.type = "button";
             back.className = "cgo-mt-quick cgo-mt-back";
-            back.innerHTML = '<cgo-icon name="arrow-right" size="13"></cgo-icon>返回工具列表';
+            back.innerHTML = `<cgo-icon name="arrow-right" size="13"></cgo-icon>${esc(mtT("tools.backToTools", "返回工具列表"))}`;
             back.addEventListener("click", () => openTools(state.preset));
             actions.insertBefore(back, actions.firstChild);
         };
@@ -492,7 +525,7 @@
             el.innerHTML = `
                 <div class="cgo-mt-head">
                     <span class="cgo-mt-head-title"></span>
-                    <button type="button" class="cgo-mt-close" title="关闭">
+                    <button type="button" class="cgo-mt-close" title="${esc(mtT("panel.close", "关闭面板"))}">
                         <cgo-icon name="close" size="14"></cgo-icon>
                     </button>
                 </div>
@@ -549,20 +582,21 @@
         state.preset = preset;   // 侧栏形态的「返回」要复用这次进来时带的预设车站
         // 工具列表与结果小窗同一位置，故同时只留一个
         closePanel();
-        const el = shell(MENU_ID, "地图小工具", () => hidePanel(MENU_ID));
+        const el = shell(MENU_ID, mtT("tools.title", SECTION_TITLE), () => hidePanel(MENU_ID));
+        const centralGo = `<a href="https://centralgo.site/map" target="_blank" rel="noreferrer">${esc(mtT("tools.centralGoMap", "Central Go 地图本体"))}</a><cgo-icon name="external" size="12"></cgo-icon>`;
         el.querySelector(".cgo-mt-body").innerHTML = `
-            <p class="cgo-mt-lead">可选的地图分析小工具。点「开启」开始，选站类工具需在地图上点选车站。</p>
-            <p class="cgo-mt-note">受 <a href="https://centralgo.site/map" target="_blank" rel="noreferrer">Central Go 地图本体</a><cgo-icon name="external" size="12"></cgo-icon> 启发</p>
+            <p class="cgo-mt-lead">${esc(mtT("tools.lead", "可选的地图分析小工具。点「开启」开始，选站类工具需在地图上点选车站。"))}</p>
+            <p class="cgo-mt-note">${esc(mtT("tools.inspiredBy", "受 {link} 启发", { link: "\u0000" })).replace("\u0000", centralGo)}</p>
             <div class="cgo-mt-list">
                 ${Object.values(TOOLS).filter((tool) => !tool.when || tool.when()).map((tool) => `
                     <div class="cgo-mt-item">
                         <span class="cgo-mt-item-icon"><cgo-icon name="${tool.icon}" size="22"></cgo-icon></span>
                         <div class="cgo-mt-item-text">
-                            <b>${tool.name}</b>
-                            <span>${tool.desc}</span>
+                            <b>${esc(toolName(tool.id))}</b>
+                            <span>${esc(toolDesc(tool.id))}</span>
                         </div>
                         <button type="button" class="cgo-mt-launch" data-launch="${tool.id}">
-                            开启<cgo-icon name="arrow-right" size="12"></cgo-icon>
+                            ${esc(mtT("tools.enable", "开启"))}<cgo-icon name="arrow-right" size="12"></cgo-icon>
                         </button>
                     </div>
                 `).join("")}
@@ -628,7 +662,7 @@
             el.className = "cgo-mt-pick-tip";
             el.innerHTML = '<span class="cgo-mt-pick-dot"></span>'
                 + '<span class="cgo-mt-pick-text"></span>'
-                + '<button type="button" class="cgo-mt-pick-cancel">取消</button>';
+                + `<button type="button" class="cgo-mt-pick-cancel">${esc(mtT("tools.cancel", "取消"))}</button>`;
             el.querySelector(".cgo-mt-pick-cancel").addEventListener("click", stopPick);
             document.body.appendChild(el);
         }
@@ -662,7 +696,7 @@
 
     function startPick(tool, presetStationId) {
         if (!TOOLS[tool]) return;
-        if (!Object.keys(stations()).length) { alert("线路图尚未就绪，请稍后再试。"); return; }
+        if (!Object.keys(stations()).length) { alert(mtT("tools.notReady", "线路图尚未就绪，请稍后再试。")); return; }
         stopPick();
         state.picking = tool;
         // 从面板带过来的预设车站：直接算作已选（汇合图即 A 已定，只差 B）
@@ -682,11 +716,11 @@
         const tool = state.picking;
         if (!tool) return;
         const tip = pickTip();
-        let text = `请在地图上点选一个车站（${TOOLS[tool].name}）`;
+        let text = mtT("tools.pickOne", "请在地图上点选一个车站（{tool}）", { tool: toolName(tool) });
         if (tool === "meet") {
             text = state.picks.length === 0
-                ? "请点选第一个车站（多人汇合）"
-                : `已选 ${stationName(state.picks[0])}，请再点选一个车站`;
+                ? mtT("tools.pickFirst", "请点选第一个车站（多人汇合）")
+                : mtT("tools.pickSecond", "已选 {name}，请再点选一个车站", { name: stationLabel(state.picks[0]) });
         }
         tip.querySelector(".cgo-mt-pick-text").textContent = text;
         tip.classList.add("show");
@@ -1058,7 +1092,7 @@
                 /** 汇合带那两档画实一些，其余按常规透明度 */
                 alphaOf: (b) => (b < band ? MEET_BAND_BOOST : 1),
                 /** 第 b 档与第 b+1 档之间的分界值（等值线标签用）：10 分、20 分… */
-                cutText: (b) => `${(b + 1) * MEET_STEP}分`,
+                cutText: (b) => mtT("tools.tickMinutes", "{n}分", { n: (b + 1) * MEET_STEP }),
                 bandOf: (v) => Math.max(0, Math.min(count - 1, Math.floor(v / MEET_STEP))),
                 /** 线型：10 分那条是虚线、20 分那条是实线（与两点汇合同一套交替规则） */
                 cutKind: (group) => meetCutKind(group * 2 * MEET_STEP, 2 * MEET_STEP),
@@ -1120,12 +1154,13 @@
                 // 票价图漏了，此处补上，两边口径对齐。
                 ticks: amounts
                     .map((v, i) => (i === last || (i % step === 0 && i <= last - step)
-                        ? { text: `${v}元`, at: (i + 0.5) / amounts.length } : null))
+                        ? { text: mtT("tools.tickFare", "{n}元", { n: v }), at: (i + 0.5) / amounts.length } : null))
                     .filter(Boolean),
                 amounts,
                 edgeEvery: 1,                 // 票价每档之间都是等级线
                 /** 第 band 档与第 band+1 档之间的分界值（等值线标签用） */
-                cutText: (band) => (band < amounts.length ? `${amounts[band]}元` : ""),
+                cutText: (band) => (band < amounts.length
+                    ? mtT("tools.tickFare", "{n}元", { n: amounts[band] }) : ""),
                 bandOf: (v) => Math.max(0, Math.min(last, Math.round(v) - from))
             };
         }
@@ -1168,7 +1203,8 @@
                 .filter(Boolean),
             cuts,
             edgeEvery,                         // 等级线只画在每 edgeEvery 档的组界上
-            cutText: (band) => (band + 1 <= steps ? `${cuts[band + 1]}分` : ""),
+            cutText: (band) => (band + 1 <= steps
+                ? mtT("tools.tickMinutes", "{n}分", { n: cuts[band + 1] }) : ""),
             bandOf: (v) => Math.min(steps - 1, Math.max(0, Math.floor(v / ISO_STEP))),
             /**
              * 超出选中上限的地方**不填色**（用户明确要求），但上限本身要**画一条等级线**：
@@ -1602,7 +1638,9 @@
                 // 若这条线是「范围」上限那条（裁剪边界），值就是**上限本身** —— 它不落在
                 // 组界上时（如 105 分档里的 105）也照样要标出来
                 const text = bands.kind === "iso"
-                    ? `${edgeGroupHit ? edgeGroup * edgeEvery * ISO_STEP : bands.clipMax}分`
+                    ? mtT("tools.tickMinutes", "{n}分", {
+                        n: edgeGroupHit ? edgeGroup * edgeEvery * ISO_STEP : bands.clipMax
+                    })
                     : bands.cutText(band - 1);
                 if (!text) continue;
                 // 标签只撒在未淡化的实心区：淡化带上的色块本就快看不见了，
@@ -2027,13 +2065,13 @@
         const value = sampleField(field.values, field.lowW, field.lowH, fx, fy);
         const band = field.bands.bandOf(value);
         const rgb = field.bands.colors[band] || [255, 255, 255];
-        // 读数文案：`main` 自带颜色（各工具的口径不同），`unit` 跟在后面
+        // 读数文案：`main` 自带颜色（各工具的口径不同），整句直接按当前语言拼
         const tool = field.tool;
         let main;
-        let unit;
+        let text;
         if (tool === "fare") {
             main = `<b style="color:${brighten(rgb)}">${field.bands.amounts[band]}</b>`;
-            unit = "元";
+            text = mtT("tools.hoverFare", "预计 {value} 元", { value: main });
         } else if (tool === "meet") {
             // 读数给各出发点的**各自用时** —— 色块那个差值是插出来的连续场，而"到 A / B / C
             // 各多久"是站点属性；故在指针处现场插一次（权重与建图同一套），读数随位置连续变化。
@@ -2046,20 +2084,22 @@
                     const origin = MEET_ORIGINS[i] || MEET_ORIGINS[MEET_ORIGINS.length - 1];
                     return `<b style="color:${brighten(hexToRgb(origin.color))}">${origin.letter} ${Math.round(time)}</b>`;
                 }).join(" · ");
-                unit = "分钟";
+                text = mtT("tools.hoverMinutes", "{value} 分钟", { value: main });
             } else {
                 // 兜底：没拿到各人的用时（数据缺失等），退回差值读法
                 main = `<b style="color:${brighten(rgb)}">${Math.round(Math.abs(value))}</b>`;
-                unit = `分钟 · ${field.bands.kind === "meet3" ? "三人用时差"
-                    : value < 0 ? "离 A 更近" : "离 B 更近"}`;
+                const key = field.bands.kind === "meet3" ? "tools.hoverMeet3"
+                    : value < 0 ? "tools.hoverCloserA" : "tools.hoverCloserB";
+                const fallback = field.bands.kind === "meet3" ? "{value} 分钟 · 三人用时差"
+                    : value < 0 ? "{value} 分钟 · 离 A 更近" : "{value} 分钟 · 离 B 更近";
+                text = mtT(key, fallback, { value: main });
             }
         } else {
             main = `<b style="color:${brighten(rgb)}">${Math.round(value)}</b>`;
-            unit = "分钟";
+            text = mtT("tools.hoverMinutes", "{value} 分钟", { value: main });
         }
         tip.querySelector(".cgo-mt-hover-dot").style.background = `rgb(${rgb.join(",")})`;
-        tip.querySelector(".cgo-mt-hover-text").innerHTML =
-            `${tool === "fare" ? "预计 " : ""}${main} ${unit}`;
+        tip.querySelector(".cgo-mt-hover-text").innerHTML = text;
         tip.style.left = `${event.clientX}px`;
         tip.style.top = `${event.clientY - 12}px`;
         tip.classList.add("show");
@@ -2080,7 +2120,7 @@
     function openPanel(tool, name, titleHtml) {
         const el = shell(PANEL_ID, titleHtml || TOOLS[tool].title(name), closePanel, !!titleHtml);
         el.querySelector(".cgo-mt-body").innerHTML =
-            '<div class="cgo-mt-loading"><cgo-icon name="loading" size="16"></cgo-icon>正在计算…</div>';
+            `<div class="cgo-mt-loading"><cgo-icon name="loading" size="16"></cgo-icon>${esc(mtT("tools.calculating", "正在计算…"))}</div>`;
         showPanel(PANEL_ID);
         return el;
     }
@@ -2096,10 +2136,10 @@
             return `<b class="cgo-mt-or ${origin.cls}">${origin.letter}</b> ${Math.round(time)}`;
         });
         if (pick.times.length <= 2) {
-            parts.push(`差 ${Math.round(pick.spread)} 分`);
+            parts.push(mtT("tools.diff", "差 {n} 分", { n: Math.round(pick.spread) }));
             return parts.join(" · ");
         }
-        return `${parts.join(" · ")} 分`;
+        return `${parts.join(" · ")} ${mtT("tools.minutesUnit", "分")}`;
     }
 
     /**
@@ -2108,14 +2148,17 @@
      */
     function meetTitle(targets) {
         if (targets.length <= 2) {
-            return `${esc(stationName(targets[0]))}<cgo-icon name="vi-way" size="15" class="cgo-mt-way"></cgo-icon>`
-                + `${esc(stationName(targets[1]))} 汇合图`;
+            const pair = `${esc(stationLabel(targets[0]))}<cgo-icon name="vi-way" size="15" class="cgo-mt-way"></cgo-icon>`
+                + `${esc(stationLabel(targets[1]))}`;
+            return mtT("tools.meetTitle", "{name} 汇合图", { name: pair });
         }
         const names = targets.map((sid, i) => {
             const origin = MEET_ORIGINS[i] || MEET_ORIGINS[MEET_ORIGINS.length - 1];
-            return `<b class="cgo-mt-or ${origin.cls}">${origin.letter}</b>${esc(stationName(sid))}`;
+            return `<b class="cgo-mt-or ${origin.cls}">${origin.letter}</b>${esc(stationLabel(sid))}`;
         });
-        return `${names.join('<span class="cgo-mt-or-sep">·</span>')} 汇合图`;
+        return mtT("tools.meetTitle", "{name} 汇合图", {
+            name: names.join('<span class="cgo-mt-or-sep">·</span>')
+        });
     }
 
     /**
@@ -2162,11 +2205,11 @@
         if (meet) {
             picksHtml = `
                 <div class="cgo-mt-meet">
-                    <div class="cgo-mt-meet-title">推荐汇合站（按较慢用时 + 时间差）</div>
+                    <div class="cgo-mt-meet-title">${esc(mtT("tools.meetPicksTitle", "推荐汇合站（按较慢用时 + 时间差）"))}</div>
                     ${(picks || []).map((pick, i) => `
                         <button type="button" class="cgo-mt-meet-item" data-meet-sid="${pick.sid}">
                             <span class="cgo-mt-meet-rank">${i + 1}</span>
-                            <span class="cgo-mt-meet-name">${stationName(pick.sid)}</span>
+                            <span class="cgo-mt-meet-name">${esc(stationLabel(pick.sid))}</span>
                             <span class="cgo-mt-meet-time">${pickTimesText(pick)}</span>
                         </button>
                     `).join("")}
@@ -2178,7 +2221,7 @@
         // 不说出来没人会知道图上还能再点一下（点了就会加载 A/B/C 三点汇合图）
         const hintHtml = meet && targets.length === 2 ? `
             <p class="cgo-mt-hint">
-                <cgo-icon name="location" size="14"></cgo-icon>在地图上再点一个车站，加入第三人一起算
+                <cgo-icon name="location" size="14"></cgo-icon>${esc(mtT("tools.addThird", "在地图上再点一个车站，加入第三人一起算"))}
             </p>
         ` : "";
 
@@ -2187,14 +2230,19 @@
         const iso = view.iso;
         const rangeHtml = iso ? `
             <div class="cgo-mt-range">
-                <span class="cgo-mt-range-label">范围</span>
+                <span class="cgo-mt-range-label">${esc(mtT("tools.range", "范围"))}</span>
                 <div class="cgo-mt-range-opts">
                     ${iso.options.map((v) => {
                         const longest = v === iso.longest;
+                        const label = longest ? mtT("tools.longest", "最长")
+                            : mtT("tools.minutesShort", "{n} 分", { n: v });
+                        const title = longest
+                            ? mtT("tools.rangeTitleLongest", "本城最长时间约 {n} 分", { n: v })
+                            : mtT("tools.rangeTitle", "范围到 {n} 分", { n: v });
                         return `
                         <button type="button" class="cgo-mt-range-opt${v === iso.selected ? " is-on" : ""}"
-                            data-range="${v}" title="${longest ? `本城最长时间约 ${v} 分` : `范围到 ${v} 分`}"
-                            >${longest ? "最长" : `${v} 分`}</button>
+                            data-range="${v}" title="${esc(title)}"
+                            >${esc(label)}</button>
                     `;
                     }).join("")}
                 </div>
@@ -2207,8 +2255,8 @@
             <div class="cgo-mt-near">
                 ${near.map((item) => `
                     <button type="button" class="cgo-mt-near-item" data-sid="${item.sid}">
-                        <span class="cgo-mt-near-name">${esc(stationName(item.sid))}</span>
-                        <span class="cgo-mt-near-time">${Math.round(item.value)} 分</span>
+                        <span class="cgo-mt-near-name">${esc(stationLabel(item.sid))}</span>
+                        <span class="cgo-mt-near-time">${esc(mtT("tools.minutesShort", "{n} 分", { n: Math.round(item.value) }))}</span>
                     </button>
                 `).join("")}
             </div>
@@ -2218,12 +2266,12 @@
         // 选中的就是「最长」那一档时不必画：全网再没有更远的站，斜纹没有可指的东西
         const clipped = Number.isFinite(bands.clipMax) && !(iso && iso.selected >= iso.longest);
         const overHtml = clipped
-            ? `<span class="cgo-mt-over" title="高于 ${bands.clipMax} 分：不填色，上限处画一条等级线"></span>`
+            ? `<span class="cgo-mt-over" title="${esc(mtT("tools.overTitle", "高于 {n} 分：不填色，上限处画一条等级线", { n: bands.clipMax }))}"></span>`
             : "";
         const legendHtml = three ? `
             <div class="cgo-mt-keys">
-                <span class="cgo-mt-key"><i class="cgo-mt-key-mark is-dash"></i>汇合带：差 ≤${MEET3_BAND} 分</span>
-                <span class="cgo-mt-key"><i class="cgo-mt-key-mark is-solid"></i>外带：差 ≤${MEET3_OUTER} 分</span>
+                <span class="cgo-mt-key"><i class="cgo-mt-key-mark is-dash"></i>${esc(mtT("tools.bandKey", "汇合带：差 ≤{n} 分", { n: MEET3_BAND }))}</span>
+                <span class="cgo-mt-key"><i class="cgo-mt-key-mark is-solid"></i>${esc(mtT("tools.outerKey", "外带：差 ≤{n} 分", { n: MEET3_OUTER }))}</span>
             </div>
         ` : `
             <div class="cgo-mt-legend">
@@ -2246,7 +2294,7 @@
                     </div>
                     ${overHtml}
                 </div>
-                ${meetish ? `<div class="cgo-mt-ends"><span>${stationName(targets[0])} 更近</span><span class="cgo-mt-ends-mid">汇合带</span><span>${stationName(targets[1])} 更近</span></div>` : ""}
+                ${meetish ? `<div class="cgo-mt-ends"><span>${esc(mtT("tools.closer", "{name} 更近", { name: stationLabel(targets[0]) }))}</span><span class="cgo-mt-ends-mid">${esc(mtT("tools.meetBand", "汇合带"))}</span><span>${esc(mtT("tools.closer", "{name} 更近", { name: stationLabel(targets[1]) }))}</span></div>` : ""}
             </div>
         `;
 
@@ -2257,16 +2305,16 @@
             ${hintHtml}
             <div class="cgo-mt-actions">
                 <button type="button" class="cgo-mt-quick" data-act="repick">
-                    <cgo-icon name="location" size="14"></cgo-icon>重新选站
+                    <cgo-icon name="location" size="14"></cgo-icon>${esc(mtT("tools.repick", "重新选站"))}
                 </button>
                 ${near ? `
                     <button type="button" class="cgo-mt-quick" data-act="nearest">
-                        <cgo-icon name="${view.nearestOpen ? "chevron-up" : "chevron-down"}" size="14"></cgo-icon>最近 10 站
+                        <cgo-icon name="${view.nearestOpen ? "chevron-up" : "chevron-down"}" size="14"></cgo-icon>${esc(mtT("tools.nearest10", "最近 10 站"))}
                     </button>
                 ` : ""}
                 ${three ? `
                     <button type="button" class="cgo-mt-quick" data-act="drop-c">
-                        <cgo-icon name="arrow-left" size="13"></cgo-icon>移除 C
+                        <cgo-icon name="arrow-left" size="13"></cgo-icon>${esc(mtT("tools.removeC", "移除 C"))}
                     </button>
                 ` : ""}
             </div>
@@ -2327,7 +2375,7 @@
             const section = toolsSection();
             section.classList.add("collapsed");
             const titleEl = section.querySelector(".section-title-text");
-            if (titleEl) titleEl.textContent = SECTION_TITLE;
+            if (titleEl) titleEl.textContent = mtT("tools.title", SECTION_TITLE);
         }
     }
 
@@ -2370,7 +2418,7 @@
             ? (iso ? { min: 0, max: iso.selected, clip: iso.selected } : view.span)
             : view.span;
         const bands = buildBands(view.tool, view.values, range, view.targets.length);
-        if (!bands) { renderNotice(view.panel, "没有可用的分档数据。"); return false; }
+        if (!bands) { renderNotice(view.panel, esc(mtT("tools.noBands", "没有可用的分档数据。"))); return false; }
         const field = await drawMap(view.tool, view.values, bands, guard);
         if (!field || !guard()) return false;
         // 汇合图的悬停读数要"到 A / B / C 各多久" —— 那是站点属性，插值才有场内的大致数值。
@@ -2424,7 +2472,7 @@
         try {
             await paint({ ...last, panel });
         } catch (err) {
-            renderNotice(panel, (err && err.message) || "重绘失败，请稍后重试。");
+            renderNotice(panel, (err && err.message) || esc(mtT("tools.redrawFailed", "重绘失败，请稍后重试。")));
         } finally {
             state.busy = false;
             drainRangeQueue();
@@ -2447,7 +2495,7 @@
         state.stationId = Array.isArray(target) ? targets : target;
         const targetKey = targets.join("|");
         state.targetKey = targetKey;
-        const name = targets.map(stationName).join(" ⇄ ");
+        const name = targets.map(stationLabel).join(" ⇄ ");
         const titleHtml = tool === "meet" ? meetTitle(targets) : null;
         // 建图、计算、绘制三段都是异步的，期间用户可能已关窗或换了工具：
         // 每段结束都据这枚令牌丢弃迟到的结果，否则它会把已经关掉的小窗与画布重新画回来
@@ -2467,9 +2515,10 @@
             }
             if (!alive()) return;
             if (!planner) {
-                renderNotice(panel, window.CGO_ROUTE_CONFIG
-                    ? "线路数据尚未就绪，请稍后重试。"
-                    : "当前城市暂不支持该分析。");
+                renderNotice(panel, esc(mtT(window.CGO_ROUTE_CONFIG ? "tools.lineDataNotReady" : "tools.cityNotSupported",
+                    window.CGO_ROUTE_CONFIG
+                        ? "线路数据尚未就绪，请稍后重试。"
+                        : "当前城市暂不支持该分析。")));
                 return;
             }
             // 出发点本身就不参与规划（未开通、或不属于任何可规划线路，如国铁散点）：
@@ -2477,7 +2526,9 @@
             const unusable = targets.find((sid) => stations()[sid]?.type === "no"
                 || !planner.linesAt(sid).length);
             if (unusable) {
-                renderNotice(panel, `${stationName(unusable)} 不参与规划（未开通或不属于可规划线路）。`);
+                renderNotice(panel, esc(mtT("tools.stationUnavailable",
+                    "{name} 不参与规划（未开通或不属于可规划线路）。",
+                    { name: stationLabel(unusable) })));
                 return;
             }
             let values;
@@ -2490,12 +2541,12 @@
             }
             if (!alive()) return;
             if (!values) {
-                renderNotice(panel, tool === "fare"
-                    ? "该城市未配置票价规则，无法生成票价图。"
-                    : "没有可用的数据。");
+                renderNotice(panel, esc(tool === "fare"
+                    ? mtT("tools.noFareConfig", "该城市未配置票价规则，无法生成票价图。")
+                    : mtT("tools.noData", "没有可用的数据。")));
                 return;
             }
-            if (!values.size) { renderNotice(panel, "没有可比较的车站数据（可能不可达或尚未开通）。"); return; }
+            if (!values.size) { renderNotice(panel, esc(mtT("tools.noComparable", "没有可比较的车站数据（可能不可达或尚未开通）。"))); return; }
             // 固定色标的参照范围（按城市 + 工具缓存，只算一次）；汇合图的量程本身就是固定的
             const span = tool === "meet" ? null : await referenceRange(tool, planner);
             if (!alive()) return;
@@ -2505,12 +2556,14 @@
             if (!painted || !alive()) return;
             const list = [...values.values()];
             emit("cgo:map-tools-rendered", {
-                tool, stationId: state.stationId, stationName: name, stations: values.size,
+                tool, stationId: state.stationId,
+                stationName: targets.map(stationName).join(" ⇄ "),
+                stations: values.size,
                 min: Math.min(...list), max: Math.max(...list),
                 ms: Math.round(performance.now() - started)
             });
         } catch (err) {
-            renderNotice(panel, (err && err.message) || "计算失败，请稍后重试。");
+            renderNotice(panel, (err && err.message) || esc(mtT("tools.calcFailed", "计算失败，请稍后重试。")));
         } finally {
             state.busy = false;
             drainRangeQueue();
@@ -2569,7 +2622,7 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = `panel-share-btn ${TOOL_BTN_CLASS}`;
-        btn.title = "地图小工具";
+        btn.title = mtT("tools.title", "地图小工具");
         btn.innerHTML = '<cgo-icon name="plugin" size="20"></cgo-icon>';
         btn.addEventListener("click", (event) => {
             // 拦下这次点击，别让面板把事件当成"点了别处"而收起
@@ -2667,12 +2720,12 @@
         const sid = ctxStationId;
         if (!sid || !stations()[sid] || isPlanned(sid)) return;
         menu.insertAdjacentHTML("beforeend", `
-            <div class="ctx-divider">工具</div>
+            <div class="ctx-divider">${esc(mtT("tools.ctxDivider", "工具"))}</div>
             <button type="button" class="ctx-menu-btn ${CTX_BTN_CLASS}" data-ctx="to">
-                <cgo-icon name="arrive" size="16"></cgo-icon> 设为终点
+                <cgo-icon name="arrive" size="16"></cgo-icon> ${esc(mtT("tools.setDestination", "设为终点"))}
             </button>
             <button type="button" class="ctx-menu-btn ${CTX_BTN_CLASS}" data-ctx="tools">
-                <cgo-icon name="plugin" size="16"></cgo-icon> 地图小工具
+                <cgo-icon name="plugin" size="16"></cgo-icon> ${esc(mtT("tools.title", "地图小工具"))}
             </button>
         `);
         // 行程规划是路线模块的能力，这里只调它的公开入口，不碰它的内部状态
@@ -2801,7 +2854,7 @@
         const entry = document.createElement("a");
         entry.href = "javascript:void(0)";
         entry.id = MENU_ENTRY_ID;
-        entry.innerHTML = `<cgo-icon name="plugin"></cgo-icon><span>地图小工具</span>`;
+        entry.innerHTML = `<cgo-icon name="plugin"></cgo-icon><span>${esc(mtT("tools.title", "地图小工具"))}</span>`;
         entry.addEventListener("click", () => openTools());
         const anchor = content.querySelector("#settings-btn");
         if (anchor) anchor.insertAdjacentElement("beforebegin", entry);

@@ -424,7 +424,7 @@ body.mobile-panel-expanded #info-panel.cgo-rt-stacked-hidden,
 
 .cgo-rt-quickgo-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 7px;
     min-width: 0;
     padding: 8px 10px;
@@ -444,6 +444,7 @@ body.mobile-panel-expanded #info-panel.cgo-rt-stacked-hidden,
 
 .cgo-rt-quickgo-item cgo-icon {
     flex: none;
+    margin-top: 1px;
     color: var(--text-light);
 }
 
@@ -470,17 +471,22 @@ body.mobile-panel-expanded #info-panel.cgo-rt-stacked-hidden,
 }
 
 .cgo-rt-quickgo-text > span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* 外文名往往比中文长，不再单行省略，允许自然换行，避免只看到半截地名 */
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.3;
+    word-break: break-word;
 }
 
 .cgo-rt-quickgo-text small {
     font-size: 11px;
     color: var(--text-light);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.25;
+    word-break: break-word;
 }
 
 /* 口芯片行 */
@@ -772,6 +778,32 @@ body.mobile-panel-expanded #info-panel.cgo-rt-stacked-hidden,
     font-style: normal;
     font-size: 12px;
     opacity: 0.6;
+}
+
+/* 外语界面：站名主行 + 中文站名副行；动作词在英文下前置（Depart from / Board at…） */
+.cgo-rt-leg-station {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.cgo-rt-leg-station .cgo-rt-zh {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    opacity: 0.65;
+    white-space: nowrap;
+}
+
+html[data-cgo-lang="zh-Hant"] .cgo-rt-leg-station .cgo-rt-zh {
+    font-family: "Noto Sans TC", "Source Han Sans TC", "Source Han Sans TW", "Microsoft JhengHei", sans-serif;
+}
+
+.cgo-rt-leg-action {
+    flex: none;
 }
 
 .cgo-rt-leg-line {

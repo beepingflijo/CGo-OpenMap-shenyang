@@ -44,6 +44,7 @@
 | `timetable-renderer.js` | `window.CGoTimetable`、`window.CGoDayType` | classic script，按需引入（沈 / 大 / 长 / 呼 已引入；哈尔滨未引入） | 首末班车「行 → HTML」、日期类型与季节判定、终点站代号解析，详见 2.1 |
 | `stacard-engine.js` | 具名导出 `createStaCard`；另外把瓦片与投影挂到 `window.CGoMapTiles` | ES module，五城（沈 / 大 / 长 / 哈 / 呼）的 `stacard/script.js` 相对 import | 高德瓦片地图卡片（ES module）；并把瓦片与投影挂到 `window.CGoMapTiles` 供 classic script 取用，详见 2.1 |
 | `station-title.js` | `window.CGoStationTitle.createStationTitleNormalizer` | classic script，接入城市在 `{city}.js` 引入（沈 / 大 / 长 / 哈） | 侧栏站名标题归一化（站类判定、标题拼装、MutationObserver 安装与防自触发） |
+| `i18n.js` + `i18n.bundles.js` + `i18n.css` | `window.CGoI18n`（`t` / `tr` / `stationName` / `stationDisplayName` / `labelLines` / `lineName` / `poiName` / `poiTag`） | classic script，沈 / 大 在 `{city}.js` 按「城市 `data_i18n.js` → bundles → runtime」引入；其余接入行程面板的城市只引入 bundles 作中文兜底 | 多语言显示：`?lang=` 解析、UI 文案反查、地图站名 / 面板标题 / 搜索别名重写；**不修改 `stationsData` 的 cn / en 业务主键**，站名 / 地名 / 线路名一律查城市数据，缺失回退中文 |
 | `tip-card.js` | `window.CGoTipCard.render` | classic script（目前仅沈阳引入） | 车站信息板提示卡片 DOM（与上游官方模板结构一致） |
 | `label-active.js` | `window.CGoLabelActive`（`sync`） | classic script，目前仅沈阳在 `{city}.js` 引入 | 呼出线随站名标签同步 active 与淡化（按 `data-cgo-callout` 配对），详见 2.1 |
 | `adjacent-jump.js` + `adjacent-jump.css` | 无对外接口（自动注册 `cgo-adjacent-jump` 模块） | classic script，接入城市在 `{city}.js` 引入（沈 / 大 / 长 / 哈 / 呼；福州未引入） | 「上一站 / 下一站」点击跳转 + **已拆除站纠正**：面板装配完成后给 `info-value` 反查目标站并绑定跳转，并据 `window.CGO_RETIRED_STATIONS` 把指向已拆除站的邻站改写为沿站序向外第一座活站、滤掉接驳徽标里已拆除的对端（core 零改动），详见 2.1 |

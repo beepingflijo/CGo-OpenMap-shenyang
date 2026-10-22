@@ -22,32 +22,32 @@
  */
 const SHENYANG_HOTSPOTS = [
     // ── 交通枢纽 ──
-    { name: "沈阳站", sid: "0114", kind: "hub", icon: "railway", enterExit: "L1", leaveExit: "A2" },
-    { name: "沈阳北站", sid: "0207", kind: "hub", icon: "railway", exit: "A" },
-    { name: "沈阳南站", sid: "0422", kind: "hub", icon: "railway", exit: "A" },
+    { name: "沈阳站", i18n: { en: { name: "Shenyang Railway Station" }, "zh-Hant": { name: "瀋陽站" } }, sid: "0114", kind: "hub", icon: "railway", enterExit: "L1", leaveExit: "A2" },
+    { name: "沈阳北站", i18n: { en: { name: "Shenyang North Railway Station" }, "zh-Hant": { name: "瀋陽北站" } }, sid: "0207", kind: "hub", icon: "railway", exit: "A" },
+    { name: "沈阳南站", i18n: { en: { name: "Shenyang South Railway Station" }, "zh-Hant": { name: "瀋陽南站" } }, sid: "0422", kind: "hub", icon: "railway", exit: "A" },
     // 桃仙机场：航站楼直接口（data_exits 手工补录的「航站楼（-1F）」）
-    { name: "桃仙机场", sid: "0226", kind: "hub", icon: "plane", exit: "航站楼" },
+    { name: "桃仙机场", i18n: { en: { name: "Taoxian Airport" }, "zh-Hant": { name: "桃仙機場" } }, sid: "0226", kind: "hub", icon: "plane", exit: "航站楼" },
     // ── 名胜景点（3A+ 景区 / 省市级博物馆 / 全国文保）──
-    { name: "沈阳故宫", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
-    { name: "张学良旧居", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
-    { name: "北陵公园（昭陵）", sid: "0204", kind: "poi", tag: "全国文保 · 4A", exit: "E" },
-    { name: "东陵公园（福陵）", sid: "0128", kind: "poi", tag: "全国文保 · 4A", exit: "B" },
-    { name: "新乐遗址", sid: "0203", kind: "poi", tag: "全国文保", exit: "B" },
+    { name: "沈阳故宫", i18n: { en: { name: "Shenyang Palace Museum", tag: "National Heritage · 4A" }, "zh-Hant": { name: "瀋陽故宮", tag: "全國文保 · 4A" } }, sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
+    { name: "张学良旧居", i18n: { en: { name: "Former Residence of Zhang Xueliang", tag: "National Heritage · 4A" }, "zh-Hant": { name: "張學良舊居", tag: "全國文保 · 4A" } }, sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
+    { name: "北陵公园（昭陵）", i18n: { en: { name: "Beiling Park (Zhaoling)", tag: "National Heritage · 4A" }, "zh-Hant": { name: "北陵公園（昭陵）", tag: "全國文保 · 4A" } }, sid: "0204", kind: "poi", tag: "全国文保 · 4A", exit: "E" },
+    { name: "东陵公园（福陵）", i18n: { en: { name: "Dongling Park (Fuling)", tag: "National Heritage · 4A" }, "zh-Hant": { name: "東陵公園（福陵）", tag: "全國文保 · 4A" } }, sid: "0128", kind: "poi", tag: "全国文保 · 4A", exit: "B" },
+    { name: "新乐遗址", i18n: { en: { name: "Xinle Site", tag: "National Heritage Site" }, "zh-Hant": { name: "新樂遺址", tag: "全國文保" } }, sid: "0203", kind: "poi", tag: "全国文保", exit: "B" },
     // 九·一八：惨案纪念地，圆点用中性灰（tone: "somber"），不配线路色
-    { name: "九·一八历史博物馆", sid: "1011", kind: "poi", tag: "博物馆", exit: "E", tone: "somber" },
-    { name: "辽宁省博物馆", sid: "0222", kind: "poi", tag: "省博", exit: "A" },
-    { name: "沈阳博物馆", sid: "0209", kind: "poi", tag: "市博", exit: "D" },
+    { name: "九·一八历史博物馆", i18n: { en: { name: "9.18 Historical Museum", tag: "Museum" }, "zh-Hant": { name: "九·一八歷史博物館", tag: "博物館" } }, sid: "1011", kind: "poi", tag: "博物馆", exit: "E", tone: "somber" },
+    { name: "辽宁省博物馆", i18n: { en: { name: "Liaoning Provincial Museum", tag: "Provincial Museum" }, "zh-Hant": { name: "遼寧省博物館", tag: "省博" } }, sid: "0222", kind: "poi", tag: "省博", exit: "A" },
+    { name: "沈阳博物馆", i18n: { en: { name: "Shenyang Museum", tag: "City Museum" }, "zh-Hant": { name: "瀋陽博物館", tag: "市博" } }, sid: "0209", kind: "poi", tag: "市博", exit: "D" },
     // ── 省市级公共建筑与公园（2026-10-09 按沈阳本地宝「地铁可及」补录）──
     // 科技馆：本地宝「2 号线省博物馆站 D 口向南 200 米」
-    { name: "辽宁省科学技术馆", sid: "0222", kind: "poi", tag: "省属场馆", exit: "D" },
+    { name: "辽宁省科学技术馆", i18n: { en: { name: "Liaoning Science and Technology Museum", tag: "Provincial venue" }, "zh-Hant": { name: "遼寧省科學技術館", tag: "省屬場館" } }, sid: "0222", kind: "poi", tag: "省属场馆", exit: "D" },
     // 省图与省博同片区，方位依据不足时取西北口兜底（原则：条目须绑定口，否则结果无出入口信息）
-    { name: "辽宁省图书馆", sid: "0222", kind: "poi", tag: "省属场馆", exit: "B" },
+    { name: "辽宁省图书馆", i18n: { en: { name: "Liaoning Provincial Library", tag: "Provincial venue" }, "zh-Hant": { name: "遼寧省圖書館", tag: "省屬場館" } }, sid: "0222", kind: "poi", tag: "省属场馆", exit: "B" },
     // 市图书馆（青年大街×科普路口径）
-    { name: "沈阳市图书馆", sid: "0213", kind: "poi", tag: "市属场馆", exit: "C" },
-    { name: "科普公园", sid: "0214", kind: "poi", tag: "市级公园", exit: "B" },
+    { name: "沈阳市图书馆", i18n: { en: { name: "Shenyang Library", tag: "City venue" }, "zh-Hant": { name: "瀋陽市圖書館", tag: "市屬場館" } }, sid: "0213", kind: "poi", tag: "市属场馆", exit: "C" },
+    { name: "科普公园", i18n: { en: { name: "Science Park", tag: "City park" }, "zh-Hant": { name: "科普公園", tag: "市級公園" } }, sid: "0214", kind: "poi", tag: "市级公园", exit: "B" },
     // 公园均在浑河南岸：取贴桥南侧的口
-    { name: "长白岛森林公园", sid: "0415", kind: "poi", tag: "市级公园", exit: "D" },
-    { name: "奥林匹克生态公园", sid: "1018", kind: "poi", tag: "市级公园", exit: "D" }
+    { name: "长白岛森林公园", i18n: { en: { name: "Changbai Island Forest Park", tag: "City park" }, "zh-Hant": { name: "長白島森林公園", tag: "市級公園" } }, sid: "0415", kind: "poi", tag: "市级公园", exit: "D" },
+    { name: "奥林匹克生态公园", i18n: { en: { name: "Olympic Ecological Park", tag: "City park" }, "zh-Hant": { name: "奧林匹克生態公園", tag: "市級公園" } }, sid: "1018", kind: "poi", tag: "市级公园", exit: "D" }
 ];
 window.SHENYANG_HOTSPOTS = SHENYANG_HOTSPOTS;
 window.CGO_HOTSPOTS = SHENYANG_HOTSPOTS;

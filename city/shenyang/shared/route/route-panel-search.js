@@ -24,6 +24,23 @@
     function create(deps) {
         const d = deps;
 
+        /** 显示名：中文 / 繁体 / 外语均由共享层 i18n 统一给出，避免再拼一次 en 造成重复 */
+        function displayName(sid) {
+            const station = d.allStations()[sid];
+            const name = window.CGoI18n?.stationName?.(sid, station);
+            return name || station?.cn || sid;
+        }
+
+        function displayLines(sid) {
+            const station = d.allStations()[sid];
+            const lines = window.CGoI18n?.labelLines?.(sid, station) || [];
+            if (lines.length) return lines;
+            const fallback = [];
+            if (station?.cn) fallback.push({ text: station.cn, lang: "zh-Hans" });
+            if (station?.en) fallback.push({ text: station.en, lang: "en" });
+            return fallback;
+        }
+
         function searchStations(keyword) {
             const kw = String(keyword || "").trim().toLowerCase();
             if (!kw) return [];
@@ -79,18 +96,22 @@
         }
 
         function exitItemHtml(hit) {
-            const label = d.exitsApi()?.exitLabel?.(hit.code) || `${hit.code} 口`;
+            const key = /^\d/.test(String(hit.code)) ? "route.exitCodeNumber" : "route.exitCode";
+            const label = window.CGoI18n?.t?.(key, { code: hit.code })
+                || d.exitsApi()?.exitLabel?.(hit.code)
+                || `${hit.code} 口`;
+            const stationLabel = displayName(hit.sid);
             // 主次对调：地标 / 出口指示（用户搜的东西）当主标题，站名 + 口退为次行；
             // 没有 context 的口回落成「站名 A 口」主标题
-            const main = hit.context || `${hit.cn} ${label}`;
-            const sub = hit.context ? `${hit.cn} ${label}` : "";
+            const main = hit.context || `${stationLabel} ${label}`;
+            const sub = hit.context ? `${stationLabel} ${label}` : "";
             const subHtml = sub
-                ? `<span style="font-size:12px;color:var(--text-light);">${sub}</span>`
+                ? `<span style="font-size:12px;color:var(--text-light);">${d.escAttr(sub)}</span>`
                 : "";
             return `
             <div class="search-item cgo-rt-exit-item" data-sid="${hit.sid}" data-exit="${hit.code}" data-landmark="${d.escAttr(hit.context || "")}">
                 <cgo-icon name="location" size="14"></cgo-icon>
-                <span class="search-item-text">${main} ${subHtml}</span>
+                <span class="search-item-text" data-cgo-no-i18n="1">${d.escAttr(main)} ${subHtml}</span>
             </div>
         `;
         }
@@ -99,18 +120,23 @@
             const hits = searchStations(keyword);
             const exitHits = searchExitsForKeyword(keyword);
             if (!hits.length && !exitHits.length) {
-                panel.innerHTML = `<div class="cgo-rt-empty">没有匹配的车站或出入口</div>`;
+                panel.innerHTML = `<div class="cgo-rt-empty">${window.CGoI18n?.t?.("route.noMatch") || "没有匹配的车站或出入口"}</div>`;
                 panel.classList.add("show");
                 return;
             }
-            panel.innerHTML = hits.map((hit) => `
+            panel.innerHTML = hits.map((hit) => {
+                const lines = displayLines(hit.sid);
+                const primary = lines[0]?.plain || hit.cn;
+                const rest = lines.slice(1).map((line) => line.plain).filter(Boolean);
+                return `
             <div class="search-item" data-sid="${hit.sid}">
                 ${badgesHtml(hit.sid)}
-                <span class="search-item-text">${hit.cn}
-                    <span style="font-size:12px;color:var(--text-light);">${hit.en}</span>
+                <span class="search-item-text" data-cgo-no-i18n="1">${d.escAttr(primary)}
+                    ${rest.length ? `<span style="font-size:12px;color:var(--text-light);">${d.escAttr(rest.join(" · "))}</span>` : ""}
                 </span>
             </div>
-        `).join("") + exitHits.map(exitItemHtml).join("");
+        `;
+            }).join("") + exitHits.map(exitItemHtml).join("");
             panel.classList.add("show");
             d.injectSvgs(panel);
         }

@@ -95,13 +95,14 @@
     /** 折叠行 + 展开区；expanded 决定初始开合状态与按钮文案 */
     function collapsibleRowHtml({ icon, name, count, more, expanded = false, tone, detailClass, detail }) {
         const countHtml = count === undefined ? "" : `<span>${count} 处</span>`;
+        const displayName = window.CGoI18n?.facilityName?.(name) || name;
         // 类型可带 tone（城市在 types 里声明），转成修饰类名供样式表着色；
         // 只放行小写字母与连字符，避免把配置里的任意字符串塞进 class
         const toneClass = /^[a-z][a-z-]*$/.test(String(tone || "")) ? ` cgo-fac-row--${tone}` : "";
         return `
             <div class="info-row cgo-fac-row${toneClass}">
                 <span class="info-label cgo-fac-name">
-                    <cgo-icon name="${icon}" size="14"></cgo-icon>${escapeHtml(name)}
+                    <cgo-icon name="${icon}" size="14"></cgo-icon>${escapeHtml(displayName)}
                 </span>
                 <span class="info-value">
                     <button type="button" class="cgo-fac-toggle" aria-expanded="${expanded}">

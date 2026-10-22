@@ -133,9 +133,10 @@
 
     /** 出口卡片里的设施行：图标 + 名称 + 原文（原文含运行时段，用 small 降级显示） */
     function rowHtml(item) {
+        const displayName = window.CGoI18n?.facilityName?.(item.name) || item.name;
         return `<div class="cgo-exit-row cgo-exit-vertical">
             <cgo-icon name="${escapeHtml(item.icon)}" size="13"></cgo-icon>
-            <span>${escapeHtml(item.name)}${item.text ? ` <small>${escapeHtml(item.text)}</small>` : ""}</span>
+            <span>${escapeHtml(displayName)}${item.text ? ` <small>${escapeHtml(item.text)}</small>` : ""}</span>
         </div>`;
     }
 

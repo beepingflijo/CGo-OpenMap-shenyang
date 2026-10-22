@@ -1,0 +1,199 @@
+/**
+ * CGo OpenMap - 共享层多语言显示样式
+ *
+ * 只处理「显示层」的字体与字号，不改变数据与线路几何：
+ * - zh-Hant：站名主行改用繁体字体栈（思源黑体 TC），字号保持引擎原值；
+ * - en / ko / ru：外文主行与意译行在基准 7.1px / 8.6px 上放大 10%，
+ *   中文对照行缩到基准的 80%，外文行再横向压到 80%；
+ *   避免拉丁 / 西里尔 / 韩文字符过宽压线；
+ * - 字体优先 Arimo（英文）与思源黑体（Noto Sans SC / TC）；
+ * - ja：预留日文汉字主行 + 假名注音的字体栈，首版暂未启用。
+ */
+
+/* ── 字体栈：英文优先 Arimo，中文优先思源黑体（Noto Sans SC / TC） ────── */
+#labels-layer {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", sans-serif;
+}
+
+html[data-cgo-lang="zh-Hant"] #labels-layer,
+html[data-cgo-lang="zh-Hant"] .panel-cn-name {
+    font-family: "Noto Sans TC", "Source Han Sans TC", "Source Han Sans TW", "Microsoft JhengHei", "PingFang TC", sans-serif;
+}
+
+html[data-cgo-lang="zh-Hans"] .panel-cn-name {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", sans-serif;
+}
+
+html[data-cgo-lang="en"] #labels-layer,
+html[data-cgo-lang="en"] .panel-cn-name {
+    font-family: "Arimo", "Arial", "Helvetica Neue", sans-serif;
+}
+
+/* 逐行指定：英文行 Arimo，中文行思源黑体，避免中英混排落到系统默认字体 */
+#labels-layer [lang="en"] {
+    font-family: "Arimo", "Arial", "Helvetica Neue", sans-serif;
+}
+
+#labels-layer [lang="zh-Hans"] {
+    font-family: "Noto Sans SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", sans-serif;
+}
+
+#labels-layer [lang="zh-Hant"] {
+    font-family: "Noto Sans TC", "Source Han Sans TC", "Source Han Sans TW", "Microsoft JhengHei", "PingFang TC", sans-serif;
+}
+
+.panel-en-name {
+    font-family: "Arimo", "Arial", "Helvetica Neue", sans-serif;
+}
+
+html[data-cgo-lang="ko"] #labels-layer {
+    font-family: "Malgun Gothic", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+}
+
+html[data-cgo-lang="ru"] #labels-layer {
+    font-family: "Segoe UI", "Noto Sans", "Arial", sans-serif;
+}
+
+html[data-cgo-lang="ja"] #labels-layer {
+    font-family: "Yu Gothic", "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+}
+
+/* ── 英语 / 韩语 / 俄语：外文主行与意译行在基准上放大 10% ─────────────── */
+html[data-cgo-lang="en"] #labels-layer .label-group .stacn,
+html[data-cgo-lang="en"] #labels-layer .label-group .staen,
+html[data-cgo-lang="ko"] #labels-layer .label-group .stacn,
+html[data-cgo-lang="ko"] #labels-layer .label-group .staen,
+html[data-cgo-lang="ru"] #labels-layer .label-group .stacn,
+html[data-cgo-lang="ru"] #labels-layer .label-group .staen {
+    /* 基准 7.1 / 8.6 放大 10% → 7.81 / 9.46 */
+    font-size: 7.81px;
+    line-height: 9.46px;
+    font-weight: 600;
+    letter-spacing: -0.05px;
+}
+
+/* 中文行在基准的 80% 上再放大 20%（实际约为基准的 96%）：
+   外文环境下它只是辅助对照，但也不能小到读不清 */
+html[data-cgo-lang="en"] #labels-layer .label-group .cgo-sta-third,
+html[data-cgo-lang="ko"] #labels-layer .label-group .cgo-sta-third,
+html[data-cgo-lang="ru"] #labels-layer .label-group .cgo-sta-third {
+    /* 5.68 / 6.88 × 1.2 → 6.82 / 8.26 */
+    font-size: 6.82px;
+    line-height: 8.26px;
+    font-weight: 500;
+    letter-spacing: -0.04px;
+}
+
+/* Arimo 没有 condensed 字面：外文行保持 Arimo，由 i18n.js 统一施加 80% 横向压缩 */
+
+/* 选中态按同一比例放大，避免选中后突然跳回中文主行尺寸。
+   选择器必须带 #labels-layer：基础字号规则自带 ID，光靠 html[data-cgo-lang] 压不住它。 */
+html[data-cgo-lang="en"] #labels-layer .label-group.active .stacn,
+html[data-cgo-lang="ko"] #labels-layer .label-group.active .stacn,
+html[data-cgo-lang="ru"] #labels-layer .label-group.active .stacn {
+    font-size: 11.88px;
+    line-height: 13.09px;
+    font-weight: 700;
+}
+
+html[data-cgo-lang="en"] #labels-layer .label-group.active .staen,
+html[data-cgo-lang="ko"] #labels-layer .label-group.active .staen,
+html[data-cgo-lang="ru"] #labels-layer .label-group.active .staen {
+    font-size: 9.24px;
+    line-height: 10.12px;
+    font-weight: 700;
+}
+
+html[data-cgo-lang="en"] #labels-layer .label-group.active .cgo-sta-third,
+html[data-cgo-lang="ko"] #labels-layer .label-group.active .cgo-sta-third,
+html[data-cgo-lang="ru"] #labels-layer .label-group.active .cgo-sta-third {
+    /* 6.72 / 7.36 × 1.2 → 8.06 / 8.83 */
+    font-size: 8.06px;
+    line-height: 8.83px;
+    font-weight: 700;
+}
+
+/* 未开通态：与核心的 .stacn / .staen 同色（带 ID 才能压过上面的基础色）。
+   必须排在选中态之前 —— 与 css/style.css 的规则顺序一致，选中时仍应变红。 */
+#labels-layer .label-group.type-no .cgo-sta-third {
+    color: var(--not-open-text) !important;
+}
+
+/* 第三行也要跟主/副行一起响应选中态（核心只给 .stacn / .staen 上了红色与描边）。
+   必须带 #labels-layer：基础规则 `#labels-layer .cgo-sta-third` 带 ID，
+   权重高于裸的 `.label-group.active .cgo-sta-third`，同为 !important 时它会胜出。 */
+#labels-layer .label-group.active .cgo-sta-third {
+    color: #D0021B !important;
+    -webkit-text-stroke: var(--sta-stroke-width-en) var(--map-bg);
+}
+
+/* 非中文 / 非日文界面：呼出线标签不再左右留白，省出的宽度让给更长的外文站名 */
+html:not([data-cgo-lang="zh-Hans"]):not([data-cgo-lang="zh-Hant"]):not([data-cgo-lang="ja"]) .label-group.label-callout {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* 外文界面的呼出标签改用 flex 纵排：
+   scaleX 只压缩字形、不改布局宽度，行的「外框」会比文字多出两侧余量。
+   在块级布局里负 margin 只能把行贴到一侧；换成 flex 后每行的 margin box
+   作为一个整体参与对齐，配合 i18n.js 按缩放原点设的负 margin，
+   外框正好等于视觉宽度，长行贴边、短行居中。
+   align-items 跟随核心内联的 text-align，保持原来的左 / 中 / 右对齐。 */
+html[data-cgo-lang="en"] .label-group.label-callout,
+html[data-cgo-lang="ko"] .label-group.label-callout,
+html[data-cgo-lang="ru"] .label-group.label-callout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+html[data-cgo-lang="en"] .label-group.label-callout[style*="text-align: left"],
+html[data-cgo-lang="ko"] .label-group.label-callout[style*="text-align: left"],
+html[data-cgo-lang="ru"] .label-group.label-callout[style*="text-align: left"] {
+    align-items: flex-start;
+}
+
+html[data-cgo-lang="en"] .label-group.label-callout[style*="text-align: right"],
+html[data-cgo-lang="ko"] .label-group.label-callout[style*="text-align: right"],
+html[data-cgo-lang="ru"] .label-group.label-callout[style*="text-align: right"] {
+    align-items: flex-end;
+}
+
+/* ── 第三行（音译 / 意译 / 中文） ─────────────────────────────────────── */
+#labels-layer .cgo-sta-third {
+    display: block;
+    margin-top: 0;
+    font-size: 6.65px;
+    line-height: 6.35px;
+    color: var(--text-main) !important;
+    white-space: nowrap;
+    font-weight: 500;
+    paint-order: stroke fill;
+}
+
+/* ── 面板标题：英语/韩语/俄语时主行略缩，避免挤压线路徽标 ───────────── */
+html[data-cgo-lang="en"] .panel-cn-name,
+html[data-cgo-lang="ko"] .panel-cn-name,
+html[data-cgo-lang="ru"] .panel-cn-name {
+    font-size: 16.5px;
+    line-height: 1.25;
+    letter-spacing: 0.3px;
+}
+
+html[data-cgo-lang="en"] .panel-en-name,
+html[data-cgo-lang="ko"] .panel-en-name,
+html[data-cgo-lang="ru"] .panel-en-name {
+    font-size: 11.5px;
+    line-height: 1.35;
+}
+
+/* ── 搜索结果的副行 ───────────────────────────────────────────────────── */
+.cgo-search-secondary {
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.cgo-search-pending {
+    font-size: 12px;
+    color: var(--not-open-text);
+}

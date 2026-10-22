@@ -48,7 +48,10 @@
 
     const allStations = () => window.stationsData || {};
     const allLines = () => window.linesData || [];
-    const stationName = (sid) => allStations()[sid]?.cn || sid;
+    const stationName = (sid) => {
+        const station = allStations()[sid];
+        return window.CGoI18n?.stationDisplayName?.(sid, station) || station?.cn || sid;
+    };
     const stationEn = (sid) => allStations()[sid]?.en || "";
     const linesAt = (sid) => allLines().filter((line) => !line.isPointOnly
         && (line.stationIds || []).includes(sid));
@@ -57,6 +60,88 @@
 
     const state = { from: null, to: null, fromExit: null, toExit: null, fromExitLandmark: null, toExitLandmark: null, need: null, qg: "hub", result: null, routes: [], routeIndex: 0, planner: null, picking: null };
     const emit = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
+
+    /* 界面文案：静态 key 走共享层 t()；动态数值用 {name} 占位，
+       不再把中文碎片与数值直接拼成一句话（外语语序不同，拼出来的句子无法翻译）。
+       未接入 i18n 运行时的城市仍读同一份中文文案表，避免退回显示 key。 */
+    const i18nMessages = window.CGO_I18N_MESSAGES || {};
+    const i18nFallback = (key) => {
+        const item = i18nMessages[key];
+        return (item && item["zh-Hans"]) || key;
+    };
+    const fillVars = (value, vars) => {
+        if (!vars || typeof value !== "string") return value;
+        Object.keys(vars).forEach((name) => {
+            value = value.replace(new RegExp("\\{" + name + "\\}", "g"), String(vars[name]));
+        });
+        return value;
+    };
+    const i18nT = (key, vars) => (window.CGoI18n && typeof window.CGoI18n.t === "function")
+        ? window.CGoI18n.t(key, vars)
+        : fillVars(i18nFallback(key), vars);
+    const i18nTr = (text) => (window.CGoI18n && typeof window.CGoI18n.tr === "function")
+        ? window.CGoI18n.tr(text)
+        : text;
+    const listSep = () => (window.CGoI18n && window.CGoI18n.locale === "en") ? ", " : "、";
+    const noteSep = () => (window.CGoI18n && window.CGoI18n.locale === "en") ? ". " : "；";
+    const i18nLine = (name) => (window.CGoI18n && typeof window.CGoI18n.lineName === "function")
+        ? window.CGoI18n.lineName(name)
+        : name;
+    const transferModeName = (mode) => {
+        const map = {
+            "站内换乘": "route.transferModeInStation",
+            "同台换乘": "route.transferModeSamePlatform",
+            "节点换乘": "route.transferModeNode",
+            "十字节点换乘": "route.transferModeCrossNode",
+            "站厅换乘": "route.transferModeConcourse",
+            "通道换乘": "route.transferModePassage"
+        };
+        return map[mode] ? i18nT(map[mode]) : (i18nTr(mode) || mode);
+    };
+    const routeLabelName = (label) => {
+        const map = {
+            "时间最快": "route.labelFastest",
+            "最少换乘": "route.labelFewestTransfers",
+            "票价最低": "route.labelCheapest",
+            "距离最短": "route.labelShortest"
+        };
+        return map[label] ? i18nT(map[label]) : i18nTr(label);
+    };
+
+    /* 行程结果里的站名：外语界面下附中文站名，方便对照报站与现场导视 */
+    const stationCn = (sid) => {
+        const cn = allStations()[sid]?.cn || "";
+        return window.CGoI18n?.plainName?.(cn) || cn;
+    };
+    const showChineseStation = () => window.CGoI18n
+        && window.CGoI18n.locale !== "zh-Hans"
+        && window.CGoI18n.locale !== "zh-Hant";
+    const stationNameHtml = (sid) => {
+        const name = stationName(sid);
+        const cn = stationCn(sid);
+        if (!showChineseStation() || !cn || cn === name) return escAttr(name);
+        return `<span class="cgo-rt-name-primary">${escAttr(name)}</span><small class="cgo-rt-zh" data-cgo-no-i18n="1">${escAttr(cn)}</small>`;
+    };
+    const stationNameText = (sid) => {
+        const name = stationName(sid);
+        const cn = stationCn(sid);
+        if (!showChineseStation() || !cn || cn === name) return name;
+        return `${name} · ${cn}`;
+    };
+    const legNameHtml = (actionKey, sid) => {
+        const station = `<b class="cgo-rt-leg-station" data-jump="${escAttr(sid)}">${stationNameHtml(sid)}</b>`;
+        const action = `<em class="cgo-rt-leg-action">${i18nT(actionKey)}</em>`;
+        return (window.CGoI18n && window.CGoI18n.locale === "en") ? `${action}${station}` : `${station}${action}`;
+    };
+    const legNameTextHtml = (actionKey, displayText, stationId) => {
+        const cn = (showChineseStation() && stationId) ? stationCn(stationId) : "";
+        const station = `<b class="cgo-rt-leg-station"${stationId ? ` data-jump="${escAttr(stationId)}"` : ""}>`
+            + `<span class="cgo-rt-name-primary">${escAttr(displayText)}</span>`
+            + (cn ? `<small class="cgo-rt-zh" data-cgo-no-i18n="1">${escAttr(cn)}</small>` : "")
+            + `</b>`;
+        const action = `<em class="cgo-rt-leg-action">${i18nT(actionKey)}</em>`;
+        return (window.CGoI18n && window.CGoI18n.locale === "en") ? `${action}${station}` : `${station}${action}`;
+    };
 
     /* ── 出行需求（携带行李 / 无障碍）─────────────────────────────────
        need 是**全局偏好**（带着行李是整趟行程的事）：不随换站复位、不对调，
@@ -101,22 +186,25 @@
         if (!state.need) return "";
         const ok = gateCompliance(sid, code, dir);
         if (ok === true) return "";
-        if (ok === null) return warnLineHtml("该口设施数据未收录");
+        if (ok === null) return warnLineHtml(i18nT("route.exitFacilityMissing"));
         const alt = altGateNames(sid, code, dir);
         if (!alt.length) {
-            const why = state.need === "accessible" ? "无无障碍电梯"
-                : dir === "entry" ? "无进站方向的自动扶梯"
-                    : dir === "exit" ? "无出站方向的自动扶梯" : "无自动扶梯";
-            return warnLineHtml(`该口${why} · 本站无替代口`);
+            const whyKey = state.need === "accessible" ? "route.noAccessibleElevator"
+                : dir === "entry" ? "route.noEntranceDir"
+                    : dir === "exit" ? "route.noExitDir" : "route.noEscalator";
+            return warnLineHtml(`${i18nT(whyKey)} · ${i18nT("route.exitNoAlternative")}`);
         }
         const { html: facHtml, types } = recommendFacRows(sid, alt);
         if (!facHtml) {
-            return `<div class="cgo-rt-leg-line muted" data-role="gate"><span>推荐改用 ${alt.join("、")} 口</span></div>`;
+            return `<div class="cgo-rt-leg-line muted" data-role="gate"><span>${i18nT("route.recommendExitOnly", { list: alt.join(listSep()) })}</span></div>`;
         }
         return `
-            <div class="cgo-rt-leg-line muted cgo-rt-expandable" data-role="gate" data-expand="${key}" title="查看推荐出入口设施">
+            <div class="cgo-rt-leg-line muted cgo-rt-expandable" data-role="gate" data-expand="${key}" title="${i18nT("route.viewRecommendedFacilities")}">
                 <cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>
-                <span>推荐改用 ${alt.join("、")} 口 · 设施：${types.join("、")}</span>
+                <span>${i18nT("route.recommendExitFacilities", {
+                    list: alt.join(listSep()),
+                    facilities: types.join(listSep())
+                })}</span>
             </div>
             <div data-list="${key}" hidden><div class="cgo-rt-leg-line muted" data-role="fac"><div class="cgo-rt-facwrap">${facHtml}</div></div></div>
         `;
@@ -144,12 +232,13 @@
      * 明细段带线路名前缀（多线换乘站的 { line, text } 段）——与车站详情设施板块同口径。
      */
     function cgoFacRowHtml(icon, name, parts) {
+        const displayName = window.CGoI18n?.facilityName?.(name) || name;
         const detail = parts.map((p) =>
             `<div>${p.line ? `<span class="cgo-fac-line">${escAttr(lineName(p.line))}</span>` : ""}${escAttr(p.text)}</div>`).join("");
         return `
             <div class="info-row cgo-fac-row" data-role="fac">
                 <span class="info-label cgo-fac-name">
-                    <cgo-icon name="${escAttr(icon)}" size="14"></cgo-icon>${escAttr(name)}
+                    <cgo-icon name="${escAttr(icon)}" size="14"></cgo-icon>${escAttr(displayName)}
                 </span>
                 <span class="info-value">
                     <button type="button" class="cgo-fac-toggle" aria-expanded="false">
@@ -194,7 +283,8 @@
             for (const item of map.get(code) || []) {
                 if (!need.types.includes(item.type)) continue;
                 const parts = item.text.split(" / ").map((t) => ({ line: null, text: t }));
-                html.push(cgoFacRowHtml(item.icon, `${code} 口 · ${item.name}`, parts));
+                const facName = window.CGoI18n?.facilityName?.(item.name) || item.name;
+                html.push(cgoFacRowHtml(item.icon, `${exitLabelText(code)} · ${facName}`, parts));
                 if (!out.types.includes(item.name)) out.types.push(item.name);
             }
         }
@@ -233,9 +323,9 @@
         const mark = dir === "entry" ? "login" : "gate";
         const { html: facHtml, types } = recommendFacRows(sid, names);
         const summary = facHtml ? `
-            <div class="cgo-rt-leg-line muted cgo-rt-expandable" data-role="fac" data-expand="${key}" title="查看出入口设施">
+            <div class="cgo-rt-leg-line muted cgo-rt-expandable" data-role="fac" data-expand="${key}" title="${i18nT("route.viewFacilities")}">
                 <cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>
-                <span>设施：${types.join("、")}</span>
+                <span>${i18nT("route.gateFacilities", { list: types.join(listSep()) })}</span>
             </div>` : "";
         const panel = facHtml ? `
             <div data-list="${key}" hidden>
@@ -245,7 +335,7 @@
             <li class="cgo-rt-leg exitgate">
                 <div class="cgo-rt-leg-head" data-role="gate">
                     <span class="cgo-rt-mode exitgate"><cgo-icon name="${mark}" size="16"></cgo-icon></span>
-                    <span class="cgo-rt-leg-name"><b>${names.join("、")}</b><em>推荐${dir === "entry" ? "可进站" : "可出站"}出入口</em></span>
+                    <span class="cgo-rt-leg-name"><b>${names.join(listSep())}</b><em>${i18nT(dir === "entry" ? "route.recommendEntries" : "route.recommendExits")}</em></span>
                 </div>
                 ${summary}
                 ${panel}
@@ -337,11 +427,11 @@
      *  仅当 sid 就是该端点时才带口；结果面板的标题（宽度有限）传 withLandmark=false 只带口，
      *  地标改由结果步骤区的出入口提示条承载（见 renderLegs）。 */
     function endpointName(sid, field, withLandmark = true) {
-        if (sid !== state[field]) return stationName(sid);
+        if (sid !== state[field]) return stationNameText(sid);
         const code = state[exitKey(field)];
         const landmark = state[landmarkKey(field)];
-        const parts = [stationName(sid)];
-        if (code) parts.push(`${exitsApi()?.exitLabel?.(code) || `${code} 口`}`);
+        const parts = [stationNameText(sid)];
+        if (code) parts.push(exitLabelText(code));
         if (code && landmark && withLandmark) parts.push(landmark);
         return parts.join(" · ");
     }
@@ -445,51 +535,51 @@
                     <div class="cgo-rt-inputs">
                         <div class="cgo-rt-field" data-field="from">
                             <div class="cgo-rt-inputrow">
-                                <input type="text" placeholder="搜索起点站" autocomplete="off">
+                                <input type="text" placeholder="${i18nT("route.searchFrom")}" autocomplete="off">
                                 <button type="button" class="cgo-rt-exittrigger" hidden
-                                    aria-haspopup="true" aria-expanded="false" title="选择出入口"></button>
+                                    aria-haspopup="true" aria-expanded="false" title="${i18nT("panel.selectExit")}"></button>
                             </div>
                             <div class="cgo-rt-suggest"></div>
                             <div class="cgo-rt-exitmenu" hidden></div>
                         </div>
                         <div class="cgo-rt-field" data-field="to">
                             <div class="cgo-rt-inputrow">
-                                <input type="text" placeholder="搜索终点站" autocomplete="off">
+                                <input type="text" placeholder="${i18nT("route.searchTo")}" autocomplete="off">
                                 <button type="button" class="cgo-rt-exittrigger" hidden
-                                    aria-haspopup="true" aria-expanded="false" title="选择出入口"></button>
+                                    aria-haspopup="true" aria-expanded="false" title="${i18nT("panel.selectExit")}"></button>
                             </div>
                             <div class="cgo-rt-suggest"></div>
                             <div class="cgo-rt-exitmenu" hidden></div>
                         </div>
                     </div>
-                    <button class="cgo-rt-swap" title="对调起终点"><cgo-icon name="vi-way" size="18" class="cgo-rt-swap-icon"></cgo-icon></button>
+                    <button class="cgo-rt-swap" title="${i18nT("route.swap")}"><cgo-icon name="vi-way" size="18" class="cgo-rt-swap-icon"></cgo-icon></button>
                 </div>
                 <div class="cgo-rt-actions">
                     <div class="cgo-rt-needbar" hidden></div>
                     <button class="cgo-rt-quick" data-quick="locate">
-                        <cgo-icon name="location" size="14"></cgo-icon>定位
+                        <cgo-icon name="location" size="14"></cgo-icon>${i18nT("route.locate")}
                     </button>
                     <button class="cgo-rt-quick" data-quick="pick">
-                        <cgo-icon name="map" size="14"></cgo-icon>地图选点
+                        <cgo-icon name="map" size="14"></cgo-icon>${i18nT("route.mapPick")}
                     </button>
                     <button class="cgo-rt-quick" data-quick="clear">
-                        <cgo-icon name="close" size="14"></cgo-icon>清空
+                        <cgo-icon name="close" size="14"></cgo-icon>${i18nT("route.clear")}
                     </button>
                 </div>
                 <div class="cgo-rt-quickgo" hidden>
                     <div class="cgo-rt-quickgo-head">
-                        <span class="cgo-rt-quickgo-title">快速前往</span>
+                        <span class="cgo-rt-quickgo-title">${i18nT("route.quickGo")}</span>
                         <div class="cgo-rt-need-opts cgo-rt-quickgo-tabs">
-                            <button type="button" class="cgo-rt-need-opt" data-qg="hub">交通枢纽</button>
-                            <button type="button" class="cgo-rt-need-opt" data-qg="poi">名胜景点</button>
+                            <button type="button" class="cgo-rt-need-opt" data-qg="hub">${i18nT("route.hubs")}</button>
+                            <button type="button" class="cgo-rt-need-opt" data-qg="poi">${i18nT("route.attractions")}</button>
                         </div>
                     </div>
                     <div class="cgo-rt-quickgo-grid"></div>
                 </div>
             </div>
             <div class="panel-footer cgo-rt-foot">
-                <span class="cgo-rt-status">请选择起点和终点</span>
-                <button class="cgo-rt-go" disabled>查询路线<cgo-icon name="chevron-right" size="14"></cgo-icon></button>
+                <span class="cgo-rt-status">${i18nT("route.statusPickBoth")}</span>
+                <button class="cgo-rt-go" disabled>${i18nT("route.query")}<cgo-icon name="chevron-right" size="14"></cgo-icon></button>
             </div>
         `;
     }
@@ -499,8 +589,8 @@
         return `
             <div class="panel-header">
                 <cgo-icon name="route" size="18"></cgo-icon>
-                <span class="cgo-rt-title">规划行程</span>
-                <button class="panel-close-btn" data-close="plan" title="关闭"><cgo-icon name="close" size="18"></cgo-icon></button>
+                <span class="cgo-rt-title">${i18nT("route.title")}</span>
+                <button class="panel-close-btn" data-close="plan" title="${i18nT("share.close")}"><cgo-icon name="close" size="18"></cgo-icon></button>
             </div>
             ${planContentHtml()}
         `;
@@ -513,7 +603,7 @@
     function planSectionHtml() {
         return `
             <div class="section-header">
-                <span class="section-title-text">规划行程</span>
+                <span class="section-title-text">${i18nT("route.sidebarTitle")}</span>
                 <cgo-icon name="expand-more" class="section-arrow"></cgo-icon>
             </div>
             <div class="section-body ${SECTION_BODY_CLASS}">${planContentHtml()}</div>
@@ -708,7 +798,11 @@
             enforceExitCompliance(field);
             syncFields();
             refreshResult();
-            setStatus(`已将「${hot?.name || item.dataset.sid}」设为${field === "from" ? "起点" : "终点"}${code ? `（经 ${state[exitKey(field)]} 口）` : ""}`);
+            const rawName = hot?.name || stationName(item.dataset.sid) || item.dataset.sid;
+            const displayName = hot
+                ? (window.CGoI18n?.poiName?.(hot) || rawName)
+                : (window.CGoI18n?.stationName?.(item.dataset.sid, allStations()[item.dataset.sid]) || rawName);
+            setStatus(`${i18nT(field === "from" ? "route.setOriginNamed" : "route.setDestinationNamed", { name: displayName })}${code ? i18nT("route.viaExit", { exit: state[exitKey(field)] }) : ""}`);
         });
         // 点面板内别的地方收起已开的口菜单（挂一次；监听随 panel 元素一起销毁，不泄漏）
         panel.addEventListener("mousedown", (event) => {
@@ -756,12 +850,12 @@
         if (!bar) return;
         const filters = Array.isArray(window.CGO_EXIT_FILTERS) ? window.CGO_EXIT_FILTERS : [];
         if (!filters.length) { bar.hidden = true; bar.innerHTML = ""; return; }
-        const segs = [{ id: "", icon: "walk", title: "步行" }];
+        const segs = [{ id: "", icon: "walk", title: i18nT("route.walk") }];
         for (const f of filters) {
-            if (NEED_SEG_ICONS[f.id]) segs.push({ id: f.id, icon: NEED_SEG_ICONS[f.id], title: f.name });
+            if (NEED_SEG_ICONS[f.id]) segs.push({ id: f.id, icon: NEED_SEG_ICONS[f.id], title: i18nTr(f.name) });
         }
         const active = state.need || "";
-        bar.innerHTML = `<span class="cgo-rt-need-label">需求</span>`
+        bar.innerHTML = `<span class="cgo-rt-need-label">${i18nT("route.needLabel")}</span>`
             + `<div class="cgo-rt-need-opts">${segs.map((s) => `
             <button type="button" class="cgo-rt-need-opt${active === s.id ? " is-on" : ""}"
                 data-need="${escAttr(s.id)}" title="${escAttr(s.title)}"><cgo-icon name="${s.icon}" size="13"></cgo-icon><span>${escAttr(s.title)}</span></button>`).join("")}
@@ -807,14 +901,17 @@
         });
         const items = list.map((hot, index) => ({ hot, index })).filter(({ hot }) => hot.kind === state.qg);
         const grid = box.querySelector(".cgo-rt-quickgo-grid");
+        const i18n = window.CGoI18n;
+        const hotName = (hot) => (i18n && typeof i18n.poiName === "function") ? i18n.poiName(hot) : hot.name;
+        const hotTag = (hot) => (i18n && typeof i18n.poiTag === "function") ? i18n.poiTag(hot) : hot.tag;
         grid.innerHTML = items.map(({ hot, index }) => `
             <button type="button" class="cgo-rt-quickgo-item" data-hot="${index}" data-sid="${escAttr(hot.sid)}" title="设为起点或终点">
                 ${hot.kind === "poi"
                     ? `<span class="cgo-rt-poi-dot${hot.tone === "somber" ? " cgo-rt-poi-dot--somber" : ""}"${hotDotColor(hot) ? ` style="background:${hotDotColor(hot)}"` : ""}></span>`
                     : `<cgo-icon name="${escAttr(hot.icon || "railway")}" size="14"></cgo-icon>`}
                 <span class="cgo-rt-quickgo-text">
-                    <span>${escAttr(hot.name)}</span>
-                    ${hot.tag ? `<small>${escAttr(hot.tag)}</small>` : ""}
+                    <span>${escAttr(hotName(hot))}</span>
+                    ${hotTag(hot) ? `<small>${escAttr(hotTag(hot))}</small>` : ""}
                 </span>
             </button>`).join("");
         box.hidden = !items.length;
@@ -879,26 +976,39 @@
             const currentOk = current ? gateCompliance(sid, current, dir) : null;
             if (current && currentOk === false) {
                 notice = `<div class="cgo-rt-need-none">${okNames.length
-                    ? `已选 ${escAttr(current)} 口不满足「${escAttr(need.name)}」，推荐：${escAttr(okNames.join("、"))}`
-                    : `已选 ${escAttr(current)} 口不满足「${escAttr(need.name)}」，本站暂无替代口`}</div>`;
+                    ? i18nT("route.exitSelectedRecommend", {
+                        exit: escAttr(current),
+                        need: escAttr(i18nTr(need.name)),
+                        list: escAttr(okNames.join(listSep()))
+                    })
+                    : i18nT("route.exitSelectedNoAlt", {
+                        exit: escAttr(current),
+                        need: escAttr(i18nTr(need.name))
+                    })}</div>`;
             } else if (okNames.length) {
-                notice = `<div class="cgo-rt-need-ok">可${dir === "entry" ? "进站" : "出站"}：${escAttr(okNames.join("、"))}</div>`;
+                notice = `<div class="cgo-rt-need-ok">${i18nT(
+                    dir === "entry" ? "route.availableEntries" : "route.availableExits",
+                    { list: escAttr(okNames.join(listSep())) }
+                )}</div>`;
             } else if (scored.some((item) => item.ok === false)) {
-                notice = `<div class="cgo-rt-need-none">本站暂无满足「${escAttr(need.name)}」的${dir === "entry" ? "进站" : "出站"}口</div>`;
+                notice = `<div class="cgo-rt-need-none">${i18nT(
+                    dir === "entry" ? "route.noEntranceNeed" : "route.noExitNeed",
+                    { need: escAttr(i18nTr(need.name)) }
+                )}</div>`;
             } else {
-                notice = `<div class="cgo-rt-need-none">本站出口设施数据未收录，无法按需求筛选</div>`;
+                notice = `<div class="cgo-rt-need-none">${i18nT("route.exitDataMissing")}</div>`;
             }
         }
         // 方向指引：仅「携带行李」且城市声明过地上站清单时出——地下站进站找下行、高架站反过来
         let hint = "";
         if (need?.id === "luggage" && Array.isArray(window.CGO_ROUTE_CONFIG?.elevatedStations)) {
-            hint = `<div class="cgo-rt-need-none">${isElevated(sid)
-                ? "本站为高架站：进站优先上行扶梯、出站优先下行"
-                : "本站为地下站：进站优先下行扶梯、出站优先上行"}</div>`;
+            hint = `<div class="cgo-rt-need-none">${i18nT(isElevated(sid)
+                ? "route.elevatedTip"
+                : "route.undergroundTip")}</div>`;
         }
 
         const chips = [
-            `<button type="button" class="cgo-rt-exit-chip${current ? "" : " active"}" data-exit-code="" title="不指定出入口，按车站规划">不指定</button>`,
+            `<button type="button" class="cgo-rt-exit-chip${current ? "" : " active"}" data-exit-code="" title="${i18nT("route.selectExitHint")}">${i18nT("panel.notSpecified")}</button>`,
             ...scored.map(({ exit, ok }) => {
                 const code = String(exit.name ?? "");
                 const active = current === code;
@@ -932,10 +1042,10 @@
         const ready = Boolean(state.from && state.to);
         const button = panel.querySelector(".cgo-rt-go") || panel._cgoSheetFooter?.querySelector(".cgo-rt-go");
         if (button) button.disabled = !ready;
-        if (ready) setStatus("已选好起终点");
-        else if (!state.from && !state.to) setStatus("请选择起点和终点");
-        else if (!state.from) setStatus("请选择起点");
-        else setStatus("请选择终点");
+        if (ready) setStatus(i18nT("route.statusReady"));
+        else if (!state.from && !state.to) setStatus(i18nT("route.statusPickBoth"));
+        else if (!state.from) setStatus(i18nT("route.statusPickFrom"));
+        else setStatus(i18nT("route.statusPickTo"));
     }
 
     function setStatus(text) {
@@ -969,7 +1079,7 @@
         const sid = node.dataset.sid;
         const field = state.picking;
         stopPicking();
-        if (!pickable(sid)) { setStatus("该车站不参与规划"); return; }
+        if (!pickable(sid)) { setStatus(i18nT("route.notPickable")); return; }
         setEndpoint(field, sid);   // 换站复位口（站没变则保留）
         syncFields();
         refreshResult();
@@ -982,8 +1092,8 @@
         const picking = Boolean(state.picking);
         button.classList.toggle("danger", picking);
         button.innerHTML = picking
-            ? `<cgo-icon name="close" size="14"></cgo-icon>取消选点`
-            : `<cgo-icon name="map" size="14"></cgo-icon>地图选点`;
+            ? `<cgo-icon name="close" size="14"></cgo-icon>${i18nT("route.cancelPick")}`
+            : `<cgo-icon name="map" size="14"></cgo-icon>${i18nT("route.mapPick")}`;
     }
 
     function startPicking(field) {
@@ -991,7 +1101,7 @@
         if (!state.from && !state.to && field === "to") field = "from";
         state.picking = field;
         document.getElementById("map-content")?.classList.add("cgo-picking");
-        setStatus(field === "from" ? "请在地图上点击起点车站" : "请在地图上点击终点车站");
+        setStatus(i18nT(field === "from" ? "route.pickOrigin" : "route.pickDestination"));
         pickingHost()?.addEventListener("click", onPickClick, true);
         syncPickButton();
         // 移动端：选点全靠点图，面板缩到最小化把视野让出来，另起一条胶囊提示说明点什么、怎么退
@@ -1143,14 +1253,26 @@
     }
 
     /** 步骤说明行里的跨线换乘段文案（进 / 出站条与出站换乘行共用同一口径） */
-    const gateNote = (spec) => ` · 经${spec.mode}前往${spec.lineName}站厅 · 约 ${Math.round(spec.minutes)} 分钟`;
+    const gateNote = (spec) => i18nT("route.gateNote", {
+        mode: transferModeName(spec.mode),
+        line: i18nLine(spec.lineName),
+        minutes: Math.round(spec.minutes)
+    });
 
     /** 末段 / 首段乘车的线路 ID（跨线判定的基准） */
     const lastRideLineId = (route) => [...(route.steps || [])].reverse().find((step) => step.t === "ride")?.line || null;
     const firstRideLineId = (route) => (route.steps || []).find((step) => step.t === "ride")?.line || null;
 
-    /** 出口编号的加粗文案：编号本身加重，量词跟随其后（A →「**A** 口」、3 →「**3** 号口」） */
-    const boldExitCode = (code) => `<b>${code}</b>${/^\d/.test(String(code)) ? " 号口" : " 口"}`;
+    /** 出口编号的显示文案：英文用「Exit A」，中文沿用「A 口 / 1 号口」 */
+    const exitLabelText = (code) => {
+        const key = /^\d/.test(String(code)) ? "route.exitCodeNumber" : "route.exitCode";
+        return i18nT(key, { code });
+    };
+    /** 结果步骤里的出口编号：编号加粗，后缀按当前语言本地化 */
+    const exitCodeHtml = (code) => {
+        const label = exitLabelText(code);
+        return label.replace(String(code), `<b>${code}</b>`);
+    };
 
     /** 每个步骤之后的下一段乘车线（出站换乘的「进站口」跨线判定用）：step 对象 → line id */
     function nextRideLineMap(steps) {
@@ -1234,11 +1356,11 @@
     async function runPlan() {
         if (!state.from || !state.to) return;
         const planner = await ensurePlanner();
-        if (!planner) { setStatus("当前城市暂不支持规划"); return; }
+        if (!planner) { setStatus(i18nT("route.statusUnsupported")); return; }
         // 一次按多种优先级寻路，完全相同的路线会被合并为一条
         const routes = planner.planAll(state.from, state.to);
         if (!routes.length) {
-            setStatus("两地之间暂无可达路线");
+            setStatus(i18nT("route.statusNoRoute"));
             clearHighlight();
             return;
         }
@@ -1645,11 +1767,11 @@
                 <li class="cgo-rt-leg exitgate">
                     <div class="cgo-rt-leg-head">
                         <span class="cgo-rt-mode exitgate"><cgo-icon name="depart" size="16"></cgo-icon></span>
-                        <span class="cgo-rt-leg-name"><b>${state.fromExitLandmark || stationName(state.from)}</b><em>出发</em></span>
+                        <span class="cgo-rt-leg-name">${legNameTextHtml("route.actionDepart", state.fromExitLandmark || stationName(state.from), state.from)}</span>
                     </div>
-                    <div class="cgo-rt-leg-line muted${entryFac ? " cgo-rt-expandable" : ""}" data-role="fac"${entryFac ? ` data-expand="${entryKey}" title="查看出入口设施"` : ""}>
+                    <div class="cgo-rt-leg-line muted${entryFac ? " cgo-rt-expandable" : ""}" data-role="fac"${entryFac ? ` data-expand="${entryKey}" title="${i18nT("route.viewFacilities")}"` : ""}>
                         ${entryFac ? `<cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>` : ""}
-                        <span>经 ${boldExitCode(state.fromExit)} 进站${entrySpec ? gateNote(entrySpec) : ""}</span>
+                        <span>${i18nT("route.enterViaExit", { exit: exitCodeHtml(state.fromExit) })}${entrySpec ? gateNote(entrySpec) : ""}</span>
                     </div>
                     ${gateAdviseLine(state.from, state.fromExit, "entry", `fac-${++facSeq}`)}
                     ${entryFac ? `<div data-list="${entryKey}" hidden><div class="cgo-rt-leg-line muted" data-role="fac"><div class="cgo-rt-facwrap">${entryFac}</div></div></div>` : ""}
@@ -1686,7 +1808,7 @@
                 const allStops = segments.flatMap((seg) => seg.stops)
                     .filter((sid, i, list) => i === 0 || sid !== list[i - 1]);
                 const middle = allStops.slice(1, -1);
-                const action = (boarded === 0 && !hasEntryLeg) ? "出发" : "上车";
+                const action = (boarded === 0 && !hasEntryLeg) ? "route.actionDepart" : "route.actionBoard";
                 boarded++;
                 // 环线没有终点站：方向报「下一站 + 内环 / 外环」（中国等右侧通行城市默认内环顺时针）。
                 // 环别按站序判定，取的 dir 正是内核沿站序给出的 ±1，两者同一口径。
@@ -1696,27 +1818,30 @@
                 const ring = line?.isLoop && nextStop
                     ? (window.CGoLoopDirection?.of(line, first.dir) || "") : "";
                 const directionHtml = ring
-                    ? `开往 <b data-jump="${nextStop}">${stationName(nextStop)}</b>（${ring}）`
-                    : `开往 <b data-jump="${terminus}">${stationName(terminus)}</b>`;
+                    ? i18nT("route.towardsRing", {
+                        station: `<b class="cgo-rt-leg-station" data-jump="${nextStop}">${stationNameHtml(nextStop)}</b>`,
+                        ring
+                    })
+                    : i18nT("route.towards", {
+                        station: `<b class="cgo-rt-leg-station" data-jump="${terminus}">${stationNameHtml(terminus)}</b>`
+                    });
                 legs.push(`
                     <li class="cgo-rt-leg ride" style="--line-color:${line?.color || "var(--primary-color, #006098)"}">
                         <div class="cgo-rt-leg-head">
                             ${modeHtml}
-                            <span class="cgo-rt-leg-name">
-                                <b data-jump="${start}">${stationName(start)}</b><em>${action}</em>
-                            </span>
+                            <span class="cgo-rt-leg-name">${legNameHtml(action, start)}</span>
                         </div>
                         <div class="cgo-rt-leg-line" data-role="ride">
-                            <span class="cgo-rt-line-name">${group.throughName || line?.name || ""}</span>
+                            <span class="cgo-rt-line-name">${i18nLine(group.throughName || line?.name || "")}</span>
                             <span>${directionHtml}</span>
                         </div>
-                        <div class="cgo-rt-leg-line${middle.length ? " cgo-rt-expandable" : ""}" data-role="ride"${middle.length ? ` data-expand="${index}" title="查看途经车站"` : ""}>
+                        <div class="cgo-rt-leg-line${middle.length ? " cgo-rt-expandable" : ""}" data-role="ride"${middle.length ? ` data-expand="${index}" title="${i18nT("route.viewStops")}"` : ""}>
                             ${middle.length ? `<cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>` : ""}
-                            <span>乘坐 ${stopsCount} 站 · ${Math.round(minutes)} 分钟</span>
+                            <span>${i18nT("route.rideSummary", { stops: stopsCount, minutes: Math.round(minutes) })}</span>
                         </div>
                         ${middle.length ? `
                             <div class="cgo-rt-stoplist" data-list="${index}" hidden>
-                                ${middle.map((sid) => `<span data-jump="${sid}">${stationName(sid)}</span>`).join("")}
+                                ${middle.map((sid) => `<span data-jump="${sid}">${escAttr(stationNameText(sid))}</span>`).join("")}
                             </div>` : ""}
                     </li>
                 `);
@@ -1730,7 +1855,7 @@
                     ? window.CGO_ROUTE_CONFIG?.transferAt?.[String(step.at)]?.needs?.[state.need]
                     : null;
                 // 换乘方式由城市数据给出（同台 / 节点 / 站厅 / 通道换乘…），未配置时回落为「站内换乘」
-                const xferLabel = needSpec?.mode || (step.mode ? `${step.mode}` : "站内换乘");
+                const xferLabel = transferModeName(needSpec?.mode || (step.mode ? `${step.mode}` : "站内换乘"));
                 const xferMinutes = Number.isFinite(Number(needSpec?.minutes)) ? Number(needSpec.minutes) : step.minutes;
                 // 需求变体的设施位置提醒（needs[需求].note）：如「升降平台与直梯在 B/C 口方向站厅」
                 const needNote = needSpec?.note;
@@ -1741,13 +1866,11 @@
                     <li class="cgo-rt-leg xfer">
                         <div class="cgo-rt-leg-head">
                             <span class="cgo-rt-mode xfer"><cgo-icon name="transfer" size="16"></cgo-icon></span>
-                            <span class="cgo-rt-leg-name">
-                                <b data-jump="${step.at}">${stationName(step.at)}</b><em>换乘</em>
-                            </span>
+                            <span class="cgo-rt-leg-name">${legNameHtml("route.actionTransfer", step.at)}</span>
                         </div>
-                        <div class="cgo-rt-leg-line muted${facHtml ? " cgo-rt-expandable" : ""}" data-role="xfer"${facHtml ? ` data-expand="${facKey}" title="查看换乘设施"` : ""}>
+                        <div class="cgo-rt-leg-line muted${facHtml ? " cgo-rt-expandable" : ""}" data-role="xfer"${facHtml ? ` data-expand="${facKey}" title="${i18nT("route.viewTransferFacilities")}"` : ""}>
                             ${facHtml ? `<cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>` : ""}
-                            <span>${xferLabel} · 约 ${Math.round(xferMinutes)} 分钟</span>
+                            <span>${i18nT("route.xferSummary", { mode: xferLabel, minutes: Math.round(xferMinutes) })}</span>
                         </div>
                         ${needNote ? `<div class="cgo-rt-leg-line muted" data-role="xfer"><cgo-icon name="info" size="13"></cgo-icon><span>${escAttr(needNote)}</span></div>` : ""}
                         ${facHtml ? `<div data-list="${facKey}" hidden>${facHtml}</div>` : ""}
@@ -1760,8 +1883,14 @@
             const kind = step.kind || "transfer";
             const meters = Math.round((Number(step.minutes) || 0) * 80);   // 约 4.8 km/h 步行速度
             let caption = kind === "transfer"
-                ? `${step.free ? "免费出站换乘" : "付费出站换乘"} · 约 ${meters} 米 · ${Math.round(step.minutes)} 分钟`
-                : `${kind === "exit" ? "出站步行至目的地" : "步行前往乘车"} · 约 ${meters} 米 · ${Math.round(step.minutes)} 分钟`;
+                ? i18nT(step.free ? "route.walkTransferFree" : "route.walkTransferPaid", {
+                    meters,
+                    minutes: Math.round(step.minutes)
+                })
+                : i18nT(kind === "exit" ? "route.walkToDestination" : "route.walkToRide", {
+                    meters,
+                    minutes: Math.round(step.minutes)
+                });
             let gateRows = "";
             if (kind === "transfer") {
                 // 「从哪个口出 / 经哪个口进」朝对侧站最近的口（本地按出口坐标算）；启用需求时
@@ -1777,9 +1906,11 @@
                     if (!exit) return "";
                     const fac = facilityRowsOf(sid, exit.name);
                     const key = fac ? `fac-${++facSeq}` : "";
-                    const lead = dir === "exit" ? `从 ${boldExitCode(exit.name)}出` : `经 ${boldExitCode(exit.name)}进站`;
+                    const lead = dir === "exit"
+                        ? i18nT("route.exitFrom", { exit: exitCodeHtml(exit.name) })
+                        : i18nT("route.enterViaExit", { exit: exitCodeHtml(exit.name) });
                     return `
-                        <div class="cgo-rt-leg-line muted${fac ? " cgo-rt-expandable" : ""}" data-role="fac"${fac ? ` data-expand="${key}" title="查看出入口设施"` : ""}>
+                        <div class="cgo-rt-leg-line muted${fac ? " cgo-rt-expandable" : ""}" data-role="fac"${fac ? ` data-expand="${key}" title="${i18nT("route.viewFacilities")}"` : ""}>
                             ${fac ? `<cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>` : ""}
                             <span>${lead}${spec ? gateNote(spec) : ""}</span>
                         </div>
@@ -1793,9 +1924,7 @@
                 <li class="cgo-rt-leg walk">
                     <div class="cgo-rt-leg-head">
                         <span class="cgo-rt-mode walk"><cgo-icon name="${kind === "transfer" && !step.free ? "payment" : "walk"}" size="16"></cgo-icon></span>
-                        <span class="cgo-rt-leg-name">
-                            <b data-jump="${step.a}">${stationName(step.a)}</b><em>${kind === "transfer" ? "换乘" : "步行"}</em>
-                        </span>
+                        <span class="cgo-rt-leg-name">${legNameHtml(kind === "transfer" ? "route.actionTransfer" : "route.walk", step.a)}</span>
                     </div>
                     <div class="cgo-rt-leg-line muted" data-role="walk">
                         <span>${caption}</span>
@@ -1816,11 +1945,11 @@
                 <li class="cgo-rt-leg exitgate">
                     <div class="cgo-rt-leg-head">
                         <span class="cgo-rt-mode exitgate"><cgo-icon name="gate" size="16"></cgo-icon></span>
-                        <span class="cgo-rt-leg-name"><b>${stationName(state.to)}</b><em>下车</em></span>
+                        <span class="cgo-rt-leg-name">${legNameHtml("route.actionAlight", state.to)}</span>
                     </div>
-                    <div class="cgo-rt-leg-line muted${exitFac ? " cgo-rt-expandable" : ""}" data-role="fac"${exitFac ? ` data-expand="${exitKey}" title="查看出入口设施"` : ""}>
+                    <div class="cgo-rt-leg-line muted${exitFac ? " cgo-rt-expandable" : ""}" data-role="fac"${exitFac ? ` data-expand="${exitKey}" title="${i18nT("route.viewFacilities")}"` : ""}>
                         ${exitFac ? `<cgo-icon class="cgo-rt-expand-caret" name="chevron-down" size="14"></cgo-icon>` : ""}
-                        <span>出 ${boldExitCode(state.toExit)} 前往${gateSpec ? gateNote(gateSpec) : ""}</span>
+                        <span>${i18nT("route.exitTo", { exit: exitCodeHtml(state.toExit) })}${gateSpec ? gateNote(gateSpec) : ""}</span>
                     </div>
                     ${gateAdviseLine(state.to, state.toExit, "exit", `fac-${++facSeq}`)}
                     ${exitFac ? `<div data-list="${exitKey}" hidden><div class="cgo-rt-leg-line muted" data-role="fac"><div class="cgo-rt-facwrap">${exitFac}</div></div></div>` : ""}
@@ -1835,21 +1964,21 @@
             <li class="cgo-rt-leg arrive">
                 <div class="cgo-rt-leg-head">
                     <span class="cgo-rt-mode arrive"><cgo-icon name="arrive" size="16"></cgo-icon></span>
-                    <span class="cgo-rt-leg-name"><em>到达</em><b data-jump="${tailId}">${state.toExitLandmark || stationName(tailId)}</b></span>
+                    <span class="cgo-rt-leg-name">${legNameTextHtml("route.actionArrive", state.toExitLandmark || stationName(tailId), tailId)}</span>
                 </div>
             </li>
         `);
         // 末尾脚注合并成一条：换乘估算的口径（有换乘才带上）与总用时的口径连写
         const notes = [];
         if (route.steps.some((s) => s.t === "xfer" && !s.through)) {
-            notes.push("换乘时间因步行速度和车站人流量不同，仅供参考");
+            notes.push(i18nT("route.noteTransfer"));
         }
-        notes.push("乘车用时不含等车及前往进站口或目的地的时间");
+        notes.push(i18nT("route.footnote"));
         legs.push(`
             <li class="cgo-rt-leg note">
                 <div class="cgo-rt-leg-line muted" data-role="note">
                     <cgo-icon name="info" size="13"></cgo-icon>
-                    <span>${notes.join("；")}</span>
+                    <span>${notes.join(noteSep())}</span>
                 </div>
             </li>
         `);
@@ -1865,7 +1994,7 @@
      */
     function routeTabLabel(route, index) {
         const labels = (route?.labels || []).filter((x) => typeof x === "string" && x.trim());
-        return labels[0] || `备选路线 ${index + 1}`;
+        return labels.length ? routeLabelName(labels[0]) : i18nT("route.alternative", { n: index + 1 });
     }
 
     /**
@@ -1895,10 +2024,10 @@
                     </div>
                 `).join("")}
             </div>
-            <button class="panel-share-btn" title="查看全程" data-fit="route">
+            <button class="panel-share-btn" title="${i18nT("route.viewWhole")}" data-fit="route">
                 <cgo-icon name="map" size="20"></cgo-icon>
             </button>
-            <button class="panel-share-btn" title="分享路线信息" data-share="route">
+            <button class="panel-share-btn" title="${i18nT("route.shareRoute")}" data-share="route">
                 <cgo-icon name="external" size="20"></cgo-icon>
             </button>
         `;
@@ -2037,14 +2166,30 @@
         if (panel.dataset.cgoMode === "section") syncResultSectionHeader(panel, route, head, tail);
 
         const body = panel.querySelector(".cgo-rt-result-body");
+        const summaryMinutes = i18nT("route.summaryMinutes", {
+            minutes: Math.round(route.minutes + gateOverhead(route))
+        });
+        const summaryDetail = route.transfers === 1
+            ? i18nT(route.fare === null ? "route.summaryDetailOne" : "route.summaryDetailFareOne", {
+                distance: route.distance,
+                stops: route.stops,
+                transfers: route.transfers,
+                fare: route.fare
+            })
+            : i18nT(route.fare === null ? "route.summaryDetail" : "route.summaryDetailFare", {
+                distance: route.distance,
+                stops: route.stops,
+                transfers: route.transfers,
+                fare: route.fare
+            });
+        const routeLabels = (route.labels || []).map(routeLabelName);
         body.innerHTML = `
             <div class="cgo-rt-sum">
-                <b>约 ${Math.round(route.minutes + gateOverhead(route))} 分钟</b>
-                <span>${route.distance} 公里 · ${route.stops} 站 · 换乘 ${route.transfers} 次${
-                    route.fare === null ? "" : ` · ${route.fare} 元`}</span>
+                <b>${summaryMinutes}</b>
+                <span>${summaryDetail}</span>
             </div>
-            ${(route.labels || []).length > 1
-                ? `<div class="cgo-rt-labels">${route.labels.join(" · ")}</div>` : ""}
+            ${routeLabels.length > 1
+                ? `<div class="cgo-rt-labels">${routeLabels.join(" · ")}</div>` : ""}
             <ol class="cgo-rt-steps">${renderLegs(route, tail)}</ol>
         `;
         injectSvgs(body);   // 面板其余部分仍可能有需注入的 SVG 占位（结果区本身已改用文字线路名）
@@ -2095,7 +2240,7 @@
             // 括号里用当前选中页签的标签（时间最快 / 最少换乘 / 票价最低），与页签栏文案保持一致；
             // 只有一条路线时页签栏不显示，但标签本身依然有值
             const tag = route.labels?.[0] || "";
-            title.textContent = `${endpointTitle(head, "from")}→${endpointTitle(tail, "to")}${tag ? `（${tag}）` : ""}`;
+            title.textContent = `${endpointTitle(head, "from")}→${endpointTitle(tail, "to")}${tag ? `（${routeLabelName(tag)}）` : ""}`;
             // 启用需求：标题前点亮需求徽记（luggage / vi-stn），与浮层标题栏同款
             const markIcon = needMarkIcon();
             if (markIcon) {
@@ -2547,7 +2692,7 @@
         // 焦点交给规划路线：先清掉图上原有的车站选中态，只点亮起终点两站（退出高亮时由
         // clearHighlight 摘除；期间被核心清掉会自动补回，见 watchEndpoints）
         markRouteEndpoints([head, tail]);
-        beginRouteTitle(`「${stationName(head)}→${stationName(tail)}」导航路线`);
+        beginRouteTitle(i18nT("route.navTitle", { from: stationNameText(head), to: stationNameText(tail) }));
     }
 
     /* ======================================================================
@@ -3497,10 +3642,10 @@
      */
     async function useMyLocation() {
         if (typeof window.CGoNearestStation?.find !== "function") {
-            setStatus("定位能力未就绪，请手动选择");
+            setStatus(i18nT("route.statusLocateNotReady"));
             return;
         }
-        setStatus("正在定位…");
+        setStatus(i18nT("route.statusLocating"));
         try {
             const hit = await window.CGoNearestStation.find();
             // 智能选空位：起点空着就填起点，起点定了而终点还空着就填终点；
@@ -3509,9 +3654,10 @@
             setEndpoint(field, hit.sid);   // 换站复位口
             syncFields();
             refreshResult();
-            setStatus(`已将「${stationName(hit.sid)}」设为${field === "from" ? "起点" : "终点"}`);
+            const displayName = window.CGoI18n?.stationName?.(hit.sid, allStations()[hit.sid]) || stationName(hit.sid);
+            setStatus(i18nT(field === "from" ? "route.setOriginNamed" : "route.setDestinationNamed", { name: displayName }));
         } catch (error) {
-            setStatus(error?.message || "定位失败，请手动选择");
+            setStatus(error?.message || i18nT("route.statusLocateFailed"));
         }
     }
 

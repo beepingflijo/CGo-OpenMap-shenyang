@@ -41,6 +41,34 @@
     const geoCache = new Map();    // 城市 ID → Promise<点列表 | null>，避免并发重复拉取
     let busy = false;
 
+    /** 界面文案：优先共享层 i18n，未接入运行时的城市回退中文 */
+    const ntT = (key, fallback, vars) => {
+        const i18n = window.CGoI18n;
+        if (i18n && typeof i18n.t === "function") {
+            const value = i18n.t(key, vars);
+            if (value !== key) return value;
+        }
+        if (!fallback) return key;
+        return String(fallback).replace(/\{(\w+)\}/g, (match, name) => (
+            vars && vars[name] != null ? String(vars[name]) : match
+        ));
+    };
+
+    const escHtml = (value) => String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    /** 城市名：外文环境取城市数据里的译名，取不到回退注册表里的中文名 */
+    function cityLabel(city) {
+        const i18n = window.CGoI18n;
+        const config = window.CGO_CITY_I18N && city && window.CGO_CITY_I18N[city.id];
+        if (i18n && i18n.isTranslated && config && config.city) {
+            return config.city[i18n.locale] || config.city.en || city.name || "";
+        }
+        return (city && city.name) || ntT("nearest.currentCity", "当前城市");
+    }
+
     /* ======================================================================
      * 坐标与几何
      * 核心的 wgs2gcj / getDistance 都在模块作用域内、没挂到 window，城市层取不到，
@@ -225,7 +253,7 @@
     function getFix() {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                reject(new Error("您的浏览器不支持定位功能"));
+                reject(new Error(ntT("nearest.unsupported", "您的浏览器不支持定位功能")));
                 return;
             }
             navigator.geolocation.getCurrentPosition(
@@ -234,10 +262,10 @@
                     resolve({ lat, lng });
                 },
                 (err) => {
-                    let msg = "定位失败";
-                    if (err.code === 1) msg = "定位权限被拒绝，请在系统设置中允许浏览器使用位置信息。";
-                    else if (err.code === 2) msg = "位置不可用（请检查 GPS 或网络）";
-                    else if (err.code === 3) msg = "定位请求超时（请在开阔地带重试）";
+                    let msg = ntT("nearest.locateFailed", "定位失败");
+                    if (err.code === 1) msg = ntT("nearest.denied", "定位权限被拒绝，请在系统设置中允许浏览器使用位置信息。");
+                    else if (err.code === 2) msg = ntT("nearest.unavailable", "位置不可用（请检查 GPS 或网络）");
+                    else if (err.code === 3) msg = ntT("nearest.timeout", "定位请求超时（请在开阔地带重试）");
                     reject(new Error(msg));
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -260,12 +288,12 @@
      */
     async function find() {
         const city = activeCity();
-        if (!city || !amapUrlOf(city)) throw new Error("该城市暂无坐标数据");
+        if (!city || !amapUrlOf(city)) throw new Error(ntT("nearest.noGeoCity", "该城市暂无坐标数据"));
         const fix = await getFix();
         const points = await loadCityGeo(city);
-        if (!points) throw new Error("站点坐标数据加载失败");
+        if (!points) throw new Error(ntT("nearest.geoLoadFailedShort", "站点坐标数据加载失败"));
         const local = nearestOfActiveCity(points, fix.lat, fix.lng);
-        if (!local) throw new Error("无法定位最近车站（数据匹配失败）");
+        if (!local) throw new Error(ntT("nearest.noMatch", "无法定位最近车站（数据匹配失败）"));
         // 顺带算该站离你最近的出入口（出口坐标由高德补齐，见各城 data_exits.js 的 pos）
         local.exit = nearestExitOf(city.id, local.name, fix.lat, fix.lng);
         return local;
@@ -301,7 +329,9 @@
     }
 
     function formatDistance(m) {
-        return m < 1000 ? `${m} 米` : `${(m / 1000).toFixed(1)} 公里`;
+        return m < 1000
+            ? ntT("nearest.meter", "{n} 米", { n: m })
+            : ntT("nearest.kilometer", "{n} 公里", { n: (m / 1000).toFixed(1) });
     }
 
     function modalEl() {
@@ -315,49 +345,85 @@
         return el;
     }
 
+    /** 最近车站的展示名：有 sid 时取多语言名，取不到保留坐标表里的原名 */
+    function stationLabel(name, sid) {
+        const i18n = window.CGoI18n;
+        if (i18n && sid && typeof i18n.stationName === "function") {
+            const translated = i18n.stationName(sid, window.processedStations && window.processedStations[sid]);
+            if (translated) return translated;
+        }
+        return name || "";
+    }
+
     function openChooser({ city, local, overall }) {
         const modal = modalEl();
-        const cityName = (city && city.name) || "当前城市";
+        const cityName = cityLabel(city);
+        const localName = stationLabel(local.name, local.sid);
         const better = overall && overall.city.id !== city.id ? overall : null;
+        const betterCity = better ? cityLabel(better.city) : "";
+        const betterStation = better ? stationLabel(better.station.name, better.station.sid) : "";
         // 全局最近的城市都还在覆盖半径之外：这时真正该说清的是「这儿没有收录的线路图」，
         // 而不是含糊的「本市有点远」——用户据此才能判断是不是该换个城市看
         const uncovered = Boolean(overall && overall.station.distance > COVERAGE_THRESHOLD);
 
         const blocks = [];
         if (uncovered) {
-            const elsewhere = better ? `，最近的是${better.city.name}的 ${better.station.name}` : "";
+            const elsewhere = better
+                ? ntT("nearest.uncoveredElsewhere", "，最近的是{city}的 {station}", {
+                    city: escHtml(betterCity), station: escHtml(betterStation)
+                })
+                : "";
             blocks.push(`<p class="cgo-near-alert">
                 <cgo-icon name="warning" size="14"></cgo-icon>
-                <span>您当前位置附近没有已收录的线路图${elsewhere}。</span>
+                <span>${ntT("nearest.uncovered", "您当前位置附近没有已收录的线路图{elsewhere}。", {
+                    elsewhere
+                })}</span>
             </p>`);
         }
         if (better) {
-            blocks.push(`<p class="cgo-near-lead">离您更近的是<b>${better.city.name}</b>：${better.station.name}，约
-                   <b>${formatDistance(better.station.distance)}</b>。</p>`);
-            blocks.push(`<p class="cgo-near-sub">${cityName}最近的是 ${local.name}，约 ${formatDistance(local.distance)}。</p>`);
+            blocks.push(`<p class="cgo-near-lead">${ntT("nearest.closerCity",
+                "离您更近的是{city}：{station}，约 {distance}。", {
+                    city: `<b>${escHtml(betterCity)}</b>`,
+                    station: escHtml(betterStation),
+                    distance: `<b>${escHtml(formatDistance(better.station.distance))}</b>`
+                })}</p>`);
+            blocks.push(`<p class="cgo-near-sub">${ntT("nearest.localOther",
+                "{city}最近的是 {station}，约 {distance}。", {
+                    city: escHtml(cityName),
+                    station: escHtml(localName),
+                    distance: escHtml(formatDistance(local.distance))
+                })}</p>`);
         } else {
-            blocks.push(`<p class="cgo-near-lead">${cityName}最近的车站是<b>${local.name}</b>，约
-                   <b>${formatDistance(local.distance)}</b>，离您较远。</p>`);
+            blocks.push(`<p class="cgo-near-lead">${ntT("nearest.localFar",
+                "{city}最近的车站是{station}，约 {distance}，离您较远。", {
+                    city: escHtml(cityName),
+                    station: `<b>${escHtml(localName)}</b>`,
+                    distance: `<b>${escHtml(formatDistance(local.distance))}</b>`
+                })}</p>`);
         }
         // 有出入口坐标时，顺手告诉用户该从哪个口进
         if (local.exit) {
-            blocks.push(`<p class="cgo-near-sub">建议走 <b>${local.exit.name} 口</b>，距您约 ${formatDistance(local.exit.distance)}。</p>`);
+            blocks.push(`<p class="cgo-near-sub">${ntT("nearest.exitHint",
+                "建议走 {exit} 口，距您约 {distance}。", {
+                    exit: `<b>${escHtml(local.exit.name)}</b>`,
+                    distance: escHtml(formatDistance(local.exit.distance))
+                })}</p>`);
         }
 
-        modal.title = "查找最近车站";
+        modal.title = ntT("nearest.title", "查找最近车站");
         modal.innerHTML = `
             <div class="cgo-near-body">
                 ${blocks.join("\n")}
             </div>
             <div class="cgo-near-actions">
                 ${better ? `<button type="button" class="cgo-near-btn primary" data-act="switch">
-                    <cgo-icon name="map" size="14"></cgo-icon>切换到${better.city.name}
+                    <cgo-icon name="map" size="14"></cgo-icon>${escHtml(ntT("nearest.switchTo", "切换到{city}", { city: betterCity }))}
                 </button>` : ""}
                 <button type="button" class="cgo-near-btn${better ? "" : " primary"}" data-act="local">
-                    <cgo-icon name="location" size="14"></cgo-icon>查看${cityName}最近车站
+                    <cgo-icon name="location" size="14"></cgo-icon>${escHtml(ntT("nearest.viewCity", "查看{city}最近车站", { city: cityName }))}
                 </button>
                 <button type="button" class="cgo-near-btn ghost" data-act="cancel">
-                    <cgo-icon name="close" size="14"></cgo-icon>取消
+                    <cgo-icon name="close" size="14"></cgo-icon>${escHtml(ntT("nearest.cancel", "取消"))}
                 </button>
             </div>
         `;
@@ -443,12 +509,12 @@
         setBusy(true);
         try {
             const city = activeCity();
-            if (!city || !amapUrlOf(city)) { alert("当前城市未配置站点坐标，无法查找最近车站。"); return; }
+            if (!city || !amapUrlOf(city)) { alert(ntT("nearest.noGeoConfig", "当前城市未配置站点坐标，无法查找最近车站。")); return; }
             const fix = await getFix();
             const points = await loadCityGeo(city);
-            if (!points) { alert("站点坐标数据加载失败，无法查找最近车站。"); return; }
+            if (!points) { alert(ntT("nearest.geoLoadFailed", "站点坐标数据加载失败，无法查找最近车站。")); return; }
             const local = nearestOfActiveCity(points, fix.lat, fix.lng);
-            if (!local) { alert("无法定位最近车站（数据匹配失败）"); return; }
+            if (!local) { alert(ntT("nearest.noMatch", "无法定位最近车站（数据匹配失败）")); return; }
             local.exit = nearestExitOf(city.id, local.name, fix.lat, fix.lng);
 
             const overall = local.distance > FAR_THRESHOLD
@@ -474,7 +540,7 @@
             }
             openChooser({ city, local, overall });
         } catch (err) {
-            alert((err && err.message) || "定位失败");
+            alert((err && err.message) || ntT("nearest.locateFailed", "定位失败"));
         } finally {
             busy = false;
             setBusy(false);

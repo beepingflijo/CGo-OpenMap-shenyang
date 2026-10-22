@@ -330,7 +330,9 @@
      */
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "261019.2140";
+        const version = "261020.1845";
+        // 共享层行程面板文案表：未接入 i18n 运行时也要读中文兜底
+        document.write(`<script src="./city/shenyang/shared/base/i18n.bundles.js?v=${version}"><\/script>`);
         const shared = "./city/shenyang/shared";
         const write = (src) => document.write(`<script src="${src}?v=${version}"><\/script>`);
 

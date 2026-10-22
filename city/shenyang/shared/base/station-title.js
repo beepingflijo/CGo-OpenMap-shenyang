@@ -97,6 +97,13 @@
 
             const kind = kindOf(station);
 
+            // 多语言：非中文界面下标题由共享层 i18n 统一拼装，
+            // 不再套用「cn + 站」的中文规则（否则会出现「大連駅站」）
+            if (window.CGoI18n && window.CGoI18n.isTranslated) {
+                const localized = window.CGoI18n.stationTitle(station, kind);
+                if (localized) return localized;
+            }
+
             // 末尾「站」去重：站名本身以「站」结尾时不再叠加，避免「XX站站」；
             // keepDoubleZhanKinds 中的站类例外，保留双写
             const base = name.endsWith("站")

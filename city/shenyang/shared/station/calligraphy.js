@@ -398,8 +398,10 @@
             render(context) {
                 const station = context.station || {};
                 const info = getCalligraphy(station);
-                // 仅有题写者简介、题写者待考或无题字横图的站不接管标题，回退标准中英文标题
-                return hasGlyphImage(info)
+                // 非中文界面不显示中文书法题字，回退标准文本标题（由共享层 i18n 接管主副行）。
+                // 繁体中文仍属中文环境，保留题字。
+                const hideCalligraphy = window.CGoI18n && !window.CGoI18n.isChinese;
+                return (!hideCalligraphy && hasGlyphImage(info))
                     ? renderCalligraphyTitle(station, info)
                     : renderStandardTitle(station);
             },
@@ -408,7 +410,8 @@
                 // .panel-header 外壳由 core 装配，模块只能通过挂载后修饰；
                 const station = context.station || {};
                 const info = getCalligraphy(station);
-                if (!infoPanel || !hasGlyphImage(info)) {
+                const hideCalligraphy = window.CGoI18n && !window.CGoI18n.isChinese;
+                if (hideCalligraphy || !infoPanel || !hasGlyphImage(info)) {
                     // 无题字横图的站需清掉 body 上的染色状态，否则移动端顶部填充层
                     // 会残留上一站的线路色
                     document.body.classList.remove(ACTIVE_CLASS);

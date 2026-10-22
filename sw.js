@@ -24,7 +24,7 @@
  * ==============================================================================
  */
 
-const CACHE_NAME = 'cgo-openmap-v261019.2140';
+const CACHE_NAME = 'cgo-openmap-v261020.1845';
 // 地图瓦片专用缓存：与静态资源版本无关，激活新版本时需保留
 const TILE_CACHE_NAME = 'map-tiles-cache';
 const ASSETS_TO_CACHE = [
@@ -142,6 +142,11 @@ const ASSETS_TO_CACHE = [
     './city/shenyang/data_opening_history.js',
     './city/shenyang/data_legend.js',
     './city/shenyang/data_timetable.js',
+    './city/shenyang/data_i18n.js',
+    // 多语言显示（共享层）：UI 文案 → 运行时 → 样式；城市名称数据在各自 city/{id}/data_i18n.js
+    './city/shenyang/shared/base/i18n.bundles.js',
+    './city/shenyang/shared/base/i18n.js',
+    './city/shenyang/shared/base/i18n.css',
     './city/shenyang/shared/route/loop-direction.js',
     './city/shenyang/shared/base/geo-estimate.js',
     './city/shenyang/shared/station/timetable-renderer.js',
@@ -356,6 +361,7 @@ const ASSETS_TO_CACHE = [
     './city/dalian/data_opening.js',
     './city/dalian/data_legend.js',
     './city/dalian/data_timetable.js',
+    './city/dalian/data_i18n.js',
     './city/dalian/data_facilities.js',
     './city/dalian/data_exits.js',
     './city/dalian/amap_data.json',

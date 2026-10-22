@@ -573,7 +573,12 @@
 
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "261019.2140";
+        const version = "261020.1845";
+        // 多语言显示：城市名称数据 → UI 文案 → 运行时（顺序不可颠倒；
+        // 运行时在加载时就要读取 CGO_CITY_I18N 与 CGO_I18N_MESSAGES）
+        document.write(`<script src="./city/shenyang/data_i18n.js?v=${version}"><\/script>`);
+        document.write(`<script src="./city/shenyang/shared/base/i18n.bundles.js?v=${version}"><\/script>`);
+        document.write(`<script src="./city/shenyang/shared/base/i18n.js?v=${version}"><\/script>`);
         // 环线方向文案（内环 / 外环）：须早于行程规划与时刻表渲染
         document.write(`<script src="./city/shenyang/shared/route/loop-direction.js?v=${version}"><\/script>`);
         // 站距「约X米」估算：有经纬度优先取球面距离（异常偏离回退画布等比，见文件头注释）
