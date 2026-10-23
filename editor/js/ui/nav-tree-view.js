@@ -203,6 +203,7 @@ window.OpenMapEditor.NavTreeView = (function () {
 
         // 7. 自由注释文本分支
         renderTextsBranch(texts, q);
+        renderHotspotsBranch(q);
 
         // 同步当前选中态的高亮标记
         syncSelection(lastSelected, lastActiveLineId, false);
@@ -211,6 +212,70 @@ window.OpenMapEditor.NavTreeView = (function () {
     /**
      * 1. 线路列表分支
      */
+    /**
+     * 9. 快速前往分支（共享层数据）
+     *    数据与启用状态由 DatasetStudio 提供；编辑控件关闭时整支隐藏。
+     */
+    function renderHotspotsBranch(query) {
+        var api = window.OpenMapEditor.DatasetStudio;
+        if (!api || typeof api.isEditorEnabled !== 'function' || !api.isEditorEnabled()) return;
+
+        var all = (typeof api.getHotspots === 'function' ? api.getHotspots() : []) || [];
+        if (!all.length) return;
+
+        var filtered = all.filter(function (h) {
+            if (!query) return true;
+            var text = ((h.name || '') + ' ' + (h.sid || '') + ' ' + (h.tag || '')).toLowerCase();
+            return text.indexOf(query) !== -1;
+        });
+
+        var branch = createBranchContainer('hotspots', '快速前往', 'tourist', all.length, filtered.length, query);
+        if (!branch) return;
+
+        var children = branch.querySelector('.tree-children');
+        if (!filtered.length) {
+            children.innerHTML = '<div class="tree-empty-hint">未找到匹配条目</div>';
+        } else {
+            filtered.forEach(function (hot) {
+                var index = all.indexOf(hot);
+                var item = document.createElement('div');
+                item.className = 'tree-leaf-item hotspot-leaf';
+                item.setAttribute('data-tree-type', 'hotspot');
+                item.setAttribute('data-hotspot-index', String(index));
+                item.title = (hot.name || '未命名') + '\n点击在右侧属性栏编辑';
+
+                var kindText = hot.kind === 'hub' ? '枢纽' : '景点';
+                var icon = hot.icon || (hot.kind === 'hub' ? 'railway' : 'tourist');
+                var colors = (typeof api.getStationLineColors === 'function')
+                    ? api.getStationLineColors(hot.sid) : [];
+                var swatches = colors.slice(0, 2).map(function (line) {
+                    return hot.tone === 'somber'
+                        ? '<span class="tree-line-swatch is-somber" title="' + escapeHtml(line.name) + '"></span>'
+                        : '<span class="tree-line-swatch" style="background:' +
+                          escapeHtml(line.color) + '" title="' + escapeHtml(line.name) + '"></span>';
+                }).join('');
+
+                item.innerHTML =
+                    '<span class="nav-item-icon"><cgo-icon name="' + escapeHtml(icon) + '" size="12"></cgo-icon></span>' +
+                    swatches +
+                    '<div class="tree-leaf-text">' + highlightText(hot.name || '未命名', query) +
+                    '<span class="tree-leaf-sub">' + escapeHtml(hot.sid || '') + '</span></div>' +
+                    '<span class="tree-leaf-badge">' + kindText + '</span>';
+
+                item.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (callbacks.onSelect) {
+                        callbacks.onSelect('hotspot', index, { hotspot: hot });
+                    }
+                });
+
+                children.appendChild(item);
+            });
+        }
+
+        dom.treeBody.appendChild(branch);
+    }
+
     function renderLinesBranch(lines, query) {
         var filtered = lines.filter(function (l) {
             if (!query) return !0;

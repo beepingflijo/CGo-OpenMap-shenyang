@@ -12,10 +12,10 @@
     <!-- 0. 路径自愈脚本 (避免静态服务结尾无斜杠导致相对路径 404) -->
     <script>
         (function () {
-            if (/\/editor$/.test(location.pathname)) {
-                var base = document.createElement('base');
-                base.href = location.pathname + '/';
-                document.head.insertBefore(base, document.head.firstChild);
+            // 访问 /editor 时浏览器会把 editor 当文件名，相对路径被解析到站点根目录；
+            // 直接重定向到 /editor/，比动态插入 <base> 更可靠。
+            if (!/\/$/.test(location.pathname) && !/\.html?$/i.test(location.pathname)) {
+                location.replace(location.pathname + '/' + location.search + location.hash);
             }
         })();
     </script>
@@ -45,16 +45,17 @@
         rel="stylesheet">
 
     <!-- 1. CGoUI 基础样式体系 (相对根目录引用) -->
-    <link rel="modulepreload" href="../core/cgo-ui.js?v=261023.122500">
-    <link rel="stylesheet" href="../css/cgo_clr.css?v=261023.122500">
-    <link rel="stylesheet" href="../css/cgo_element.css?v=261023.122500">
-    <link rel="stylesheet" href="../css/cgo_ui.css?v=261023.122500">
-    <link rel="stylesheet" href="../css/cgo_components.css?v=261023.122500">
+    <link rel="modulepreload" href="../core/cgo-ui.js?v=261023.161120">
+    <link rel="stylesheet" href="../css/cgo_clr.css?v=261023.161120">
+    <link rel="stylesheet" href="../css/cgo_element.css?v=261023.161120">
+    <link rel="stylesheet" href="../css/cgo_ui.css?v=261023.161120">
+    <link rel="stylesheet" href="../css/cgo_components.css?v=261023.161120">
 
     <!-- 2. OpenMap Editor 专属布局与 Ribbon 样式 -->
     <link rel="stylesheet" href="css/editor-layout.css">
     <link rel="stylesheet" href="css/editor-ribbon.css">
     <link rel="stylesheet" href="css/editor-components.css">
+    <link rel="stylesheet" href="css/dataset-studio.css?v=261023.161120">
 
     <style>
         /* 彻底移除主站悬浮标题栏顶部渐变遮罩 (Scrim Gradient) 与移动端状态栏渐变 */
@@ -379,6 +380,11 @@
                             <div class="ribbon-icon"><cgo-icon name="table" size="18"></cgo-icon></div>
                             <span class="btn-text">实际站间距</span>
                         </button>
+                        <button class="ribbon-action-btn-lg" id="btnOpenDatasetStudio"
+                            title="管理实验性功能：快速前往、开通沿革、开通时刻等">
+                            <div class="ribbon-icon"><cgo-icon name="view-list" size="18"></cgo-icon></div>
+                            <span class="btn-text">实验性功能</span>
+                        </button>
                     </div>
                     <div class="ribbon-group-label">批量数据生产</div>
                 </div>
@@ -624,6 +630,22 @@
         </div>
     </cgo-modal>
 
+    <!-- 6. 实验性功能控制面板（按注册项列出，开关编辑控件 / 清空数据） -->
+    <cgo-modal id="modalDatasetStudio" title="实验性功能" max-width="720px">
+        <div id="ds-control-panel" class="ds-panel"></div>
+        <div class="dialog-buttons">
+            <cgo-button variant="info" data-close="modalDatasetStudio">关闭</cgo-button>
+        </div>
+    </cgo-modal>
+
+    <!-- 首末班车编辑 / 小交路终点弹窗（预置容器，由 TimetableStudio 填充内容） -->
+    <cgo-modal id="ttEditorModal" title="编辑首末班车" max-width="360px">
+        <div id="ttEditBody"></div>
+    </cgo-modal>
+    <cgo-modal id="ttLocalModal" title="添加小交路终点" max-width="380px">
+        <div id="ttLocalBody"></div>
+    </cgo-modal>
+
     <!-- 4. DeepSeek 视觉模型配置弹窗 -->
     <cgo-modal id="modalDeepseekSettings" title="DeepSeek-Vision 视觉模型配置" max-width="520px">
         <div
@@ -787,14 +809,21 @@
     <script src="js/pipelines/pipeline-ingest.js"></script>
     <script src="js/pipelines/pipeline-surgical.js"></script>
     <script src="js/pipelines/pipeline-draw.js"></script>
+    <!-- 实验性功能注册中心（须先于各功能脚本加载） -->
+    <script src="js/core/experiments.js?v=261023.161120"></script>
+    <!-- 首末班车：标准格式 / 旧数据适配 → inspector 编辑区 -->
+    <script src="js/core/timetable-schema.js?v=261023.161120"></script>
+    <script src="js/tools/timetable-studio.js?v=261023.161120"></script>
+    <!-- 共享层数据表：schema 驱动的声明式数据录入（依赖上面的回写层与 BundleExporter） -->
+    <script src="js/tools/dataset-studio.js?v=261023.161120"></script>
 
     <!-- UI 控制器与视图 -->
     <script src="js/ui/ribbon-controller.js"></script>
-    <script src="js/ui/nav-tree-view.js"></script>
-    <script src="js/ui/inspector-view.js"></script>
+    <script src="js/ui/nav-tree-view.js?v=261023.161120"></script>
+    <script src="js/ui/inspector-view.js?v=261023.161120"></script>
 
     <!-- 主入口集成脚本 -->
-    <script src="js/editor-app.js"></script>
+    <script src="js/editor-app.js?v=261023.161120"></script>
 </body>
 
 </html>

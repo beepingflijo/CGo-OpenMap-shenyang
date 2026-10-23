@@ -22,31 +22,31 @@
  */
 const SHENYANG_HOTSPOTS = [
     // ── 交通枢纽 ──
-    { name: "沈阳站", sid: "0114", kind: "hub", icon: "railway", enterExit: "L1", leaveExit: "A2" },
-    { name: "沈阳北站", sid: "0207", kind: "hub", icon: "railway", exit: "A" },
-    { name: "沈阳南站", sid: "0422", kind: "hub", icon: "railway", exit: "A" },
+    { name: "沈阳站", sid: "0114", kind: "hub", icon: "railway", exits: [{ code: "L1", mode: "exit" }, { code: "A2", mode: "entry" }] },
+    { name: "沈阳北站", sid: "0207", kind: "hub", icon: "railway", exits: [{ code: "A", mode: "transfer" }] },
+    { name: "沈阳南站", sid: "0422", kind: "hub", icon: "railway", exits: [{ code: "A", mode: "transfer" }] },
     // 桃仙机场：航站楼直接口（data_exits 手工补录的「航站楼（-1F）」）
-    { name: "桃仙机场", sid: "0226", kind: "hub", icon: "plane", exit: "航站楼" },
+    { name: "桃仙机场", sid: "0226", kind: "hub", icon: "plane", exits: [{ code: "航站楼", mode: "transfer" }] },
     // ── 名胜景点（3A+ 景区 / 省市级博物馆 / 全国文保）──
-    { name: "沈阳故宫", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
-    { name: "张学良旧居", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exit: "C" },
-    { name: "北陵公园（昭陵）", sid: "0204", kind: "poi", tag: "全国文保 · 4A", exit: "E" },
-    { name: "东陵公园（福陵）", sid: "0128", kind: "poi", tag: "全国文保 · 4A", exit: "B" },
-    { name: "新乐遗址", sid: "0203", kind: "poi", tag: "全国文保", exit: "B" },
+    { name: "沈阳故宫", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exits: [{ code: "C", mode: "transfer" }] },
+    { name: "张学良旧居", sid: "0118", kind: "poi", tag: "全国文保 · 4A", exits: [{ code: "C", mode: "transfer" }] },
+    { name: "北陵公园（昭陵）", sid: "0204", kind: "poi", tag: "全国文保 · 4A", exits: [{ code: "E", mode: "transfer" }] },
+    { name: "东陵公园（福陵）", sid: "0128", kind: "poi", tag: "全国文保 · 4A", exits: [{ code: "B", mode: "transfer" }] },
+    { name: "新乐遗址", sid: "0203", kind: "poi", tag: "全国文保", exits: [{ code: "B", mode: "transfer" }] },
     // 九·一八：惨案纪念地，圆点用中性灰（tone: "somber"），不配线路色
-    { name: "九·一八历史博物馆", sid: "1011", kind: "poi", tag: "博物馆", exit: "E", tone: "somber" },
-    { name: "辽宁省博物馆", sid: "0222", kind: "poi", tag: "省博", exit: "A" },
-    { name: "沈阳博物馆", sid: "0209", kind: "poi", tag: "市博", exit: "D" },
+    { name: "九·一八历史博物馆", sid: "1011", kind: "poi", tag: "博物馆", exits: [{ code: "E", mode: "transfer" }], tone: "somber" },
+    { name: "辽宁省博物馆", sid: "0222", kind: "poi", tag: "省博", exits: [{ code: "A", mode: "transfer" }] },
+    { name: "沈阳博物馆", sid: "0209", kind: "poi", tag: "市博", exits: [{ code: "D", mode: "transfer" }] },
     // ── 省市级公共建筑与公园（2026-10-09 按沈阳本地宝「地铁可及」补录）──
     // 科技馆：本地宝「2 号线省博物馆站 D 口向南 200 米」
-    { name: "辽宁省科学技术馆", sid: "0222", kind: "poi", tag: "省属场馆", exit: "D" },
+    { name: "辽宁省科学技术馆", sid: "0222", kind: "poi", tag: "省属场馆", exits: [{ code: "D", mode: "transfer" }] },
     // 省图与省博同片区，方位依据不足时取西北口兜底（原则：条目须绑定口，否则结果无出入口信息）
-    { name: "辽宁省图书馆", sid: "0222", kind: "poi", tag: "省属场馆", exit: "B" },
+    { name: "辽宁省图书馆", sid: "0222", kind: "poi", tag: "省属场馆", exits: [{ code: "B", mode: "transfer" }] },
     // 市图书馆（青年大街×科普路口径）
-    { name: "沈阳市图书馆", sid: "0213", kind: "poi", tag: "市属场馆", exit: "C" },
-    { name: "科普公园", sid: "0214", kind: "poi", tag: "市级公园", exit: "B" },
+    { name: "沈阳市图书馆", sid: "0213", kind: "poi", tag: "市属场馆", exits: [{ code: "C", mode: "transfer" }] },
+    { name: "科普公园", sid: "0214", kind: "poi", tag: "市级公园", exits: [{ code: "B", mode: "transfer" }] },
     // 公园均在浑河南岸：取贴桥南侧的口
-    { name: "长白岛森林公园", sid: "0415", kind: "poi", tag: "市级公园", exit: "D" },
+    { name: "长白岛森林公园", sid: "0415", kind: "poi", tag: "市级公园", exits: [{ code: "D", mode: "transfer" }] },
     // 奥林匹克生态公园：有轨 5 号线「浑南图书馆」约 1.1 km，近于 9 号线长青桥约 1.5 km；
     // 有轨站无出口数据，不配 exit
     { name: "奥林匹克生态公园", sid: "T506", kind: "poi", tag: "市级公园" }

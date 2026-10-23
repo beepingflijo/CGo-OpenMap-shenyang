@@ -55,7 +55,14 @@
     /** 可参与规划：已开通且至少属于一条可规划线路（国铁等点状线路的站不可用） */
     const pickable = (sid) => allStations()[sid]?.type !== "no" && linesAt(sid).length > 0;
 
-    const state = { from: null, to: null, fromExit: null, toExit: null, fromExitLandmark: null, toExitLandmark: null, need: null, qg: "hub", result: null, routes: [], routeIndex: 0, planner: null, picking: null };
+    const state = {
+        from: null, to: null, fromExit: null, toExit: null,
+        fromExitLandmark: null, toExitLandmark: null,
+        // 快速前往可能绑定多个「车站+口」：候选先全部参与择优，选定后再写回 from/to
+        fromCandidates: null, toCandidates: null,
+        fromWalk: 0, toWalk: 0,
+        need: null, qg: "hub", result: null, routes: [], routeIndex: 0, planner: null, picking: null
+    };
     const emit = (name, detail) => document.dispatchEvent(new CustomEvent(name, { detail }));
 
     /* ── 出行需求（携带行李 / 无障碍）─────────────────────────────────
@@ -300,12 +307,102 @@
         return true;
     }
 
-    /** 快速前往条目的接驳口：enterExit / leaveExit 分别覆盖「设为起点（进站）/ 终点（出站）」，
-     *  退回通用 exit；没配或该口不在本站出口表里则返回 null（不设口） */
+    /** 快速前往条目的接驳口。
+     *
+     *  新格式 `exits: [{ code, mode, walkMeters?, walkMinutes? }]`，mode 站在**地点**视角：
+     *    transfer 接驳 = 双向通行
+     *    entry    入口 = 出入口 → 地点（热点作**终点**时用）
+     *    exit     出口 = 地点 → 出入口（热点作**起点**时用）
+     *
+     *  取口顺序：步行用时升序 → 无用时按距离（80 m/min 折算）→ 都没填保持数组顺序
+     *  （约定数组即由近及远）。口不在本站出口表里视为没配。
+     *
+     *  旧格式 enterExit / leaveExit / exit 保留兜底，迁移前的城市数据仍可正常读取。
+     */
     function hotExitOf(hot, field) {
-        const code = (dirOfField(field) === "entry" ? (hot.enterExit || hot.exit) : (hot.leaveExit || hot.exit)) || null;
-        if (!code) return null;
-        return exitsApi()?.exitsById?.(String(hot.sid || ""))?.some((exit) => String(exit.name) === code) ? code : null;
+        const dir = dirOfField(field);
+        // 起点要「出口」（地点 → 出入口），终点要「入口」（出入口 → 地点）
+        const wantMode = dir === "entry" ? "exit" : "entry";
+
+        const exits = exitsApi()?.exitsById?.(String(hot.sid || "")) || [];
+        const hasCode = (code) => exits.some((exit) => String(exit.name) === String(code));
+
+        const list = Array.isArray(hot.exits) ? hot.exits.filter(Boolean) : [];
+        if (list.length) {
+            const rank = (e) => {
+                if (Number.isFinite(e.walkMinutes)) return e.walkMinutes;
+                if (Number.isFinite(e.walkMeters)) return e.walkMeters / 80;
+                return Infinity;   // 都没填 → 保持数组顺序（sort 稳定）
+            };
+            const best = list
+                .filter((e) => e.mode === wantMode || e.mode === "transfer")
+                .sort((a, b) => rank(a) - rank(b))
+                .find((e) => e.code != null && hasCode(e.code));
+            if (best) return String(best.code);
+        }
+
+        // 旧格式兜底：enterExit 对应起点（exit 模式），leaveExit 对应终点（entry 模式）
+        const legacy = dir === "entry" ? (hot.enterExit || hot.exit) : (hot.leaveExit || hot.exit);
+        if (legacy == null) return null;
+        return hasCode(legacy) ? String(legacy) : null;
+    }
+
+    /**
+     * 快速前往条目的**全部候选**「车站+口」。
+     *
+     * 每条出口可自带 `sid`（跨站绑定，如景点同时绑地铁站与有轨站），缺省回落主站；
+     * 起点要 exit/transfer（地点 → 出入口），终点要 entry/transfer（出入口 → 地点）。
+     * walk 取 walkMinutes，没有则按 80 m/min 折算 walkMeters，都没填记 0。
+     *
+     * 这里刻意**不做「取最近」预筛**：死胡同的有轨站可能步行更近，但换乘绕远；
+     * 谁更优必须交给 runPlan 按完整行程总用时判断。
+     */
+    function hotCandidates(hot, field) {
+        const dir = dirOfField(field);
+        const wantMode = dir === "entry" ? "exit" : "entry";
+        const mainSid = String(hot.sid || "");
+        const list = Array.isArray(hot.exits) ? hot.exits.filter(Boolean) : [];
+
+        const mapped = list
+            .filter((e) => e.mode === wantMode || e.mode === "transfer")
+            .map((e) => ({
+                sid: String(e.sid || mainSid),
+                code: e.code != null ? String(e.code) : null,
+                walk: Number.isFinite(e.walkMinutes) ? e.walkMinutes
+                    : (Number.isFinite(e.walkMeters) ? Math.round(e.walkMeters / 80) : 0)
+            }))
+            .filter((c) => c.sid && c.code);
+
+        if (mapped.length) return mapped;
+
+        // 没有可用出口：退回主站、不指定口
+        const legacy = dir === "entry" ? (hot.enterExit || hot.exit) : (hot.leaveExit || hot.exit);
+        return [{ sid: mainSid, code: legacy != null ? String(legacy) : null, walk: 0 }];
+    }
+
+    /**
+     * 在候选组合里选「车程 + 两端步行」总用时最短的一组。
+     * 只做一次单目标快算（planner.plan），选定后仍由原 planAll 渲染完整路线。
+     */
+    function pickBestCandidate(planner) {
+        const fromList = (state.fromCandidates && state.fromCandidates.length)
+            ? state.fromCandidates
+            : [{ sid: state.from, code: state.fromExit, walk: 0 }];
+        const toList = (state.toCandidates && state.toCandidates.length)
+            ? state.toCandidates
+            : [{ sid: state.to, code: state.toExit, walk: 0 }];
+
+        let best = null;
+        fromList.forEach((fc) => {
+            toList.forEach((tc) => {
+                if (!fc.sid || !tc.sid || fc.sid === tc.sid) return;
+                const result = planner.plan(fc.sid, tc.sid, "time");
+                if (!result) return;
+                const total = result.minutes + (fc.walk || 0) + (tc.walk || 0);
+                if (!best || total < best.total) best = { from: fc, to: tc, total };
+            });
+        });
+        return best;
     }
 
     /**
@@ -357,6 +454,9 @@
         state[field] = sid;
         if (code !== undefined) state[exitKey(field)] = code;
         if (landmark !== undefined) state[landmarkKey(field)] = landmark;
+        // 手动指定端点后，旧的「快速前往」候选不再适用
+        state[field === "from" ? "fromCandidates" : "toCandidates"] = null;
+        state[field === "from" ? "fromWalk" : "toWalk"] = 0;
     }
 
     /** 结果标题端点名：该端点是按地标命中的就直接用纯地标名（「起点地标 → 终点地标」），
@@ -700,15 +800,16 @@
             if (!item) return;
             const hot = (Array.isArray(window.CGO_HOTSPOTS) ? window.CGO_HOTSPOTS : [])[Number(item.dataset.hot)];
             const field = !state.from ? "from" : (!state.to ? "to" : "from");
-            const code = hot && hotExitOf(hot, field) || null;
-            // 趋近「在输入框里输入出口地标」的体验：热点名作为 landmark 来源——
-            // 标题「起点地标 → 终点地标」、进/出站条（exitgate）、回显口随之全套生效
-            setEndpoint(field, item.dataset.sid, code, hot ? hot.name : null);
+            const candidates = hot ? hotCandidates(hot, field) : [];
+            const first = candidates[0] || null;
+            // 先落一个默认端点（标题与回显立即有值），完整候选交给 runPlan 按总用时择优
+            setEndpoint(field, first ? first.sid : item.dataset.sid, first ? first.code : null, hot ? hot.name : null);
+            state[field === "from" ? "fromCandidates" : "toCandidates"] = candidates.length ? candidates : null;
             // 接驳口再按当前需求自动替换为合规口
             enforceExitCompliance(field);
             syncFields();
             refreshResult();
-            setStatus(`已将「${hot?.name || item.dataset.sid}」设为${field === "from" ? "起点" : "终点"}${code ? `（经 ${state[exitKey(field)]} 口）` : ""}`);
+            setStatus(`已将「${hot?.name || item.dataset.sid}」设为${field === "from" ? "起点" : "终点"}${state[exitKey(field)] ? `（经 ${state[exitKey(field)]} 口）` : ""}`);
         });
         // 点面板内别的地方收起已开的口菜单（挂一次；监听随 panel 元素一起销毁，不泄漏）
         panel.addEventListener("mousedown", (event) => {
@@ -1168,8 +1269,10 @@
      * 与各出站换乘口（出站侧 + 进站侧，与步骤区标注一一对应，标注出现在哪时间就加在哪）。
      */
     function gateOverhead(route) {
-        if (!exitsApi()) return 0;
-        let total = 0;
+        // 两端步行时间（快速前往绑定的口所填的步行用时）统一在此计入总用时，
+        // 面板总用时与 cgo:route-planned 事件因此共用同一口径
+        let total = (state.fromWalk || 0) + (state.toWalk || 0);
+        if (!exitsApi()) return total;
         // ⚠️ 只看「有没有选口」，**不看地标来源**：进站条 / 出站条的跨线说明只要选了口就出
         //    （见 showExitLeg），总用时必须照此计入。早先多挂了一个 `&& …Landmark`，
         //    而手动挑口会清掉地标来源（见口菜单点击处），于是出现「步骤里写了约 1 分钟、
@@ -1235,6 +1338,23 @@
         if (!state.from || !state.to) return;
         const planner = await ensurePlanner();
         if (!planner) { setStatus("当前城市暂不支持规划"); return; }
+
+        // 快速前往绑定了多个「车站+口」时，先把全部候选按「车程 + 两端步行」算一遍，
+        // 选总用时最短的组合写回 state —— 避免为了省几步路选中死胡同车站。
+        const pick = pickBestCandidate(planner);
+        if (pick) {
+            state.from = pick.from.sid;
+            state.fromExit = pick.from.code || null;
+            state.fromWalk = pick.from.walk || 0;
+            state.to = pick.to.sid;
+            state.toExit = pick.to.code || null;
+            state.toWalk = pick.to.walk || 0;
+            state.fromCandidates = null;
+            state.toCandidates = null;
+            enforceExitCompliance("from");
+            enforceExitCompliance("to");
+        }
+
         // 一次按多种优先级寻路，完全相同的路线会被合并为一条
         const routes = planner.planAll(state.from, state.to);
         if (!routes.length) {
@@ -1266,7 +1386,7 @@
         emit("cgo:route-planned", {
             from: state.from, to: state.to,
             fromExit: state.fromExit, toExit: state.toExit,
-            // 总用时含出入口站内换乘的折算（gateOverhead，与步骤区的换乘标注一一对应）
+            // 总用时含出入口站内换乘折算与两端步行时间（统一由 gateOverhead 计入）
             minutes: routes[0].minutes + gateOverhead(routes[0]),
             stops: routes[0].stops,
             transfers: routes[0].transfers, routes: routes.length

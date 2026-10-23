@@ -28,7 +28,7 @@
  * ==============================================================================
  */
 
-const CACHE_NAME = 'cgo-openmap-v261023.122500';
+const CACHE_NAME = 'cgo-openmap-v261023.161120';
 // 地图瓦片专用缓存：与静态资源版本无关，激活新版本时需保留
 const TILE_CACHE_NAME = 'map-tiles-cache';
 const ASSETS_TO_CACHE = [
@@ -46,6 +46,7 @@ const ASSETS_TO_CACHE = [
     './editor/css/editor-layout.css',
     './editor/css/editor-ribbon.css',
     './editor/css/editor-components.css',
+    './editor/css/dataset-studio.css',
     './editor/js/core/project-model.js',
     './editor/js/core/history-manager.js',
     './editor/js/core/city-project-io.js',
@@ -69,6 +70,10 @@ const ASSETS_TO_CACHE = [
     './editor/js/tools/batch-station-tool.js',
     './editor/js/tools/mileage-manager.js',
     './editor/js/tools/bundle-exporter.js',
+    './editor/js/core/experiments.js',
+    './editor/js/core/timetable-schema.js',
+    './editor/js/tools/timetable-studio.js',
+    './editor/js/tools/dataset-studio.js',
     './editor/js/pipelines/pipeline-ingest.js',
     './editor/js/pipelines/pipeline-surgical.js',
     './editor/js/pipelines/pipeline-draw.js',

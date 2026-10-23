@@ -9,27 +9,27 @@
  */
 const CHANGCHUN_HOTSPOTS = [
     // ── 交通枢纽 ──
-    { name: "长春站", sid: "0125", kind: "hub", icon: "railway", exit: "A" },
-    { name: "长春西站", sid: "0225", kind: "hub", icon: "railway", exit: "SE" },
+    { name: "长春站", sid: "0125", kind: "hub", icon: "railway", exits: [{ code: "A", mode: "transfer" }] },
+    { name: "长春西站", sid: "0225", kind: "hub", icon: "railway", exits: [{ code: "SE", mode: "transfer" }] },
     // ── 名胜景点 ──
     // 伪满皇宫：殖民政权旧址，圆点用中性灰（tone: "somber"），不配线路色
-    { name: "伪满皇宫博物院", sid: "0321", kind: "poi", tag: "全国文保 · 4A", exit: "B", tone: "somber" },
-    { name: "长影世纪城", sid: "0355", kind: "poi", tag: "4A", exit: "A" },
+    { name: "伪满皇宫博物院", sid: "0321", kind: "poi", tag: "全国文保 · 4A", exits: [{ code: "B", mode: "transfer" }], tone: "somber" },
+    { name: "长影世纪城", sid: "0355", kind: "poi", tag: "4A", exits: [{ code: "A", mode: "transfer" }] },
     // 净月潭公园（0351）暂无出口数据，不配接驳口
     { name: "净月潭公园", sid: "0351", kind: "poi", tag: "5A" },
     // 以下按「官方交通建议含地铁」补录（2026-10-09 搜索核实，接驳口待逐口核对暂不配）：
     // 长春世界雕塑园（5A）：本地宝交通页「1 号线市政府站 B2 口步行 594 米」
-    { name: "长春世界雕塑园", sid: "0133", kind: "poi", tag: "5A", exit: "B2" },
+    { name: "长春世界雕塑园", sid: "0133", kind: "poi", tag: "5A", exits: [{ code: "B2", mode: "transfer" }] },
     // 长影旧址博物馆（4A）：高德测距有轨 G54/G55「长影」站约 160 m，
     // 5 号线长影旧址博物馆站约 430 m、3 号线湖西桥站约 600 m、红旗街站约 770 m。
     // 取最近的有轨站（行程规划已支持有轨）；有轨站无出口数据，不配 exit。
     { name: "长影旧址博物馆", sid: "G5402", kind: "poi", tag: "4A" },
     // 吉林省博物院（省博）：长春轨道交通集团官方推文「6 号线省博物院站 C 口」
-    { name: "吉林省博物院", sid: "0641", kind: "poi", tag: "省博", exit: "C" },
+    { name: "吉林省博物院", sid: "0641", kind: "poi", tag: "省博", exits: [{ code: "C", mode: "transfer" }] },
     // ── 省市级公共建筑（2026-10-09 按长春轨道交通集团官方推文补录）──
-    { name: "长春历史文化博物馆", sid: "0233", kind: "poi", tag: "市属场馆", exit: "C2" },
-    { name: "长春市博物馆", sid: "0133", kind: "poi", tag: "市属场馆", exit: "D" },
-    { name: "长春市城乡规划展览馆", sid: "0133", kind: "poi", tag: "市属场馆", exit: "D" },
+    { name: "长春历史文化博物馆", sid: "0233", kind: "poi", tag: "市属场馆", exits: [{ code: "C2", mode: "transfer" }] },
+    { name: "长春市博物馆", sid: "0133", kind: "poi", tag: "市属场馆", exits: [{ code: "D", mode: "transfer" }] },
+    { name: "长春市城乡规划展览馆", sid: "0133", kind: "poi", tag: "市属场馆", exits: [{ code: "D", mode: "transfer" }] },
     { name: "吉林省自然博物馆", sid: "0348", kind: "poi", tag: "省属场馆" }
 ];
 window.CHANGCHUN_HOTSPOTS = CHANGCHUN_HOTSPOTS;

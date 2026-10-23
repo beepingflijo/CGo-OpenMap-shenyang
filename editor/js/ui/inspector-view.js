@@ -209,6 +209,9 @@ window.OpenMapEditor.InspectorView = (function () {
             '<input type="number" class="form-input" id="propNodeY" value="' + Math.round(node.y) + '">' +
             '</div></div>';
 
+        // 首末班车编辑区挂载点（放在删除图元按钮之前）
+        html += '<div id="inspectorTimetableSlot"></div>';
+
         html += '<button type="button" class="ribbon-btn-sm danger" id="btnDeleteSelected" style="margin-top:10px;">' +
             '<cgo-icon name="delete" size="12"></cgo-icon><span>删除此图元</span></button>' +
             '</div>';
@@ -551,11 +554,23 @@ window.OpenMapEditor.InspectorView = (function () {
             '<div>点击画布或左侧大纲中的车站、折线、要素进行属性检视与微调</div></div>';
     }
 
+    /**
+     * 通用 HTML 渲染入口：供城市侧 / 工具侧注入自定义检视区。
+     * @param {string} html       要注入的 HTML
+     * @param {Function} [afterRender] 渲染完成后的回调（用于绑定输入事件），入参为 body 元素
+     */
+    function renderCustom(html, afterRender) {
+        if (!dom.body) return;
+        dom.body.innerHTML = html;
+        if (typeof afterRender === 'function') afterRender(dom.body);
+    }
+
     return {
         init: init,
         renderNodeInspector: renderNodeInspector,
         renderSegmentInspector: renderSegmentInspector,
         renderGenericInspector: renderGenericInspector,
+        renderCustom: renderCustom,
         renderEmpty: renderEmpty
     };
 })();

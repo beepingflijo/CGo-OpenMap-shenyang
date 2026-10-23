@@ -1,0 +1,673 @@
+/**
+ * ==============================================================================
+ * CGo OpenMap - 共享层数据样式 (editor/css/dataset-studio.css)
+ * ==============================================================================
+ * 两处 UI：
+ *   1. 控制面板 #modalDatasetStudio（Ribbon「数据与工具」→「共享层数据」）
+ *   2. 右侧属性栏里的「快速前往条目」编辑区（由 DatasetStudio.renderInspector 注入）
+ *
+ * 配色全部复用 css/cgo_clr.css 的主题变量，自动适配亮 / 暗主题；
+ * 图标一律 <cgo-icon>，不使用 Emoji。
+ * ==============================================================================
+ */
+
+/* --------------------------------------------------------------------------
+ * 1. 控制面板
+ * -------------------------------------------------------------------------- */
+
+.ds-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--text-main);
+    font-size: 13px;
+}
+
+.ds-panel-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+}
+
+.ds-panel-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ds-panel-name {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.ds-panel-desc {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-light);
+}
+
+.ds-panel-stat {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-light);
+    font-variant-numeric: tabular-nums;
+}
+
+.ds-panel-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ds-panel-foot {
+    padding: 0 2px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-light);
+}
+
+/* --------------------------------------------------------------------------
+ * 2. 属性栏：出入口编辑
+ * -------------------------------------------------------------------------- */
+
+.ds-exit-block {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.ds-exit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-light);
+}
+
+.ds-exit-empty {
+    padding: 8px 0;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-light);
+}
+
+.ds-gate {
+    position: relative;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+}
+
+.ds-gate-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ds-gate-stationwrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ds-gate-station {
+    width: 100%;
+}
+
+.ds-gate-exitbtn {
+    flex: 0 0 auto;
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-light);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ds-gate-exitbtn.has-exit {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.ds-gate-suggest,
+.ds-gate-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    margin-top: 4px;
+    padding: 4px;
+    max-height: 190px;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+
+.ds-gate-menu {
+    left: auto;
+    right: 0;
+    width: 150px;
+}
+
+.ds-gate-suggest-item,
+.ds-gate-exit-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.ds-gate-suggest-item:hover,
+.ds-gate-exit-item:hover {
+    background: var(--btn-info-hover);
+}
+
+.ds-gate-exit-item.is-on {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.ds-gate-suggest-item small {
+    color: var(--text-light);
+    font-size: 11px;
+}
+
+.ds-gate-empty {
+    padding: 8px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.ds-gate-meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.ds-gate-meta .form-select,
+.ds-gate-meta .form-input {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.ds-exit-hint {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-light);
+}
+
+/* 编辑控件开关：复用共享层的 .cgo-switch 皮肤（语义为原生 button[role=switch]） */
+.ds-switch-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ds-switch-label {
+    font-size: 12px;
+    color: var(--text-light);
+    white-space: nowrap;
+}
+
+.cgo-switch {
+    position: relative;
+    flex: none;
+    width: 42px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--btn-info-bg, #e9ecef);
+    box-shadow: inset 0 0 0 1px var(--border-color, rgba(0, 38, 59, 0.12));
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        background-color var(--dur-fast, 160ms) ease,
+        box-shadow var(--dur-fast, 160ms) ease;
+}
+
+.cgo-switch-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+    transition: transform var(--dur-base, 220ms) var(--ease-spring, cubic-bezier(0.34, 1.3, 0.64, 1));
+}
+
+.cgo-switch.is-on {
+    background: var(--primary-color, #006098);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.cgo-switch.is-on .cgo-switch-thumb {
+    transform: translateX(18px);
+}
+
+.cgo-switch:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-color, #fff), 0 0 0 4px var(--primary-color, #006098);
+}
+
+[data-theme='dark'] .cgo-switch {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+[data-theme='dark'] .cgo-switch.is-on {
+    background: var(--primary-color, #0070b0);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cgo-switch,
+    .cgo-switch-thumb {
+        transition: none;
+    }
+}
+
+/* 实验性功能面板 */
+.ds-exp-author {
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--text-light);
+}
+
+.ds-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 12px;
+}
+
+/* 首末班车编辑区 */
+.tt-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.tt-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-light);
+}
+
+.tt-hint {
+    font-weight: 400;
+    font-size: 10px;
+}
+
+.tt-line {
+    margin-bottom: 12px;
+}
+
+.tt-line-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.tt-line-name {
+    font-weight: 600;
+}
+
+.tt-line-dest {
+    color: var(--text-light);
+}
+
+.tt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.tt-table th,
+.tt-table td {
+    padding: 3px 4px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+}
+
+.tt-table thead th {
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.tt-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 3px 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-size: 11px;
+}
+
+.tt-note {
+    padding: 6px 0;
+    font-size: 11px;
+    color: var(--text-light);
+}
+
+.tt-section.is-dirty .tt-head::after {
+    content: ' · 未导出';
+    color: var(--primary-color);
+    font-weight: 400;
+}
+
+.tt-edit-title {
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* 首末班车：按线路方向分组，组内两列紧凑排布 */
+.tt-group {
+    margin-bottom: 12px;
+}
+
+.tt-group-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.tt-group-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tt-add-local {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-light);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.tt-add-local:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.tt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+
+.tt-cell {
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.tt-cell--note {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    color: var(--text-light);
+}
+
+.tt-cell-label {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 10px;
+    color: var(--text-light);
+}
+
+.tt-cell-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.tt-cell-value {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+.tt-cell-edit {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.tt-cell-edit:hover {
+    color: var(--primary-color);
+}
+
+/* 小交路终点选择列表 */
+.tt-local-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 320px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.tt-local-item {
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-main);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tt-local-item:hover {
+    background: var(--btn-info-hover);
+}
+
+/* 首末班车：行式布局（左属性 / 右值 / 编辑按钮） */
+.tt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tt-row:last-child {
+    border-bottom: 0;
+}
+
+.tt-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tt-row-title {
+    font-size: 11px;
+    color: var(--text-main);
+}
+
+.tt-row-sub {
+    font-size: 10px;
+    color: var(--text-light);
+}
+
+.tt-row-value {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+}
+
+.tt-row-edit {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.tt-row-edit:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.tt-row--note .tt-row-title {
+    color: var(--text-light);
+}
+
+/* 首末班车编辑弹窗 */
+.tt-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, .45);
+}
+
+.tt-modal-card {
+    width: 300px;
+    padding: 18px;
+    border-radius: 10px;
+    background: var(--card-bg);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, .3);
+}
+
+.tt-modal-title {
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.tt-modal-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.tt-modal-field input {
+    width: 130px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-size: 12px;
+}
+
+.tt-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+/* 大纲里的「淡化线路色」圆标 */
+.tree-line-swatch.is-somber {
+    background: var(--text-light);
+    opacity: .65;
+}
+
+/* --------------------------------------------------------------------------
+ * 3. 行内图标按钮
+ * -------------------------------------------------------------------------- */
+
+.ds-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--panel-bg);
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.ds-icon-btn:hover {
+    background: var(--btn-info-hover);
+    color: var(--text-main);
+}
+
+.ds-icon-btn--danger:hover {
+    border-color: var(--danger-border);
+    background: var(--danger-bg);
+    color: var(--danger-color);
+}

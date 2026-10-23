@@ -250,6 +250,9 @@
             var node = app.project.nodes[app.selected.id];
             if (node) {
                 window.OpenMapEditor.InspectorView.renderNodeInspector(node, app.project);
+                if (window.OpenMapEditor.TimetableStudio) {
+                    window.OpenMapEditor.TimetableStudio.mount(node, app.project);
+                }
             } else {
                 window.OpenMapEditor.InspectorView.renderEmpty();
             }
@@ -370,6 +373,8 @@
             } else {
                 window.OpenMapEditor.InspectorView.renderEmpty();
             }
+        } else if (app.selected.type === 'hotspot') {
+            window.OpenMapEditor.DatasetStudio.renderInspector();
         } else if (app.selected.type === 'text') {
             var txt = (app.project.texts || []).find(function (t) { return t.id === app.selected.id; });
             if (txt) {
@@ -506,6 +511,13 @@
      */
     function handleTreeSelect(type, id, data) {
         if (!app.project) return;
+        if (type === 'hotspot') {
+            app.selected = { type: 'hotspot', id: id };
+            // 必须走 selectHotspot：它负责把下标写进 DatasetStudio 的内部状态；
+            // 只调 updateInspector 会因 selectedIndex 仍是 -1 而渲染成空白提示
+            window.OpenMapEditor.DatasetStudio.selectHotspot(id);
+            return;
+        }
         if (type === 'line') {
             app.activeLineId = id;
             if (window.OpenMapEditor.PipelineDraw && window.OpenMapEditor.PipelineDraw.setActiveLine) {
@@ -919,6 +931,16 @@
                 }
             });
         }
+
+        // 共享层数据变更（新增 / 删除 / 改名）→ 只刷新大纲，不重绘画布
+        document.addEventListener('cgo:dataset-changed', function () {
+            if (window.OpenMapEditor.NavTreeView && app.project) {
+                window.OpenMapEditor.NavTreeView.render(app.project, {
+                    selected: app.selected,
+                    activeLineId: app.activeLineId
+                });
+            }
+        });
 
         // 2. 状态栏与视口缩放联动
         window.OpenMapEditor.ViewportLayer.onTransform(function (info) {
@@ -2463,6 +2485,21 @@
         // 存量维护：选择城市加载 (支持 cgo-toolbar-select 与原生 select)
         var citySelect = document.getElementById('selectCityToLoad');
         if (citySelect) {
+            // 实验性功能：载入城市时尝试加载 city/{id}/experiments.js（可选文件，未提供则静默跳过）
+            var loadCityExperiments = function (cityId) {
+                if (!cityId) return;
+                if (document.querySelector('script[data-city-experiments="' + cityId + '"]')) return;
+                var src = '../city/' + cityId + '/experiments.js';
+                fetch(src, { method: 'HEAD' }).then(function (res) {
+                    if (!res.ok) return;
+                    var s = document.createElement('script');
+                    s.src = src;
+                    s.setAttribute('data-city-experiments', cityId);
+                    s.onerror = function () { };
+                    document.head.appendChild(s);
+                }).catch(function () { });
+            };
+
             var handleCityChange = async function (cityId) {
                 if (!cityId) return;
                 try {
@@ -2471,6 +2508,8 @@
                     app.project = res.project;
                     var cName = (res.city && res.city.name) ? res.city.name : cityId;
                     var cId = (res.city && res.city.id) ? res.city.id : cityId;
+                    // 供时刻表等工具读取当前城市 ID（project 本身不带 id）
+                    window.OpenMapEditor.currentCityId = cId;
                     document.getElementById('currentDocLabel').textContent = cName + ' (' + cId + ')';
                     app.activeLineId = (app.project.lines && app.project.lines[0]) ? app.project.lines[0].id : null;
                     if (app.activeLineId && window.OpenMapEditor.PipelineDraw && window.OpenMapEditor.PipelineDraw.setActiveLine) {
@@ -2481,6 +2520,12 @@
                     }
                     window.OpenMapEditor.HistoryManager.reset && window.OpenMapEditor.HistoryManager.reset();
                     renderAll();
+                    // 共享层数据（快速前往）跟随当前城市一起载入
+                    if (window.OpenMapEditor.DatasetStudio) {
+                        window.OpenMapEditor.DatasetStudio.loadForCity().catch(function () { });
+                    }
+                    // 城市自带的实验性功能（city/{id}/experiments.js）
+                    loadCityExperiments(cId);
                     showToast('已无损载入城市: ' + cName, 'success');
                 } catch (e) {
                     showToast('载入失败: ' + (e.message || e), 'error');
