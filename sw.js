@@ -28,7 +28,7 @@
  * ==============================================================================
  */
 
-const CACHE_NAME = 'cgo-openmap-v261024.205446';
+const CACHE_NAME = 'cgo-openmap-v261024.211032';
 // 地图瓦片专用缓存：与静态资源版本无关，激活新版本时需保留
 const TILE_CACHE_NAME = 'map-tiles-cache';
 const ASSETS_TO_CACHE = [
@@ -36,6 +36,8 @@ const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './main.html',
+    './core/portal-data.js',
+    './core/portal-view.js',
     './core/mobile-sheet.js',
     './core/panel-tab-swipe.js',
     './readme.html',
@@ -94,6 +96,8 @@ const ASSETS_TO_CACHE = [
     // 核心通用 JS 库
     './core/cgo-ui.js',
     './core/tool-theme.js',
+    './core/portal-data.js',
+    './core/portal-view.js',
     './core/station-board.js',
     './core/script.js',
     './core/city-neighbors.js',
@@ -122,6 +126,69 @@ const ASSETS_TO_CACHE = [
     './city/beijing/assets/compass.svg',
     './city/beijing/assets/gate.svg',
 
+
+    // 城市配置与业务数据 (示例：三亚)
+    './city/sanya/sanya.js',
+    './city/sanya/data_legend.js',
+    './city/sanya/data_lines.js',
+    './city/sanya/data_notopen.js',
+    './city/sanya/data_scattered.js',
+    './city/sanya/data_stations.js',
+    './city/sanya/data_timetable.js',
+    './city/sanya/data_virtual_transfers.js',
+    './city/sanya/assets/badge-t1.svg',
+    './city/sanya/assets/logo.svg',
+    './city/sanya/stacard/script.js',
+
+    // 城市配置与业务数据 (示例：南平)
+    './city/nanping/nanping.js',
+    './city/nanping/data_legend.js',
+    './city/nanping/data_lines.js',
+    './city/nanping/data_notopen.js',
+    './city/nanping/data_scattered.js',
+    './city/nanping/data_stations.js',
+    './city/nanping/data_timetable.js',
+    './city/nanping/data_virtual_transfers.js',
+    './city/nanping/assets/badge-t1.svg',
+    './city/nanping/assets/logo.svg',
+    './city/nanping/stacard/script.js',
+
+    // 城市配置与业务数据 (示例：辽源)
+    './city/liaoyuan/liaoyuan.js',
+    './city/liaoyuan/data_legend.js',
+    './city/liaoyuan/data_lines.js',
+    './city/liaoyuan/data_notopen.js',
+    './city/liaoyuan/data_scattered.js',
+    './city/liaoyuan/data_stations.js',
+    './city/liaoyuan/data_timetable.js',
+    './city/liaoyuan/data_virtual_transfers.js',
+    './city/liaoyuan/stacard/script.js',
+
+    // 城市配置与业务数据 (示例：文山)
+    './city/wenshan/wenshan.js',
+    './city/wenshan/data_legend.js',
+    './city/wenshan/data_lines.js',
+    './city/wenshan/data_notopen.js',
+    './city/wenshan/data_scattered.js',
+    './city/wenshan/data_stations.js',
+    './city/wenshan/data_timetable.js',
+    './city/wenshan/data_virtual_transfers.js',
+    './city/wenshan/stacard/script.js',
+
+    // 城市配置与业务数据 (示例：澳門)
+    './city/macau/macau.js',
+    './city/macau/data_legend.js',
+    './city/macau/data_lines.js',
+    './city/macau/data_notopen.js',
+    './city/macau/data_scattered.js',
+    './city/macau/data_stations.js',
+    './city/macau/data_timetable.js',
+    './city/macau/data_virtual_transfers.js',
+    './city/macau/assets/logo.svg',
+    './city/macau/assets/lrt-hengqin.svg',
+    './city/macau/assets/lrt-seacpai.svg',
+    './city/macau/assets/lrt-taipa.svg',
+    './city/macau/stacard/script.js',
     // 城市配置与业务数据 (示例：上海)
     './city/shanghai/shanghai.js',
     './city/shanghai/style.css',
