@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="CGo OpenMap 城市轨道交通线路图开放平台 - 平台架构、核心特性、交互说明与开源协议说明。">
     <link rel="shortcut icon" href="./assets/icons/favicon.ico">
@@ -17,24 +17,34 @@
     <!-- Anti-Flicker 防闪烁主题脚本 -->
     <script>
         (function () {
-            var t = localStorage.getItem('app-theme');
+            // 1. 全局深浅色主题同步
+            var t = localStorage.getItem('app-theme') || localStorage.getItem('cgo-theme');
             if (t) document.documentElement.setAttribute('data-theme', t);
-            var hm = localStorage.getItem('root_cgo_header_mode') || localStorage.getItem('cgo_header_mode');
-            if (hm) document.documentElement.setAttribute('header-mode', hm);
+
+            // 2. 彻底清理历史全局无前缀污染键，杜绝跨项目混用打架
+            try {
+                localStorage.removeItem('cgo_header_mode');
+                localStorage.removeItem('root_cgo_header_mode');
+                localStorage.removeItem('main_cgo_header_mode');
+            } catch (e) {}
+
+            // 3. 页面特性严格由页面自身决定：readme.html 专属双岛浮动标题栏
+            var pageKey = 'openmap_readme_header_mode';
+            var hm = localStorage.getItem(pageKey) || 'floating';
+            document.documentElement.setAttribute('header-mode', hm);
+
+            // 4. 液态玻璃模式
             var gm = localStorage.getItem('cgo_glass_mode');
             if (gm) document.documentElement.setAttribute('glass-mode', gm);
         })();
     </script>
 
-    <!-- CGoUI 核心 Web Components 脚本预加载 -->
-    <link rel="modulepreload" href="core/cgo-ui.js?v=260926.2300">
-    <script type="module" src="core/cgo-ui.js?v=260926.2300"></script>
-
-    <!-- 仅引用本地 css/ 样式表以保障项目独立性 -->
-    <link rel="stylesheet" href="css/cgo_clr.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_element.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_ui.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_components.css?v=260926.2300">
+    <link rel="modulepreload" href="core/cgo-ui.js?v=261123.131500">
+    <script type="module" src="core/cgo-ui.js?v=261123.131500"></script>
+    <link rel="stylesheet" href="css/cgo_clr.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_element.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_ui.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_components.css?v=261123.131500">
 
     <style>
         /* Web Components 未注册前优雅占位，防闪烁 */
@@ -189,9 +199,7 @@
             box-shadow: var(--shadow-lg);
         }
 
-        /* ══════════════════════════════════════════════════════
-           Liquid Glass Tier B 不可交互底板卡片体系 (0.82 固定透明度，零 hover 抖动)
-           ══════════════════════════════════════════════════════ */
+        /* Liquid Glass Tier B 底板卡片体系 */
         :root[glass-mode="liquid"] .feature-card,
         :root[glass-mode="liquid"] .port-banner,
         :root[glass-mode="liquid"] .community-card,
@@ -243,6 +251,7 @@
         :root[glass-mode="liquid"] .community-card:hover::after {
             background: var(--glass-bg-panel, rgba(255, 255, 255, 0.82)) !important;
         }
+
         [data-theme="dark"]:root[glass-mode="liquid"] .feature-card:hover::after,
         [data-theme="dark"]:root[glass-mode="liquid"] .port-banner:hover::after,
         [data-theme="dark"]:root[glass-mode="liquid"] .community-card:hover::after {
@@ -280,10 +289,10 @@
             z-index: 1;
         }
 
-        :root[glass-mode="liquid"] .feature-card > *,
-        :root[glass-mode="liquid"] .port-banner > *,
-        :root[glass-mode="liquid"] .community-card > *,
-        :root[glass-mode="liquid"] .meta-info-box > * {
+        :root[glass-mode="liquid"] .feature-card>*,
+        :root[glass-mode="liquid"] .port-banner>*,
+        :root[glass-mode="liquid"] .community-card>*,
+        :root[glass-mode="liquid"] .meta-info-box>* {
             position: relative;
             z-index: 2;
         }
@@ -503,16 +512,12 @@
             right: 0;
             height: calc(constant(safe-area-inset-top, 0px) + 16px);
             height: calc(env(safe-area-inset-top, 0px) + 16px);
-            background: linear-gradient(
-                to bottom,
-                var(--bg-color, #f8f9fa) constant(safe-area-inset-top, 0px),
-                transparent calc(constant(safe-area-inset-top, 0px) + 16px)
-            );
-            background: linear-gradient(
-                to bottom,
-                var(--bg-color, #f8f9fa) env(safe-area-inset-top, 0px),
-                transparent calc(env(safe-area-inset-top, 0px) + 16px)
-            );
+            background: linear-gradient(to bottom,
+                    var(--bg-color, #f8f9fa) constant(safe-area-inset-top, 0px),
+                    transparent calc(constant(safe-area-inset-top, 0px) + 16px));
+            background: linear-gradient(to bottom,
+                    var(--bg-color, #f8f9fa) env(safe-area-inset-top, 0px),
+                    transparent calc(env(safe-area-inset-top, 0px) + 16px));
             z-index: 50001;
             pointer-events: none;
         }
@@ -579,6 +584,34 @@
                 display: inline !important;
             }
         }
+
+        /* ---- 无障碍：本页不加载 css/style.css，以下与其「20. 无障碍」一节保持一致 ---- */
+        :root {
+            --focus-ring: #1a73e8; /* 对 #fff 4.51 / #f8f9fa 4.27 */
+        }
+
+        [data-theme="dark"] {
+            --focus-ring: #8ab4f8; /* 对 #1a1a1a 8.26 / #1f2020 7.75 */
+        }
+
+        :where(a, button, input, select, textarea, summary, [tabindex], [role="button"], [role="tab"], [role="option"]):focus-visible {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-delay: 0s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                transition-delay: 0s !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -602,7 +635,8 @@
             <div class="header-island-divider" aria-hidden="true"></div>
             <div class="header-center">
                 <div class="img-icon-wrapper header-logo-wrapper">
-                    <img src="./assets/icons/mapicon.png" alt="Logo" class="header-logo" loading="lazy" decoding="async" fetchpriority="low"
+                    <img src="./assets/icons/mapicon.png" alt="Logo" class="header-logo" loading="lazy" decoding="async"
+                        fetchpriority="low"
                         onload="this.classList.add('loaded');this.parentElement&&this.parentElement.classList.add('loaded');">
                     <cgo-icon name="sparkle" class="icon-placeholder"></cgo-icon>
                 </div>
@@ -613,7 +647,7 @@
         <div class="header-island header-island-right glass-surface">
             <div class="header-right">
                 <a href="https://github.com/NokiaimuL/CGo-OpenMap" target="_blank" class="btn btn-info btn-icon-only"
-                    title="GitHub 开源仓库">
+                    title="GitHub 开源仓库" aria-label="GitHub 开源仓库">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                         <path
                             d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -636,7 +670,7 @@
                     </div>
                     <span class="badge badge-info">开源基础版</span>
                 </div>
-                <p class="section-subtitle">轻量、现代化的开源城市轨道交通交互线路图引擎，内置北京、沈阳、青岛、合肥等城市线网参考范例，支持快速移植任意城市。</p>
+                <p class="section-subtitle">轻量、现代化的开源城市轨道交通交互线路图引擎，内置北京、沈阳、上海等 S 级标杆城市范例（全网城市收录严格遵循 <a href="./docs/QUALITY_STANDARDS.md" target="_blank" style="color:var(--primary-color, #0080bc);text-decoration:underline;">《线路图质量评定规范》</a>，合肥线网当前处于排版几何规整与数据核对维护阶段，暂缓在门户主页展示），支持快速移植任意城市。</p>
             </div>
 
             <!-- 八大核心特性卡片网格 -->
@@ -708,7 +742,7 @@
                     <ul class="feature-list">
                         <li><strong>引擎与数据分离</strong>：核心渲染引擎与城市业务数据完全解耦</li>
                         <li><strong>标准化数据目录</strong>：城市数据采用独立配置清单，极简清晰</li>
-                        <li><strong>城市专属主题色</strong>：支持配置专属 `themeColor` 衍生全套深浅配色，城市间色彩彻底隔离</li>
+                        <li><strong>城市专属双模主题色</strong>：支持配置专属 `themeColor` 与暗色 `themeColorDark` 衍生全套深浅配色，亮暗模式针对性微调对比度，城市间色彩彻底隔离</li>
                         <li><strong>多城市一键接入</strong>：在城市注册中心注册即可扩展全国各大城市</li>
                     </ul>
                 </div>
@@ -763,8 +797,8 @@
                             <cgo-icon name="drunk" size="20"></cgo-icon>
                         </div>
                         <div style="display: flex; align-items: center; justify-content: space-between; flex: 1;">
-                            <h3 class="feature-title">Drunk 智能转换系统</h3>
-                            <span class="badge badge-warning" style="font-size: 11px;">测试版</span>
+                            <h3 class="feature-title">OpenMap Editor 开放地图编辑器</h3>
+                            <span class="badge badge-primary" style="font-size: 11px;">Ribbon 工作台</span>
                         </div>
                     </div>
                     <ul class="feature-list">
@@ -772,8 +806,8 @@
                         <li><strong>AI 视觉拓扑解析</strong>：浏览器直连 DeepSeek 官方多模态视觉大模型</li>
                         <li><strong>知识库动态对齐</strong>：联网维基百科动态校对站名并补齐中英双语</li>
                         <li><strong>可视化排版微调</strong>：8 方向文字轮盘避让、幽灵底图比对与 45°/90° 正交吸附</li>
-                        <li><strong>标准工程代码导出</strong>：内置 5 项数据完整性铁律自检，一键生成全套城市代码</li>
-                        <li><strong>早期测试与共建说明</strong>：<strong>Drunk 系统为早期开发验证阶段，仅供测试使用。极其欢迎开发者共同开发！</strong></li>
+                        <li><strong>条目级无损源码回写</strong>：外科手术式精准回写，完整保留注释、缩进与字段顺序</li>
+                        <li><strong>高效制图与共建维护</strong>：<strong>集成了矢量直通、大模型识图、CAD规划与条目级无损回写，欢迎广大开发者与交通爱好者共同体验与共建！</strong></li>
                     </ul>
                 </div>
             </div>
@@ -786,13 +820,14 @@
                     </div>
                     <div class="port-banner-info">
                         <h3>想要为你所在的城市制作一份线路图并认领城市主理人？</h3>
-                        <p>支持使用 Drunk 智能转换系统自动提取线路图，或根据移植指南手动编写数据。Drunk 系统当前为早期测试验证阶段，欢迎体验与共同开发：</p>
+                        <p>支持使用 OpenMap Editor 开放地图编辑器智能提取并可视化编辑线路图，或根据移植指南手动编写数据：</p>
                     </div>
                 </div>
                 <div class="port-banner-actions">
-                    <a href="./drunk/index.html" target="_blank" class="btn btn-primary" title="进入 Drunk 线路图智能转换工作台" style="display: inline-flex; align-items: center; gap: 6px;">
+                    <a href="./editor/" target="_blank" class="btn btn-primary" title="进入 OpenMap Editor 开放地图编辑器"
+                        style="display: inline-flex; align-items: center; gap: 6px;">
                         <cgo-icon name="drunk" size="14"></cgo-icon>
-                        <span>Drunk 智能转换 (测试版)</span>
+                        <span>开放地图编辑器</span>
                         <cgo-icon name="chevron-right" size="13"></cgo-icon>
                     </a>
                     <a href="./CONTRIBUTING.md" target="_blank" class="btn btn-info">
@@ -810,7 +845,9 @@
                         <span>新手实战手册</span>
                         <cgo-icon name="chevron-right" size="13"></cgo-icon>
                     </a>
-                    <a href="https://qm.qq.com/q/nHfgBDS68o" target="_blank" class="btn btn-info" style="background: rgba(18, 183, 245, 0.1); border-color: #12b7f5; color: #12b7f5;" title="加入官方 QQ 交流群 (619357751)">
+                    <a href="https://qm.qq.com/q/nHfgBDS68o" target="_blank" class="btn btn-info"
+                        style="background: rgba(18, 183, 245, 0.1); border-color: #12b7f5; color: #12b7f5;"
+                        title="加入官方 QQ 交流群 (619357751)">
                         <cgo-icon name="chat" size="15"></cgo-icon>
                         <span>官方交流群</span>
                         <cgo-icon name="chevron-right" size="13"></cgo-icon>
@@ -821,12 +858,16 @@
             <!-- 官方社群交流卡片 -->
             <div class="community-card">
                 <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
-                    <img src="./assets/images/qq.png" alt="QQ 交流群二维码" style="width: 100px; height: auto; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);" loading="lazy" decoding="async">
+                    <img src="./assets/images/qq.png" alt="QQ 交流群二维码"
+                        style="width: 100px; height: auto; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);"
+                        loading="lazy" decoding="async">
                     <div style="max-width: 480px;">
-                        <h4 style="margin: 0 0 6px 0; font-size: 16px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                        <h4
+                            style="margin: 0 0 6px 0; font-size: 16px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                             <cgo-icon name="chat" size="18" style="color: #12b7f5;"></cgo-icon>
                             <span>CGo OpenMap 官方交流群</span>
-                            <span class="badge badge-info" style="font-size: 11px; padding: 2px 6px;">群号：619357751</span>
+                            <span class="badge badge-info"
+                                style="font-size: 11px; padding: 2px 6px;">群号：619357751</span>
                         </h4>
                         <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--text-light); line-height: 1.5;">
                             欢迎轨道交通爱好者、前端技术开发者与各地城市主理人加入！共同交流城市线网规划、数据移植、拓扑算法与使用反馈。
@@ -837,7 +878,8 @@
                     </div>
                 </div>
                 <div>
-                    <a href="https://qm.qq.com/q/nHfgBDS68o" target="_blank" class="btn btn-primary" style="background: #12b7f5; border-color: #12b7f5; color: #fff; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
+                    <a href="https://qm.qq.com/q/nHfgBDS68o" target="_blank" class="btn btn-primary"
+                        style="background: #12b7f5; border-color: #12b7f5; color: #fff; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 500;">
                         <span>一键加入官方群</span>
                         <cgo-icon name="chevron-right" size="13"></cgo-icon>
                     </a>
@@ -848,7 +890,7 @@
             <div class="meta-info-box">
                 <div class="meta-info-text">
                     <p><strong>CGo OpenMap - 城市轨道交通线路图开放平台</strong></p>
-                    <p>由 Central Go 及其贡献者开源维护 · 涵盖北京、沈阳、青岛、合肥等城市线网 · Drunk 系统处于早期测试阶段</p>
+                    <p>由 Central Go 及其贡献者开源维护 · 涵盖北京、沈阳、青岛、上海、深圳、香港等多城线网</p>
                 </div>
                 <div class="meta-badges">
                     <span class="badge badge-info">GNU AGPLv3 / ODbL</span>
@@ -864,7 +906,7 @@
         <div class="footer-nav">
             <a href="./index.html">城市主页</a>
             <span class="footer-sep">·</span>
-            <a href="./drunk/index.html">Drunk 转换工作台</a>
+            <a href="./editor/">开放地图编辑器</a>
             <span class="footer-sep">·</span>
             <a href="./QUICKSTART.md" target="_blank">新手指南</a>
             <span class="footer-sep">·</span>
@@ -883,7 +925,7 @@
         </div>
     </footer>
 
-    <script src="core/tool-theme.js?v=260926.2300"></script>
+    <script src="core/tool-theme.js?v=261123.131500"></script>
     <script>
         document.getElementById('backBtn')?.addEventListener('click', function () {
             if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {

@@ -4,23 +4,33 @@
 <head>
     <script>
         (function () {
-            var t = localStorage.getItem('app-theme');
+            // 1. 全局深浅色主题同步
+            var t = localStorage.getItem('app-theme') || localStorage.getItem('cgo-theme');
             if (t) document.documentElement.setAttribute('data-theme', t);
-            var hm = localStorage.getItem('root_cgo_header_mode') || localStorage.getItem('cgo_header_mode');
-            if (hm) document.documentElement.setAttribute('header-mode', hm);
+
+            // 2. 彻底清理历史全局无前缀污染键，杜绝跨项目混用打架
+            try {
+                localStorage.removeItem('cgo_header_mode');
+                localStorage.removeItem('root_cgo_header_mode');
+                localStorage.removeItem('main_cgo_header_mode');
+            } catch (e) { }
+
+            // 3. 页面特性严格由页面自身决定：main.html 专属双岛浮动标题栏
+            var pageKey = 'openmap_main_header_mode';
+            var hm = localStorage.getItem(pageKey) || 'floating';
+            document.documentElement.setAttribute('header-mode', hm);
+
+            // 4. 液态玻璃模式
             var gm = localStorage.getItem('cgo_glass_mode');
             if (gm) document.documentElement.setAttribute('glass-mode', gm);
+
             // 从邻城切换过来时先隐藏地图，由 core/city-neighbors.js 对齐视口后再淡入
             if (/[?&]nbfrom=/.test(location.search)) document.documentElement.classList.add('nb-arrive');
         })();
     </script>
-    <!-- ========================================================================== -->
-    <!-- 1. 基础元数据与 SEO 配置 (Metadata & SEO Settings)                          -->
-    <!-- 移植说明：制作新城市时，可在 city/data.js 中配置城市标题与描述，也会动态更新此处 -->
-    <!-- ========================================================================== -->
+    <!-- 基础元数据与 SEO 配置 -->
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
     <meta name="description" content="CGo OpenMap 是一款现代轻量、高度可扩展的开源城市轨道交通交互线路图引擎，支持快速制作和部署各城市地铁线路图。">
     <meta name="keywords" content="CGo OpenMap, 线路图开放平台, 开源地铁图, 城市轨道交通, 地铁线路图, 轨道交通">
@@ -29,7 +39,7 @@
     <meta property="og:description" content="轻量、现代化的开源城市轨道交通交互线路图引擎，支持自由定制与移植制作各城市线路图。">
     <meta property="og:image" content="./assets/icons/mapicon.png">
 
-    <!-- 字体引入 (Web Fonts) -->
+    <!-- 字体引入 -->
     <link rel="preconnect" href="https://fonts.loli.net">
     <link rel="preconnect" href="https://gstatic.loli.net" crossorigin>
     <link
@@ -37,25 +47,26 @@
         rel="stylesheet">
     <link rel="shortcut icon" href="./assets/icons/favicon.ico">
     <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#ffffff">
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a">
     <link rel="apple-touch-icon" href="./assets/icons/mapicon2.png">
-    <meta name="apple-mobile-web-app-title" content="CGo OpenMap">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CGo开放地图">
+    <meta name="application-name" content="CGo开放地图">
     <title>CGo OpenMap - 城市轨道交通线路图开放平台</title>
 
-    <!-- ========================================================================== -->
-    <!-- 2. 样式表加载 (Stylesheets)                                                 -->
-    <!-- cgo_clr.css: 基础主题色与各线路标志色 CSS 变量                                -->
-    <!-- cgo_element.css / cgo_ui.css / cgo_components.css: CGoUI 基础组件库样式表     -->
-    <!-- style.css: 地图引擎核心样式、图层布局、动画与手势响应                          -->
-    <!-- ========================================================================== -->
-    <!-- CGoUI 核心 JS 模块预编译与最高优先级预加载 -->
-    <link rel="modulepreload" href="core/cgo-ui.js?v=260926.2630">
-    <link rel="stylesheet" href="css/cgo_clr.css?v=260926.2630">
-    <link rel="stylesheet" href="css/cgo_element.css?v=260926.2630">
-    <link rel="stylesheet" href="css/cgo_ui.css?v=260926.2630">
-    <link rel="stylesheet" href="css/cgo_components.css?v=260926.2630">
-    <link rel="stylesheet" href="css/style.css?v=260926.2630">
+    <!-- 样式表与 CGoUI 基础库 -->
+    <link rel="modulepreload" href="core/cgo-ui.js?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_clr.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_element.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_ui.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_components.css?v=261123.131500">
+    <link rel="stylesheet" href="css/style.css?v=261123.131500">
+    <link rel="stylesheet" href="core/cgo-wm/styles.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgowm-openmap.css?v=261123.131500">
     <style>
         /* Web Components 自定义元素未注册前的占位与防无样式闪烁 (FOUC) */
         cgo-icon:not(:defined) {
@@ -66,22 +77,8 @@
             opacity: 0.6;
         }
 
-        .title-short {
-            display: none;
-        }
-
         .title-full {
             display: inline;
-        }
-
-        @media (max-width: 640px) {
-            .title-full {
-                display: none;
-            }
-
-            .title-short {
-                display: inline;
-            }
         }
 
         /* 浮动标题栏模式下，地图缩放控件避让顶部悬浮双岛栏（桌面端加大间距） */
@@ -92,6 +89,7 @@
 
         /* 移动端 (<=640px)：缩放控件左侧与标题栏左岛左边缘对齐 */
         @media (max-width: 640px) {
+
             :root[header-mode="floating"] #modern-zoom-control,
             body[header-mode="floating"] #modern-zoom-control {
                 top: calc(env(safe-area-inset-top, 0px) + 76px);
@@ -99,14 +97,34 @@
             }
         }
 
-        /* 液态玻璃模式下的地图控件微质感增强 (Tier C 强调表面规范) */
+        /* 侧栏（检索与线路列表）**展开时**：缩放控件让到顶部双岛之间那片空白去 ——
+           那儿本来就是全透明的，控件停在那儿既不遮双岛、也不压侧栏；上边缘与双岛齐平。
+           判据必须用 #legend-overlay.is-open（core 开合时挂的类），不能用 :has(.legend-modal)：
+           .legend-modal 是常驻 DOM 节点（收起时只是遮罩 display:none），:has() 只看节点存在性，
+           那样写会在收起态也命中、把默认位置一并改掉。
+           只在桌面端这么做：移动端顶部是单胶囊，中间未必留得出空位。
+           注：桌面「固定侧栏」(body.legend-pinned) 是另一套常驻布局，暂不在本规则内。 */
+        @media (min-width: 641px) {
+
+            :root[header-mode="floating"] body:has(#legend-overlay.is-open) #modern-zoom-control,
+            body[header-mode="floating"]:has(#legend-overlay.is-open) #modern-zoom-control {
+                top: calc(env(safe-area-inset-top, 0px) + 20px);
+                left: 50%;
+                transform: translateX(-50%);
+            }
+        }
+
+        /* 液态玻璃模式下的地图控件微质感增强 (Tier C 强调表面规范，移除实体硬边框并应用 Layer 2 单像素微光圈) */
         :root[glass-mode="liquid"] #modern-zoom-control,
         body[glass-mode="liquid"] #modern-zoom-control {
             background-color: var(--glass-bg-surface, rgba(255, 255, 255, 0.72)) !important;
             backdrop-filter: var(--glass-backdrop-blur-surface, blur(14px) saturate(135%));
             -webkit-backdrop-filter: var(--glass-backdrop-blur-surface, blur(14px) saturate(135%));
             box-shadow: var(--glass-shadow);
-            border: 1px solid var(--glass-border);
+            border: none !important;
+            border-radius: var(--radius-full, 9999px) !important;
+            position: absolute;
+            overflow: visible;
         }
 
         [data-theme="dark"]:root[glass-mode="liquid"] #modern-zoom-control,
@@ -114,38 +132,108 @@
             background-color: var(--glass-bg-surface, rgba(31, 32, 34, 0.72)) !important;
             box-shadow: var(--glass-shadow);
         }
+
+        :root[glass-mode="liquid"] #modern-zoom-control::before,
+        body[glass-mode="liquid"] #modern-zoom-control::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background:
+                linear-gradient(to right,
+                    rgba(0, 38, 59, var(--lg-rim-dark, 0.04)) 0,
+                    rgba(0, 0, 0, 0) var(--lg-rim-side, 4px),
+                    rgba(0, 0, 0, 0) calc(100% - var(--lg-rim-side, 4px)),
+                    rgba(0, 38, 59, var(--lg-rim-dark, 0.04)) 100%),
+                linear-gradient(to bottom,
+                    rgba(255, 255, 255, var(--lg-rim-lit, 0.95)) 0,
+                    rgba(255, 255, 255, var(--lg-rim-lit, 0.95)) var(--lg-rim-hold, 1px),
+                    rgba(255, 255, 255, 0) var(--lg-rim-fade, 12px),
+                    rgba(255, 255, 255, 0) calc(100% - var(--lg-rim-fade, 12px)),
+                    rgba(255, 255, 255, calc(var(--lg-rim-lit, 0.95) * 0.4)) calc(100% - var(--lg-rim-hold, 1px)),
+                    rgba(255, 255, 255, calc(var(--lg-rim-lit, 0.95) * 0.4)) 100%);
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: 1;
+        }
     </style>
 </head>
 
 <body>
-    <!-- ========================================================================== -->
-    <!-- 3. 顶部导航栏 (Header Toolbar) - 浮动双岛式布局                                -->
-    <!-- 包含：返回按钮、主页链接、平台 Logo/标题、更多操作下拉菜单（偏好设置/帮助与关于） -->
-    <!-- ========================================================================== -->
+    <!-- 键盘跳转链接：检索与线路列表都在图例面板内，由 core/script.js 负责展开面板并落焦 -->
+    <div class="skip-links">
+        <a class="skip-link" href="#station-search-input" data-skip-target="search">跳到搜索</a>
+        <a class="skip-link" href="#legend-content" data-skip-target="lines">跳到线路列表</a>
+    </div>
+    <h1 class="sr-only" id="page-heading">CGo OpenMap 城市轨道交通线路图</h1>
+    <!-- 常驻状态播报区：Toast、搜索结果数量等由 core/a11y.js 写入 -->
+    <div id="cgo-a11y-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+    <!-- 顶部导航栏 (浮动双岛) -->
     <header class="tool-header">
         <div class="header-island header-island-left glass-surface">
             <div class="header-left">
-                <a href="./index.html" class="btn btn-info" title="返回城市列表">
-                    <cgo-icon name="back"></cgo-icon>
-                    <span>城市</span>
+                <a href="./index.html" class="btn btn-primary" title="返回城市列表">
+                    <cgo-icon name="home-dots"></cgo-icon>
+                    <span>城市列表</span>
                 </a>
-                <a href="https://centralgo.site/" class="btn btn-primary" title="Central Go 首页">
-                    <cgo-icon name="home"></cgo-icon>
+                <a href="https://centralgo.site/" class="btn btn-info" title="Central Go 首页">
+                    <cgo-icon name="cgo"></cgo-icon>
                     <span>Central Go</span>
                 </a>
             </div>
             <div class="header-island-divider" aria-hidden="true"></div>
             <div class="header-center">
-                <div class="img-icon-wrapper header-logo-wrapper">
-                    <img src="./assets/icons/mapicon.png" alt="Logo" class="header-logo" loading="lazy" decoding="async"
-                        fetchpriority="low"
-                        onload="this.classList.add('loaded');this.parentElement&&this.parentElement.classList.add('loaded');">
-                    <cgo-icon name="sparkle" class="icon-placeholder"></cgo-icon>
+                <div class="header-logo-wrapper" id="header-city-logo" aria-hidden="true" title="城市官方徽标">
+                    <cgo-icon name="train" size="24"></cgo-icon>
                 </div>
                 <span class="app-title">
-                    <span class="title-full">CGo 开放地图</span>
-                    <span class="title-short">开放地图</span>
+                    <span class="title-full"><span class="title-city">北京</span> 开放地图</span>
                 </span>
+                <script>
+                    (function () {
+                        try {
+                            var p = new URLSearchParams(window.location.search);
+                            var cid = (p.get('city') || localStorage.getItem('cgo_openmap_city') || 'beijing').toLowerCase();
+                            var names = {
+                                beijing: "北京", beijing_plan: "北京规划", shanghai: "上海", guangzhou: "广州", shenzhen: "深圳",
+                                chengdu: "成都", wuhan: "武汉", nanjing: "南京", chongqing: "重庆",
+                                hangzhou: "杭州", shenyang: "沈阳", dalian: "大连", changchun: "长春",
+                                harbin: "哈尔滨", lanzhou: "兰州", hefei: "合肥", qingdao: "青岛",
+                                hongkong: "香港", fuzhou: "福州", sydney: "悉尼", hohhot: "呼和浩特",
+                                shijiazhuang: "石家庄", jiaxing: "嘉兴", tianshui: "天水", huaian: "淮安",
+                                huangshi: "黄石", taizhou: "台州", sanya: "三亚", nanping: "南平",
+                                liaoyuan: "辽源", wenshan: "文山", macau: "澳门"
+                            };
+                            var themeColors = {
+                                beijing: "#004060", beijing_plan: "#004060", shanghai: "#b72626", shenyang: "#c60a16",
+                                qingdao: "#275140", hefei: "#e71f24", sydney: "#f7931e", hongkong: "#001F50",
+                                shenzhen: "#009B4D", dalian: "#0031A8", changchun: "#C9062C", tianshui: "#079445",
+                                wenshan: "#19A7FD", harbin: "#E60012", hohhot: "#017FCB", macau: "#79D064",
+                                fuzhou: "#3B49D1", huaian: "#CC2D46", huangshi: "#CC2D46", taizhou: "#8CC63F",
+                                sanya: "#0197D4", nanping: "#39B54A", liaoyuan: "#F15A24", shijiazhuang: "#1359A9",
+                                nanjing: "#7CCACF", jiaxing: "#93D50A"
+                            };
+                            var cityName = names[cid] || '北京';
+                            var clr = themeColors[cid] || '';
+                            var el = document.querySelector('.title-full');
+                            if (el) {
+                                el.innerHTML = '<span class="title-city">' + cityName + '</span> 开放地图';
+                            }
+                            var logoEl = document.getElementById('header-city-logo');
+                            if (logoEl && cid) {
+                                logoEl.innerHTML = '<cgo-icon name="' + cid + '" size="24"></cgo-icon>';
+                            }
+                            if (clr) {
+                                document.documentElement.style.setProperty('--city-theme-color', clr);
+                            }
+                            document.documentElement.style.setProperty('--city-theme-color-dark', '#ffffff');
+                        } catch (_) { }
+                    })();
+                </script>
             </div>
         </div>
 
@@ -153,7 +241,8 @@
             <div class="header-right">
                 <!-- 更多：选项下拉菜单 -->
                 <div class="dropdown options-dropdown">
-                    <button id="options-btn" class="btn btn-info dropbtn" title="更多">
+                    <button id="options-btn" class="btn btn-info dropbtn" title="更多" aria-haspopup="true"
+                        aria-expanded="false">
                         <cgo-icon name="menu"></cgo-icon>
                         <span>更多</span>
                     </button>
@@ -168,8 +257,8 @@
                             <cgo-icon name="help"></cgo-icon>
                             <span>帮助与关于</span>
                         </a>
-                        <!-- 社区贡献与主理人 (指向 CONTRIBUTING.md) -->
-                        <a href="./CONTRIBUTING.md" target="_blank">
+                        <!-- 社区贡献与主理人 (内置 Markdown 阅读器打开 CONTRIBUTING.md) -->
+                        <a href="./CONTRIBUTING.md" target="_blank" data-md-title="贡献与主理人">
                             <cgo-icon name="user"></cgo-icon>
                             <span>贡献与主理人</span>
                         </a>
@@ -179,29 +268,20 @@
         </div>
     </header>
 
-    <!-- ========================================================================== -->
-    <!-- 4. 地图主视口与交互层 (Map Viewport & Layer Hierarchy)                        -->
-    <!-- 层级自底向上：                                                               -->
-    <!--   1. scattered-layer: 背景装饰物（如指南针、城门、河流图标等）                  -->
-    <!--   2. lines-layer: SVG 矢量线路层（绘制圆角折线）                              -->
-    <!--   3. not-open-layer: 在建/规划虚线层                                         -->
-    <!--   4. highlight-layer: 选线高亮发光层                                        -->
-    <!--   5. stations-layer: 车站圆点/换乘标记点 (Station Nodes)                      -->
-    <!--   6. labels-layer: 车站中英文名称标签 (Station Labels)                       -->
-    <!-- ========================================================================== -->
-    <div style="position: relative; flex: 1; overflow: hidden; width: 100%;">
+    <!-- 地图主视口与交互图层 -->
+    <main id="main-content" style="position: relative; flex: 1; overflow: hidden; width: 100%;">
         <!-- 现代化浮动控制条：检索入口、缩放滑块、LBS 查找最近车站 -->
-        <div id="modern-zoom-control">
-            <button id="mz-menu" title="检索面板" style="margin-bottom: 8px;">
+        <div id="modern-zoom-control" role="group" aria-label="地图控件">
+            <button id="mz-menu" title="检索面板" aria-label="打开搜索与线路列表" style="margin-bottom: 8px;">
                 <cgo-icon name="view-grid" style="width:20px;height:20px;"></cgo-icon>
             </button>
-            <button id="mz-in" title="放大"><cgo-icon name="zoom-in"></cgo-icon></button>
+            <button id="mz-in" title="放大" aria-label="放大"><cgo-icon name="zoom-in"></cgo-icon></button>
             <div class="mz-slider-track">
-                <input type="range" id="mz-slider" min="0.5" max="3.0" step="0.1" value="1.0">
+                <input type="range" id="mz-slider" min="0.5" max="3.0" step="0.1" value="1.0" aria-label="缩放比例">
             </div>
-            <button id="mz-out" title="缩小"><cgo-icon name="zoom-out"></cgo-icon></button>
-            <div style="width: 20px; height: 1px; background-color: #e0e0e0; margin: 4px 0;"></div>
-            <button id="locate-btn" title="查找最近车站">
+            <button id="mz-out" title="缩小" aria-label="缩小"><cgo-icon name="zoom-out"></cgo-icon></button>
+            <div style="width: 20px; height: 1px; background-color: #e0e0e0; margin: 4px 0;" aria-hidden="true"></div>
+            <button id="locate-btn" title="查找最近车站" aria-label="查找最近车站">
                 <cgo-icon name="location" size="20"></cgo-icon>
             </button>
         </div>
@@ -209,20 +289,21 @@
         <!-- 全屏时顶部颜色填充层（跟随 panel-header 颜色，信号栏区域背景补色） -->
         <div class="mobile-top-bar-backdrop"></div>
         <!-- 车站详情信息卡片面板 (由 core/script.js 与 city/beijing/stacard 动态填充) -->
-        <div id="info-panel" style="display:none;"></div>
+        <div id="info-panel" role="region" aria-label="车站信息" style="display:none;"></div>
 
         <!-- 鼠标悬停线路显示的气泡徽标提示 -->
-        <div id="line-tooltip">
+        <div id="line-tooltip" aria-hidden="true">
             <img id="line-tooltip-img" src="" alt="">
         </div>
 
         <!-- 地图平移缩放主容器 -->
-        <div id="map-container">
+        <!-- role="application"：方向键 / WASD 平移、+ - 缩放由引擎接管；车站的键盘入口是搜索与线路列表 -->
+        <div id="map-container" role="application" tabindex="0" aria-label="轨道交通线路图。方向键平移，加号减号缩放；选择车站请使用搜索或线路列表">
             <div id="map-content">
-                <div id="scattered-layer"></div>
-                <svg id="lines-layer"></svg>
-                <svg id="not-open-layer"></svg>
-                <svg id="highlight-layer"></svg>
+                <div id="scattered-layer" aria-hidden="true"></div>
+                <svg id="lines-layer" aria-hidden="true"></svg>
+                <svg id="not-open-layer" aria-hidden="true"></svg>
+                <svg id="highlight-layer" aria-hidden="true"></svg>
                 <div id="stations-layer"></div>
                 <div id="labels-layer"></div>
             </div>
@@ -230,59 +311,117 @@
 
         <!-- 拖拽面板吸附侧边栏时的辅助幽灵阴影 -->
         <div id="drag-ghost"></div>
-    </div>
+    </main>
 
-    <!-- ========================================================================== -->
-    <!-- 5. 图例与检索抽屉面板 (Legend & Search Drawer Modal)                        -->
-    <!-- 默认浮层弹出；点击固定按钮后可变为桌面端常驻侧边栏                            -->
-    <!-- ========================================================================== -->
+    <!-- 图例与检索抽屉面板 -->
     <div id="legend-overlay">
-        <div class="legend-modal">
-            <button class="legend-close-btn" title="收起面板">
+        <div class="legend-modal" role="region" aria-label="搜索与线路列表">
+            <button class="legend-close-btn" title="收起面板" aria-label="收起面板">
                 <span class="btn-content"><cgo-icon name="arrow-right" class="arrow-icon"
                         style="transform: rotate(180deg); width: 18px; height: 18px; display: block;"></cgo-icon></span>
             </button>
-            <button class="legend-pin-btn" id="legend-pin-btn" title="固定面板">
+            <button class="legend-pin-btn" id="legend-pin-btn" title="固定面板" aria-label="固定面板" aria-pressed="false">
                 <cgo-icon name="pin-angle" size="18"></cgo-icon>
             </button>
             <div id="legend-content"></div>
         </div>
     </div>
 
-    <!-- ========================================================================== -->
-    <!-- 6. 业务脚本加载链 (Script Execution Order)                                  -->
-    <!-- 【移植重点】：                                                              -->
-    <!-- 1. 多城市注册总线 (city/data.js) 必须最先加载                                 -->
-    <!-- 2. 目标城市数据文件 (city/{city_id}/*) 依次加载                               -->
-    <!--    - {city}.js: 城市业务逻辑与关系配置                                       -->
-    <!--    - stacard/script.js: 车站卡片系统与地图切片引擎 (StaCard API)              -->
-    <!--    - data_stations.js: 车站坐标与名称                                         -->
-    <!--    - data_lines.js: 线路串联与折线点                                          -->
-    <!--    - data_virtual_transfers.js: 虚拟/站外换乘关系                             -->
-    <!--    - data_scattered.js: 地图装饰物                                            -->
-    <!--    - data_legend.js: 图例分组配置                                             -->
-    <!--    - data_timetable.js: 首末班车时刻                                         -->
-    <!--    - data_notopen.js: 在建线路虚线                                            -->
-    <!-- 3. 核心引擎 (core/script.js) 读取上述数据并统一渲染                           -->
-    <!-- 4. UI 模块 (core/help.js, core/settings.js, core/notice.js, core/cgo-ui.js?v=260926.2630) -->
-    <!-- ========================================================================== -->
-    <!-- 折线倒角几何算法 (引擎与 Drunk 编辑模式共用，必须早于 core/script.js) -->
-    <script src="core/path-geometry.js?v=260926.2630"></script>
-    <!-- 车站图元模板与尺寸 (引擎与 Drunk 编辑模式共用，必须早于 core/script.js) -->
-    <script src="core/station-icons.js?v=260926.2630"></script>
+    <!-- 核心脚本依赖与城市数据加载链 -->
+    <!-- 交路（支线）模型：way1…way99 枚举、走向与交路归属、高亮方案 (须早于 path-geometry.js 与 core/script.js) -->
+    <script src="core/line-routing.js?v=261123.131500"></script>
+    <!-- 折线倒角几何算法 (引擎与 OpenMap Editor 编辑器共用) -->
+    <script src="core/path-geometry.js?v=261123.131500"></script>
+    <!-- 车站图元模板与尺寸 (引擎与 OpenMap Editor 编辑器共用，必须早于 core/script.js) -->
+    <script src="core/mobile-sheet.js?v=261123.131500"></script>
+    <script src="core/panel-tab-swipe.js?v=261123.131500"></script>
+    <script src="core/station-icons.js?v=261123.131500"></script>
+    <!-- 无障碍与文本转义公共工具 (须早于 core/station-board.js 与 core/script.js) -->
+    <script src="core/a11y.js?v=261123.131500"></script>
     <!-- 城市注册总线与基础元数据 -->
-    <script src="city/data.js?v=260926.2630"></script>
+    <script src="city/data.js?v=261123.131500"></script>
     <!-- 车站信息板模块注册与渲染引擎 (多城市通用) -->
-    <script src="core/station-board.js?v=260926.2630"></script>
+    <script src="core/station-board.js?v=261123.131500"></script>
+    <!-- 通用图片高清预览浮层与触控看图器 (多城市通用) -->
+    <script src="core/image-viewer.js?v=261123.131500"></script>
+    <!-- 车站信息板增强插件：站名沿革 & 提示卡片 (按城市按需启用) -->
+    <script src="core/station-addons.js?v=261123.131500"></script>
     <!-- 动态按序加载当前激活城市的专属业务与全套数据文件 (根据 URL ?city= 或 LocalStorage 判定) -->
     <script>
         (function () {
             var city = window.CityDataManager ? window.CityDataManager.getCurrentCity() : null;
             var folder = (city && city.folder) ? city.folder : "./city/beijing";
             var cityId = (city && city.id) ? city.id : "beijing";
-            var v = "260926.2630";
+            var v = "261123.131500";
             // 供城市脚本追加同版本号（如 city/<id>/style.css），避免样式表被浏览器长期缓存
             window.CGO_ASSET_VERSION = v;
+
+            var titleFull = document.querySelector('.title-full');
+            var clr = (city && city.themeColor) ? city.themeColor : '';
+            var clrDark = (city && city.themeColorDark) ? city.themeColorDark : '#ffffff';
+            if (titleFull && city && city.name) {
+                titleFull.innerHTML = '<span class="title-city">' + city.name + '</span> 开放地图';
+            }
+            if (clr) {
+                document.documentElement.style.setProperty('--city-theme-color', clr);
+            } else {
+                document.documentElement.style.removeProperty('--city-theme-color');
+            }
+            if (clrDark) {
+                document.documentElement.style.setProperty('--city-theme-color-dark', clrDark);
+            } else {
+                document.documentElement.style.setProperty('--city-theme-color-dark', '#ffffff');
+            }
+
+            // 动态更新标题栏城市官方徽标 (优先使用 city/data.js 的 svglogo 自定义矢量代码，或 CGoUI 官方收录图标)
+            (function updateCityEmblem() {
+                var logoEl = document.getElementById('header-city-logo');
+                if (!logoEl || !city) return;
+                var rawSvg = city.svglogo;
+                if (rawSvg && typeof rawSvg === 'string' && rawSvg.trim()) {
+                    var svg = rawSvg.trim()
+                        .replace(/<\?xml[\s\S]*?\?>/gi, '')
+                        .replace(/<!DOCTYPE[\s\S]*?>/gi, '')
+                        .trim();
+                    if (!/viewBox\s*=/i.test(svg)) {
+                        var pathDMatch = svg.match(/\bd=["']([^"']+)["']/i);
+                        var pathD = pathDMatch ? pathDMatch[1] : '';
+                        var nums = pathD.match(/-?\d+(?:\.\d+)?/g);
+                        var isLarge = nums && nums.some(function (n) { return Math.abs(parseFloat(n)) > 150; });
+                        var initVb = isLarge ? '0 0 1024 1024' : '0 0 100 100';
+                        svg = svg.replace(/<svg\b/i, '<svg viewBox="' + initVb + '"');
+                    }
+                    svg = svg.replace(/<svg\b([^>]*)>/i, function (match, attrs) {
+                        var cleanAttrs = attrs
+                            .replace(/\s+(width|height|fill)\s*=\s*["'][^"']*["']/gi, '')
+                            .trim();
+                        return '<svg width="24" height="24" fill="currentColor" ' + cleanAttrs + '>';
+                    });
+                    logoEl.innerHTML = svg;
+                    return;
+                }
+                var cid = (city.id || '').toLowerCase();
+                var builtinCitySet = {
+                    beijing: 1, changchun: 1, dalian: 1, fuzhou: 1, hefei: 1, qingdao: 1, shanghai: 1, shenyang: 1,
+                    changsha: 1, changzhou: 1, chengdu: 1, chongqing: 1, dongguan: 1, foshan: 1, guangzhou: 1, guiyang: 1,
+                    hangzhou: 1, harbin: 1, hongkong: 1, jinan: 1, kaohsiung: 1, kunming: 1, lanzhou: 1, nanchang: 1,
+                    nanjing: 1, nanning: 1, nantong: 1, ningbo: 1, shijiazhuang: 1, shenzhen: 1, suzhou: 1, taipei: 1,
+                    taiyuan: 1, taoyuan: 1, tianjin: 1, wenzhou: 1, wuhan: 1, wuhu: 1, wuxi: 1, xiamen: 1,
+                    xian: 1, zhengzhou: 1
+                };
+                if (builtinCitySet[cid] || (window.CGO && window.CGO.Icons && window.CGO.Icons[cid])) {
+                    logoEl.innerHTML = '<cgo-icon name="' + cid + '" size="24"></cgo-icon>';
+                } else {
+                    logoEl.innerHTML = '<cgo-icon name="train" size="24"></cgo-icon>';
+                }
+            })();
+
+            // 页面语言随城市切换（注册表可选字段 lang，缺省 zh-CN），读屏据此选择发音
+            document.documentElement.lang = (city && city.lang) ? city.lang : 'zh-CN';
+            var pageHeading = document.getElementById('page-heading');
+            if (pageHeading && city && city.name) {
+                pageHeading.textContent = 'CGo OpenMap ' + city.name + '轨道交通线路图';
+            }
 
             // 同步写入当前激活城市的脚本依赖，确保在核心引擎执行前完成加载
             // 注：城市专属自定义模块 (如 modules/beijing_cultural.js) 由各城市 {city}.js 内部
@@ -296,25 +435,36 @@
             document.write('<script src="' + folder + '/data_legend.js?v=' + v + '"><\/script>');
             document.write('<script src="' + folder + '/data_timetable.js?v=' + v + '"><\/script>');
             document.write('<script src="' + folder + '/data_notopen.js?v=' + v + '"><\/script>');
+            // 国铁散点标签机制（共享层通用）：须在**全部数据脚本之后**引入（要读
+            // stationsData 与 VIRTUAL_*），且早于 core 渲染（core 是 module、最后执行）
+            document.write('<script src="./core/shared/base/rdot-label.js?v=' + v + '"><\/script>');
         })();
     </script>
+    <!-- CGoWM 统一窗口管理系统与适配层 -->
+    <script type="module" src="core/cgo-wm/global.js?v=261123.131500"></script>
+    <script src="core/cgowm-adapter.js?v=261123.131500"></script>
+    <script src="core/cgowm-dialogs.js?v=261123.131500"></script>
+    <script src="core/markdown-viewer.js?v=261123.131500"></script>
+
     <!-- 核心地图渲染引擎 -->
-    <script type="module" src="core/script.js?v=260926.2630"></script>
+    <script type="module" src="core/script.js?v=261123.131500"></script>
     <!-- 邻城衔接（影子、上拉进入与双城并看；仅对声明了 neighbors 的城市生效，须晚于 core/script.js） -->
-    <script type="module" src="core/city-neighbors.js?v=260926.2630"></script>
+    <script type="module" src="core/city-neighbors.js?v=261123.131500"></script>
     <!-- 辅助面板逻辑 -->
-    <script src="core/help.js?v=260926.2630"></script>
-    <script src="core/settings.js?v=260926.2630"></script>
+    <script src="core/help.js?v=261123.131500"></script>
+    <script src="core/settings.js?v=261123.131500"></script>
     <script>
         // 动态加载公告与运营通知系统
+        // 版本号与其余资源同批：公告内容更新时随批次串一起升级，不再用时间戳绕过缓存
+        // （时间戳会让 Service Worker 每次访问都写入一条新的缓存条目）
         (function () {
             var script = document.createElement('script');
-            script.src = "core/notice.js?v=260926.2630&t=" + Date.now();
+            script.src = "core/notice.js?v=261123.131500";
             document.body.appendChild(script);
         })();
     </script>
     <!-- CGoUI Web Components 基础组件库 -->
-    <script type="module" src="core/cgo-ui.js?v=260926.2630"></script>
+    <script type="module" src="core/cgo-ui.js?v=261123.131500"></script>
     <script>
         // 图片加载完毕后添加 loaded 类，配合 CSS 实现平滑淡入
         document.addEventListener('DOMContentLoaded', function () {
@@ -333,6 +483,17 @@
                     .then(function (reg) {
                         reg.update().catch(function () { });
                         console.log('[SW] Service Worker 注册成功，作用域:', reg.scope);
+                        // 页面就绪后，通知 SW 在受控生命周期内安全执行/断点续传后台城市离线预热
+                        var triggerPrecache = function () {
+                            if (navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_REMAINING' });
+                            }
+                        };
+                        if ('requestIdleCallback' in window) {
+                            window.requestIdleCallback(triggerPrecache, { timeout: 3000 });
+                        } else {
+                            setTimeout(triggerPrecache, 1500);
+                        }
                     })
                     .catch(function (err) {
                         console.warn('[SW] Service Worker 注册失败:', err);

@@ -203,8 +203,9 @@ const stationsData = {
         y: 800,
         cn: "中街",
         en: "ZHONGJIE",
-        align: "bottom",
-        offset: { x: 0, y: 4 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 32, y: -31 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0120": {
@@ -495,7 +496,10 @@ const stationsData = {
         y: 760,
         cn: "人民广场",
         en: "RENMINGUANGCHANG",
-        aliases: ["市府广场", "沈阳博物馆"],
+        // 旧名检索库：中文旧名（市府广场，2024-12-30 更名）与旧英文名（SHIFUGUANGCHANG）
+        // 都写在这里。staname.csv 只有「中文站名 → 年份列旧名」的结构、放不下英文旧名，
+        // 而 csv 里若有该站又会覆盖本字段，故该站已从 csv 移除、别名以本文件为准。
+        aliases: ["市府广场", "SHIFUGUANGCHANG", "沈阳博物馆"],
         align: "right",
         offset: { x: 10, y: 0 },
         textScale: { cn: 1.0, en: 1.0 }
@@ -526,8 +530,9 @@ const stationsData = {
         y: 980,
         cn: "市图书馆",
         en: "SHITUSHUGUAN",
-        align: "right",
-        offset: { x: 10, y: 0 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 44, y: 44 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0214": {
@@ -636,8 +641,9 @@ const stationsData = {
         y: 1480,
         cn: "创新一路",
         en: "CHUANGXINYILU",
-        align: "right",
-        offset: { x: 10, y: 0 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: -48, y: -35 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0225": {
@@ -767,8 +773,8 @@ const stationsData = {
         y: 1080,
         cn: "曹仲",
         en: "CAOZHONG",
-        align: "top-right",
-        offset: { x: 0, y: 0 },
+        align: "bottom-left",
+        offset: { x: -4, y: 0 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0913": {
@@ -777,8 +783,9 @@ const stationsData = {
         y: 1120,
         cn: "浑河站",
         en: "HUNHEZHAN",
+        labelStyle: "callout",
         align: "top",
-        offset: { x: 0, y: -4 },
+        offset: { x: 38, y: 61 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0914": {
@@ -871,6 +878,60 @@ const stationsData = {
         offset: { x: 0, y: -4 },
         textScale: { cn: 1.0, en: 1.0 }
     },
+    // —— 9 号线东延（未开通，挂在 SYM09 站序尾部，站号 0924~0928）——
+    // 建筑大学东端：短水平 → 斜穿「建筑大学 / 综合保税区（有轨）」两标签缝隙的
+    // 平行斜线（平行于 新宁街→双马，斜率 -2/3）→ 长水平至石庙子（东北冷鲜港正上 60）。
+    // 石庙子前 4 站按弧长均分，标签上下交替。
+    "0924": {
+        type: "no",
+        x: 1391,
+        y: 1102,
+        cn: "杨官",
+        en: "YANGGUAN",
+        align: "right",
+        offset: { x: 6, y: 8 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0925": {
+        type: "no",
+        x: 1441,
+        y: 1080,
+        cn: "祝科街",
+        en: "ZHUKEJIE",
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0926": {
+        type: "no",
+        x: 1497,
+        y: 1080,
+        cn: "王家湾",
+        en: "WANGJIAWAN",
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0927": {
+        type: "no",
+        x: 1554,
+        y: 1080,
+        cn: "国公寨大街",
+        en: "GUOGONGZHAIDAJIE",
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0928": {
+        type: "no",
+        x: 1610,
+        y: 1080,
+        cn: "石庙子",
+        en: "SHIMIAOZI",
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
     "1001": {
         type: "dot",
         x: 410,
@@ -933,7 +994,7 @@ const stationsData = {
     },
     "1009": {
         type: "dot",
-        x: 1090,
+        x: 1070,
         y: 560,
         cn: "陵东街",
         en: "LINGDONGJIE",
@@ -943,12 +1004,13 @@ const stationsData = {
     },
     "1010": {
         type: "dot",
-        x: 1190,
+        x: 1140,
         y: 560,
         cn: "北塔",
         en: "BEITA",
-        align: "bottom",
-        offset: { x: 0, y: 4 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 30, y: 40 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "1011": {
@@ -1026,7 +1088,7 @@ const stationsData = {
     "1020": {
         type: "dot",
         x: 1280,
-        y: 1200,
+        y: 1191,
         cn: "理工大学",
         en: "LIGONGDAXUE",
         align: "right",
@@ -1036,7 +1098,7 @@ const stationsData = {
     "1021": {
         type: "dot",
         x: 1280,
-        y: 1260,
+        y: 1262,
         cn: "张沙布",
         en: "ZHANGSHABU",
         align: "right",
@@ -1106,12 +1168,13 @@ const stationsData = {
     },
     "0408": {
         type: "dot",
-        x: 1090,
+        x: 1140,
         y: 680,
         cn: "沈阳大学",
         en: "SHENYANGDAXUE",
+        labelStyle: "callout",
         align: "top",
-        offset: { x: 0, y: -4 },
+        offset: { x: -48, y: -11 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0410": {
@@ -1152,6 +1215,7 @@ const stationsData = {
         y: 920,
         cn: "砂阳",
         en: "SHAYANG",
+        aliases: ["辽宁省妇幼保健院"],
         align: "top",
         offset: { x: -48, y: -35 },
         textScale: { cn: 1.0, en: 1.0 }
@@ -1172,8 +1236,9 @@ const stationsData = {
         y: 1060,
         cn: "长白岛",
         en: "CHANGBAIDAO",
-        align: "left",
-        offset: { x: -10, y: 0 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 42, y: 39 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0418": {
@@ -1222,8 +1287,9 @@ const stationsData = {
         y: 1420,
         cn: "沈阳南站",
         en: "SHENYANGNANZHAN",
-        align: "right",
-        offset: { x: 10, y: 0 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 48, y: -12 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0423": {
@@ -1232,8 +1298,8 @@ const stationsData = {
         y: 1480,
         cn: "创新路",
         en: "CHUANGXINLU",
-        align: "right",
-        offset: { x: 10, y: 0 },
+        align: "left",
+        offset: { x: -10, y: 0 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0301": {
@@ -1430,12 +1496,13 @@ const stationsData = {
     },
     "0323": {
         type: "dot",
-        x: 1125,
+        x: 1140,
         y: 920,
         cn: "南塔",
         en: "NANTA",
-        align: "bottom",
-        offset: { x: 0, y: 4 },
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: -31, y: 40 },
         textScale: { cn: 1.0, en: 1.0 }
     },
     "0324": {
@@ -1468,6 +1535,476 @@ const stationsData = {
         offset: { x: 0, y: 4 },
         textScale: { cn: 1.0, en: 1.0 }
     },
+    // —— 6 号线（全线未开通，按北京方式注册于 data_lines.js 的 SYM06）——
+    // 站号 06NN 即线路第 NN 站；与已开通线路共站的准换乘节点（0608/0609/0610/
+    // 0614/0616/0619/0622）分开记录为独立的 "no" 站，坐标与既有站登记在同一处，
+    // 站名标签由已开通侧车站承担（本侧 hideLabel），不建立任何虚拟换乘关系。
+    "0601": {
+        type: "no",
+        x: 1140,
+        y: 320,
+        cn: "鸭绿江北街",
+        en: "YALUJIANGBEIJIE",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0602": {
+        type: "no",
+        x: 1140,
+        y: 354,
+        cn: "文储路",
+        en: "WENCHULU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0603": {
+        type: "no",
+        x: 1140,
+        y: 389,
+        cn: "观音路",
+        en: "GUANYINLU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0604": {
+        type: "no",
+        x: 1140,
+        y: 423,
+        cn: "西窑",
+        en: "XIYAO",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0605": {
+        type: "no",
+        x: 1140,
+        y: 457,
+        cn: "金山北路",
+        en: "JINSHANBEILU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0606": {
+        type: "no",
+        x: 1140,
+        y: 491,
+        cn: "英雄公园",
+        en: "YINGXIONGGONGYUAN",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0607": {
+        type: "no",
+        x: 1140,
+        y: 526,
+        cn: "铁山路",
+        en: "TIESHANLU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0608": { // 北塔（6 号线侧，与 1010 同坐标）
+        type: "no",
+        x: 1140,
+        y: 560,
+        cn: "北塔",
+        en: "BEITA",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 30, y: 40 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0609": { // 沈阳大学（6 号线侧，与 0408 同坐标）
+        type: "no",
+        x: 1140,
+        y: 680,
+        cn: "沈阳大学",
+        en: "SHENYANGDAXUE",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: -48, y: -11 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0610": { // 中街（6 号线侧，与 0119 同坐标）
+        type: "no",
+        x: 1140,
+        y: 800,
+        cn: "中街",
+        en: "ZHONGJIE",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 32, y: -31 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0611": {
+        type: "no",
+        x: 1140,
+        y: 830,
+        cn: "大南门",
+        en: "DANANMEN",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0612": {
+        type: "no",
+        x: 1140,
+        y: 860,
+        cn: "市妇婴医院",
+        en: "SHIFUYINGYIYUAN",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0613": {
+        type: "no",
+        x: 1140,
+        y: 890,
+        cn: "大南边门",
+        en: "DANANBIANMEN",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0614": { // 南塔（6 号线侧，与 0323 同坐标）
+        type: "no",
+        x: 1140,
+        y: 920,
+        cn: "南塔",
+        en: "NANTA",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: -31, y: 40 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0615": {
+        type: "no",
+        x: 1100,
+        y: 980,
+        // 2026-11-16 批复更名：文萃路 → 自动化所机器人中心（官方全称带「站」，图上按惯例略去）
+        cn: "自动化所机器人中心",
+        en: "ZIDONGHUASUOJIQIRENZHONGXIN",
+        aliases: ["文萃路", "WENCUILU"],
+        align: "bottom-right",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0616": { // 市图书馆（6 号线侧，与 0213 同坐标）
+        type: "no",
+        x: 1000,
+        y: 980,
+        cn: "市图书馆",
+        en: "SHITUSHUGUAN",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 44, y: 44 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0617": {
+        type: "no",
+        x: 913,
+        y: 995,
+        cn: "三好桥",
+        en: "SANHAOQIAO",
+        align: "top-left",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0618": {
+        type: "no",
+        x: 837,
+        y: 1045,
+        cn: "南堤西路",
+        en: "NANDIXILU",
+        align: "top-left",
+        offset: { x: -9, y: 11 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0619": { // 长白岛（6 号线侧，与 0416 同坐标）
+        type: "no",
+        x: 750,
+        y: 1060,
+        cn: "长白岛",
+        en: "CHANGBAIDAO",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 42, y: 39 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0620": {
+        type: "no",
+        x: 702,
+        y: 1060,
+        cn: "马总",
+        en: "MAZONG",
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0621": {
+        type: "no",
+        x: 664,
+        y: 1086,
+        cn: "竞赛",
+        en: "JINGSAI",
+        align: "top-left",
+        offset: { x: 0, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0622": { // 浑河站（6 号线侧，与 0913 同坐标）
+        type: "no",
+        x: 630,
+        y: 1120,
+        cn: "浑河站",
+        en: "HUNHEZHAN",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 38, y: 61 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0623": {
+        type: "no",
+        x: 592,
+        y: 1158,
+        cn: "族兴路",
+        en: "ZUXINGLU",
+        align: "top-left",
+        offset: { x: 0, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0624": {
+        type: "no",
+        x: 570,
+        y: 1203,
+        cn: "下河湾",
+        en: "XIAHEWAN",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0625": {
+        type: "no",
+        x: 570,
+        y: 1258,
+        cn: "满融",
+        en: "MANRONG",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0626": {
+        type: "no",
+        x: 570,
+        y: 1312,
+        cn: "高楼子",
+        en: "GAOLOUZI",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0627": {
+        type: "no",
+        x: 570,
+        y: 1366,
+        cn: "葵松路",
+        en: "KUISONGLU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0628": {
+        type: "no",
+        x: 570,
+        y: 1420,
+        cn: "雪松路",
+        en: "XUESONGLU",
+        // 10 号线侧施工暂用名为「苏家屯」，2026-11-16 正式定名「雪松路」，与 6 号线同名换乘
+        aliases: ["苏家屯", "SUJIATUN"],
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: -38, y: -11 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "0629": {
+        type: "no",
+        x: 570,
+        y: 1470,
+        cn: "沙柳路",
+        en: "SHALIULU",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    // —— 10 号线南延（未开通，挂在 SYM10 站序尾部，站号即线序 22~36）——
+    // 2026-11-16 经市交通运输局批复正式站名，8 站与施工暂用名不同，旧名一律进 aliases 供检索。
+    // 张沙布以南沿 x1280 单弯南下至 y1480 后一路西行，于 (1000,1480) 穿过 2 号线的
+    // 创新一路（0224，2×10 换乘在此，不在全运路）；创新一路至沈阳南站两个直角弯
+    // （x800 竖段在两弯之间，东北大学浑南校区居其上）；沈阳南站起沿 y1420 横排至大格，
+    // 雪松路与 6 号线共点（0628，type no）即两条未开通线路的交叉点。
+    "1022": {
+        type: "no",
+        x: 1280,
+        y: 1333,
+        cn: "营城子",
+        en: "YINGCHENGZI",
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1023": {
+        type: "no",
+        x: 1280,
+        y: 1404,
+        cn: "孙家寨",
+        en: "SUNJIAZHAI",
+        aliases: ["桑林子", "SANGLINZI"],
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1024": {
+        type: "no",
+        x: 1250,
+        y: 1480,
+        cn: "南岭",
+        en: "NANLING",
+        aliases: ["营城子南", "YINGCHENGZINAN"],
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1025": {
+        type: "no",
+        x: 1189,
+        y: 1480,
+        cn: "沈本二街",
+        en: "SHENBENERJIE",
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1026": {
+        type: "no",
+        x: 1127,
+        y: 1480,
+        cn: "莫子山公园",
+        en: "MOZISHANGONGYUAN",
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1027": {
+        type: "no",
+        x: 1066,
+        y: 1480,
+        cn: "自动化所鲁美学院",
+        en: "ZIDONGHUASUOLUMEIXUEYUAN",
+        aliases: ["桃仙街", "TAOXIANJIE"],
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1028": { // 创新一路（10 号线南延侧，与 0224 同坐标，2×10 换乘在 0224）
+        type: "no",
+        x: 1000,
+        y: 1480,
+        cn: "创新一路",
+        en: "CHUANGXINYILU",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 36, y: 38 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1029": {
+        type: "no",
+        x: 923,
+        y: 1480,
+        cn: "智慧大街",
+        en: "ZHIHUIDAJIE",
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1030": {
+        type: "no",
+        x: 845,
+        y: 1480,
+        cn: "白塔二南街",
+        en: "BAITAERNANJIE",
+        aliases: ["白塔二街", "BAITAERJIE"],
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1031": {
+        type: "no",
+        x: 800,
+        y: 1450,
+        cn: "东北大学浑南校区",
+        en: "DONGBEIDAXUEHUNNANXIAOQU",
+        aliases: ["白塔街", "BAITAJIE"],
+        align: "right",
+        offset: { x: 10, y: 0 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1032": { // 沈阳南站（10 号线南延侧，与 0422 同坐标）
+        type: "no",
+        x: 750,
+        y: 1420,
+        cn: "沈阳南站",
+        en: "SHENYANGNANZHAN",
+        hideLabel: true,
+        labelStyle: "callout",
+        align: "top",
+        offset: { x: 48, y: -12 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1033": {
+        type: "no",
+        x: 690,
+        y: 1420,
+        cn: "体育学院",
+        en: "TIYUXUEYUAN",
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1034": {
+        type: "no",
+        x: 630,
+        y: 1420,
+        cn: "国际展览中心",
+        en: "GUOJIZHANLANZHONGXIN",
+        aliases: ["国展中心", "GUOZHANZHONGXIN"],
+        align: "top",
+        offset: { x: 0, y: -4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
+    "1036": {
+        type: "no",
+        x: 510,
+        y: 1420,
+        cn: "大格",
+        en: "DAGE",
+        aliases: ["丁香街", "DINGXIANGJIE"],
+        align: "bottom",
+        offset: { x: 0, y: 4 },
+        textScale: { cn: 1.0, en: 1.0 }
+    },
     "T501": {
         type: "dot",
         x: 1010,
@@ -1488,7 +2025,7 @@ const stationsData = {
         en: "",
         //en: "Shenyang Customs",
         align: "top",
-        offset: { x: 0, y: 0 },
+        offset: { x: 0, y: -3 },
         textScale: { cn: 0.9, en: 0.7 }
     },
     "T503": {
@@ -1499,7 +2036,7 @@ const stationsData = {
         en: "",
         //en: "Jinshuihuacheng",
         align: "top-right",
-        offset: { x: -4, y: 1 },
+        offset: { x: -4, y: -2 },
         textScale: { cn: 0.9, en: 0.8 }
     },
     "T504": {
@@ -1510,7 +2047,7 @@ const stationsData = {
         en: "",
         //en: "Olympic Aquatic Stadium",
         align: "left",
-        offset: { x: 0, y: 0 },
+        offset: { x: 0, y: 4 },
         textScale: { cn: 0.9, en: 1 }
     },
     "T505": {
@@ -1795,7 +2332,9 @@ const stationsData = {
         y: 780,
         cn: "沈阳站",
         en: "Shenyang Railway Station",
+        align: "top",
         hideLabel: true,
+        offset: { x: 0, y: -8 },
         badge: "./city/shenyang/assets/railway.svg",
     },
     "SBT": {
@@ -1804,16 +2343,20 @@ const stationsData = {
         y: 660,
         cn: "沈阳北站",
         en: "Shenyangbei Railway Station",
+        align: "right",
         hideLabel: true,
+        offset: { x: 8, y: 0 },
         badge: "./city/shenyang/assets/railway.svg",
     },
     "SOT": {
         type: "rdot",
         x: 730,
-        y: 1420,
+        y: 1400,
         cn: "沈阳南站",
         en: "Shenyangnan Railway Station",
+        align: "left",
         hideLabel: true,
+        offset: { x: -8, y: 0 },
         badge: "./city/shenyang/assets/railway.svg",
     },
 };

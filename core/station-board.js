@@ -1,28 +1,5 @@
 /**
  * CGo OpenMap - 车站信息板模块注册与渲染引擎 (core/station-board.js)
- * 
- * ==============================================================================
- * 车站信息板模块化系统架构说明 (Station Board Modular Architecture)
- * ==============================================================================
- * 1. 【模块注册化设计 (Modular Registry)】
- *    车站信息板（#info-panel）的所有功能（中英文标题、经停线路徽标、控制按钮、
- *    各个线路选项卡、高德切片微缩视窗/3D结构图、上一站下一站、换乘走廊、车站详情、
- *    运营商、导航外链等）全面抽象解耦为标准化的“模块 (Module)”。
- * 
- * 2. 【城市主理人高度可配置 (City Maintainer Control)】
- *    城市配置文件 (city/{city_id}/{city_id}.js) 中的 `stationBoard` 字段可按需：
- *    - 开启/关闭任意内置或自定义模块 (enabled: true/false)；
- *    - 自由调节模块显示顺序 (order: 10, 20, ...)；
- *    - 改变模块所挂载的选项卡位置 (targetTab: 'line-tab' / 'station-info' / 自定义tab)；
- *    - 新增城市私有选项卡 (tabs: [{ id: 'xxx', title: 'xxx' }])。
- * 
- * 3. 【零配置默认展示与向下兼容 (Zero-Config Default & 100% Backward Compatibility)】
- *    若城市未配置 `stationBoard`（如已发布的沈阳），系统自动启用全套内置模块与原版
- *    DOM 结构布局，原有的 CSS 类名、DOM 层级、城市私有 MutationObserver 完全无缝兼容。
- * 
- * 4. 【开放式生命周期规范 (Module Lifecycle)】
- *    模块支持 `shouldRender(context)`、`render(context)` 以及 `onMounted(container, context)`。
- * ==============================================================================
  */
 
 (function () {
@@ -439,7 +416,7 @@
             // ==================================================================
             infoPanel.style.height = '';
             infoPanel.innerHTML = `
-                <div class="panel-header">
+                <div class="panel-header" data-cgowm-drag-handle>
                     ${headerInnerHtml}
                 </div>
                 <div class="panel-tabs-container">
@@ -513,7 +490,7 @@
                     if (targetPane) targetPane.classList.add('active');
 
                     // 联动更新底部时刻表外链按钮
-                    const footerScheduleBtn = infoPanel.querySelector('#footer-schedule-btn');
+                    const footerScheduleBtn = infoPanel.querySelector('#footer-schedule-btn') || infoPanel._cgoSheetFooter?.querySelector('#footer-schedule-btn');
                     if (footerScheduleBtn) {
                         let targetUrl = null;
                         if (targetIndex !== 'station-info') {
@@ -538,6 +515,10 @@
                     }
                 });
             });
+            // 选项卡语义 (tablist / tab / tabpanel) 与方向键切换；须在上面的 click 监听之后绑定
+            if (window.CGoA11y && typeof window.CGoA11y.enhanceTabs === 'function') {
+                window.CGoA11y.enhanceTabs(infoPanel);
+            }
 
             // 3. 分享按钮
             const shareBtn = infoPanel.querySelector('.panel-share-btn');
@@ -617,7 +598,7 @@
             // 把手在移动端展示，由 CSS 控制：桌面端隐藏
             const grabberHtml = `<div class="sheet-grabber"><span class="sheet-grabber-bar"></span></div>`;
             return `
-                <button class="panel-close-btn" title="关闭面板">
+                <button class="panel-close-btn" title="关闭面板" aria-label="关闭面板">
                     <cgo-icon name="close" size="24"></cgo-icon>
                 </button>
                 ${grabberHtml}
@@ -635,14 +616,21 @@
         order: 20,
         render(context) {
             const station = context.station || {};
+            let cnNameDisplay = station.cn || '';
             let enNameDisplay = (station.en || '').replace(/<br>/gi, ' ');
+            if (station.siblings && Array.isArray(station.siblings) && station.siblings.length > 0) {
+                const siblingCns = station.siblings.map(sib => sib.cn).filter(Boolean);
+                const siblingEns = station.siblings.map(sib => (sib.en || '').replace(/<br>/gi, ' ')).filter(Boolean);
+                if (siblingCns.length > 0) cnNameDisplay += ' · ' + siblingCns.join(' · ');
+                if (siblingEns.length > 0) enNameDisplay += ' / ' + siblingEns.join(' / ');
+            }
             if (station.cn === '首经贸') {
                 enNameDisplay = (station.en || '').replace(/<br>/gi, '<span class="special-br"></span>');
             }
             return `
                 <div class="header-name-group">
-                    <div class="panel-cn-name">${station.cn || ''}</div>
-                    <div class="panel-en-name">${enNameDisplay}</div>
+                    <div class="panel-cn-name" role="heading" aria-level="2" tabindex="-1">${cnNameDisplay}</div>
+                    <div class="panel-en-name" lang="en">${enNameDisplay}</div>
                 </div>
             `;
         }
@@ -678,7 +666,7 @@
         order: 99,
         render(context) {
             return `
-                <button class="panel-share-btn" title="分享车站信息">
+                <button class="panel-share-btn" title="分享车站信息" aria-label="分享车站信息">
                     <cgo-icon name="external" size="20"></cgo-icon>
                 </button>
             `;
@@ -751,6 +739,14 @@
             };
 
             let stopsHtml = '';
+            // 多交路（branch）线路：先说明本站有哪几条交路停靠。
+            // 交路名来自 line.wayNames，缺省时按首末站名推导（core/line-routing.js）。
+            // 主干车站会并列列出多条（如「花桥—迪士尼 / 嘉定北—迪士尼」），
+            // 支线独有车站则只列它所在的那一条。
+            const ways = Array.isArray(lineInfo.ways) ? lineInfo.ways : [];
+            if (ways.length > 0) {
+                stopsHtml += createRow(`<cgo-icon name="route" size="14"></cgo-icon> 交路`, ways.join(' / '));
+            }
             if (lineInfo.prev) {
                 if (!(shouldHideNone && lineInfo.prev === "无")) {
                     stopsHtml += createRow("上一站", lineInfo.prev);
@@ -766,6 +762,110 @@
             }
 
             return stopsHtml;
+        },
+        onMounted(infoPanel, context) {
+            if (!infoPanel || !context) return;
+            const plain = (window.CGoA11y && window.CGoA11y.plainName)
+                ? window.CGoA11y.plainName
+                : (v) => String(v == null ? '' : v).replace(/<[^>]*>/g, '').trim();
+
+            const lineInfo = context.lineInfo || {};
+            const activeSid = context.station && context.station.id;
+            const nextLabel = (lineInfo.nextLabel || '下一站').trim();
+            const pane = (context.tabIndex !== undefined && context.tabIndex !== null)
+                ? infoPanel.querySelector(`.tab-pane[data-tab-index="${context.tabIndex}"]`)
+                : infoPanel;
+            if (!pane) return;
+
+            const stationTable = window.stationsData || {};
+            const linesList = Array.isArray(window.linesData) ? window.linesData : [];
+
+            const extractTargetName = (valueEl) => {
+                const textNode = Array.prototype.slice.call(valueEl.childNodes)
+                    .find((n) => n.nodeType === 3 && n.textContent.trim());
+                if (textNode) return plain(textNode.textContent);
+                return plain(valueEl.textContent).replace(/\s*\(约?\s*[\d.?]+\s*[米m]?\)\s*$/i, '').trim();
+            };
+
+            const resolveAdjacentSid = (name) => {
+                if (!name || name === '无') return null;
+                // 1) 优先从当前线路站序中解析，可消除跨线同名站歧义
+                const lineObj = lineInfo.id ? linesList.find((l) => l && l.id === lineInfo.id) : null;
+                if (lineObj) {
+                    const lineIds = [];
+                    if (Array.isArray(lineObj.stations)) lineIds.push(...lineObj.stations);
+                    Object.keys(lineObj).forEach((k) => {
+                        if (/^way\d+$/.test(k) && Array.isArray(lineObj[k])) {
+                            lineIds.push(...lineObj[k]);
+                        }
+                    });
+                    const uniqueLineMatches = new Set();
+                    lineIds.forEach((sid) => {
+                        if (!sid || sid === activeSid) return;
+                        const st = stationTable[sid];
+                        if (st && plain(st.cn) === name) uniqueLineMatches.add(sid);
+                    });
+                    if (uniqueLineMatches.size === 1) {
+                        return Array.from(uniqueLineMatches)[0];
+                    }
+                }
+                // 2) 回退全网唯一站名匹配（宁缺勿错，同名多站不盲跳）
+                const matches = [];
+                Object.keys(stationTable).forEach((sid) => {
+                    if (sid === activeSid) return;
+                    const st = stationTable[sid];
+                    if (st && plain(st.cn) === name) matches.push(sid);
+                });
+                return matches.length === 1 ? matches[0] : null;
+            };
+
+            const triggerJump = (valueEl) => {
+                const targetSid = valueEl.getAttribute('data-cgo-jump-sid');
+                if (!targetSid) return;
+                const selectFn = (context.helpers && typeof context.helpers.selectStation === 'function')
+                    ? context.helpers.selectStation
+                    : window.selectStation;
+                if (typeof selectFn !== 'function') return;
+                selectFn(targetSid);
+
+                const lineName = (lineInfo.name || '').trim();
+                if (!lineName) return;
+                const panel = document.getElementById('info-panel') || infoPanel;
+                const tabs = Array.prototype.slice.call(panel.querySelectorAll('.tab-item'));
+                const targetTab = tabs.find((tab) => (tab.textContent || '').trim() === lineName);
+                if (targetTab) targetTab.click();
+            };
+
+            pane.querySelectorAll('.info-row').forEach((row) => {
+                const labelEl = row.querySelector('.info-label');
+                const valueEl = row.querySelector('.info-value');
+                if (!labelEl || !valueEl) return;
+                const labelText = (labelEl.textContent || '').trim();
+                if (labelText !== '上一站' && labelText !== '下一站' && labelText !== nextLabel) return;
+                if (valueEl.hasAttribute('data-cgo-jump-sid') || valueEl.dataset.cgoJumpBound === '1') return;
+
+                const targetName = extractTargetName(valueEl);
+                const targetSid = resolveAdjacentSid(targetName);
+                if (!targetSid) return;
+
+                valueEl.setAttribute('data-cgo-jump-sid', targetSid);
+                valueEl.setAttribute('role', 'button');
+                valueEl.setAttribute('tabindex', '0');
+                valueEl.setAttribute('aria-label', `跳转到${targetName}`);
+                valueEl.dataset.cgoJumpBound = '1';
+
+                valueEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    triggerJump(valueEl);
+                });
+                valueEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        triggerJump(valueEl);
+                    }
+                });
+            });
         }
     });
 
@@ -826,24 +926,50 @@
         targetTab: 'station-info',
         order: 20,
         render(context) {
-            const relatedLinesInfo = context.relatedLinesInfo || [];
-            let opInfoHtml = '';
+            const esc = (window.CGoA11y && window.CGoA11y.escapeHtml)
+                ? window.CGoA11y.escapeHtml
+                : (v) => String(v == null ? '' : v)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const relatedLinesInfo = (context && context.relatedLinesInfo) || [];
+            const groups = [];
 
+            // 同属一家运营单位时合并为同一行并按徽标去重
             relatedLinesInfo.forEach(info => {
-                const styleStr = info.svgclr
-                    ? `height:28px; width:auto; vertical-align:middle; margin-right:10px; margin-top:3px; --svgclr:${info.svgclr}; --svgtext:${info.svgtext};`
-                    : 'height:28px; width:auto; vertical-align:middle; margin-right:10px; margin-top:3px;';
-                const iconHtml = info.svg
-                    ? `<span class="svg-icon-placeholder line-badge" data-src="${info.svg}" style="${styleStr}"></span>`
-                    : `<span class="text-badge" style="font-size:10px; margin-right:10px; vertical-align:middle;">${info.name}</span>`;
+                if (!info) return;
+                const company = info.company || '未知运营';
+                let group = groups.find(g => g.company === company);
+                if (!group) {
+                    group = { company, badges: [], seen: new Set() };
+                    groups.push(group);
+                }
+                const key = info.svg || info.name || info.id || '';
+                if (key && group.seen.has(key)) return;
+                if (key) group.seen.add(key);
+                group.badges.push(info);
+            });
 
-                opInfoHtml += `
+            const opInfoHtml = groups.map(group => {
+                const badgesHtml = group.badges.map(info => {
+                    const styleStr = info.svgclr
+                        ? `height:28px; width:auto; vertical-align:middle; margin-right:10px; margin-top:3px; --svgclr:${esc(info.svgclr)}; --svgtext:${esc(info.svgtext || '')};`
+                        : 'height:28px; width:auto; vertical-align:middle; margin-right:10px; margin-top:3px;';
+                    return info.svg
+                        ? `<span class="svg-icon-placeholder line-badge" data-src="${esc(info.svg)}" style="${styleStr}"></span>`
+                        : `<span class="text-badge" style="font-size:10px; margin-right:10px; vertical-align:middle;">${esc(info.name || '')}</span>`;
+                }).join('');
+
+                const leftHtml = group.badges.length > 1
+                    ? `<div style="display:flex; align-items:center; flex-wrap:wrap;">${badgesHtml}</div>`
+                    : badgesHtml;
+
+                return `
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding-left:10px;">
-                        ${iconHtml}
-                        <span style="font-size:13px; color:var(--text-main); font-weight:bold; text-align:right;">${info.company || '未知运营'}</span>
+                        ${leftHtml}
+                        <span style="font-size:13px; color:var(--text-main); font-weight:bold; text-align:right;">${esc(group.company)}</span>
                     </div>
                 `;
-            });
+            }).join('');
 
             return `
                 <div style="margin-bottom:5px; font-size: 13px;">

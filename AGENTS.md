@@ -48,15 +48,92 @@
 - 所有颜色必须优先使用 `css/cgo_clr.css` 和 `css/style.css` 中定义的 CSS 变量（如 `var(--theme-bg)`, `var(--text-color)` 等）。
 - 任何 UI 变更必须同时适配桌面端（鼠标滚轮、悬浮、拖拽）与移动触控端（多点手势捏合缩放、触控拖拽）。
 
-### 🚨 铁律四：代码或数据修改必须同步更新 Service Worker
+### 🚨 铁律四：代码或数据修改必须同步更新 Service Worker 与版本号
 - 本项目基于原生 Service Worker（`sw.js`）实现离线预缓存与性能加速。
 - **任何新增文件、修改车站/线路数据或核心引擎逻辑后，必须同步更新 `sw.js` 中的 `CACHE_NAME` 缓存版本号**（新增文件还须同步登记至 `ASSETS_TO_CACHE` 数组），**否则更改将无法生效**。
+- **版本号格式铁律（严禁省略或格式不匹配）**：
+  `sw.js` 中的 `const CACHE_NAME = 'cgo-openmap-v{yymmdd.hhmmss}'` 以及全站所有静态资源引用和动态脚本加载所带的 `?v={yymmdd.hhmmss}`（含 `var v` 与 `const version` 变量），**格式必须严格为 `yymmdd.hhmmss`，共 12 位纯数字带一个小数点**（前 6 位为年月日，后 6 位为时分秒，如 `261022.223300`）。**禁止省略秒数（如 4 位时分）、禁止非标准格式或位数缺失，全站版本串必须保持 100% 绝对一致**。
+- **改完版本号必须跑校验脚本**（不要靠肉眼比对）：
+
+  ```bash
+  node scripts/check-site-version.mjs
+  ```
+
+  它会核对 `main.html` / `index.html` / `editor/index.html` / `privacy.html` / `readme.html` / `sw.js`
+  这 6 个文件的全部版本串是否**完全一致**且格式合法，并检查 `sw.js` 的 `CACHE_NAME` 是否与页面版本同步。
+  新增携带版本号的页面时，须在脚本顶部的 `FILES` 清单里登记，否则校验会漏掉它。
+- 🚨 **最常见的翻车点：只改了 `main.html` 和 `sw.js`**。地图页版本号更新了，但首页 `index.html`、
+  编辑器页、隐私政策页、内置说明页仍是旧值 —— 这不是「次要文件无所谓」，而是会让全站版本一致性直接失败
+  （参见 PR #60 的评审意见）。**一次改动，6 个文件一起改，然后跑一次脚本。**
 - 💡 **排错第一准则**：在开发与调试过程中，**若出现“无论怎么修改代码/数据，页面表现都毫无变化、怎么改都不起作用”的情况，请务必首先思考是否是 Service Worker 强缓存导致的可能性！**
 
 ### 🚨 铁律五（最重要！）：UI 图标必须严格使用 CGoUI 矢量组件，严禁在界面与模块中滥用 Emoji
 - **强制使用 `<cgo-icon>`**：所有按钮、表单、提示横幅、图例、弹窗及车站信息板自定义模块中，**必须且只能**使用原生 Web Components 图标组件 `<cgo-icon name="..." size="..."></cgo-icon>`（如 `<cgo-icon name="location" size="14"></cgo-icon>`、`<cgo-icon name="time" size="14"></cgo-icon>`、`<cgo-icon name="route" size="14"></cgo-icon>`、`<cgo-icon name="map" size="14"></cgo-icon>`、`<cgo-icon name="train" size="14"></cgo-icon>` 等）。
 - **严禁滥用 Emoji 表情符号**：严禁在 UI 界面、模块标题、列表前缀中使用 Emoji（如 🚇、🏛️、⏱️、⏳、🔄、🚌、📍、💡 等）。Emoji 在 Windows/Mac/iOS/Android 各操作系统下色调与字重不一致，破坏界面专业美感，且无法适配暗色/亮色主题与 CSS 矢量变量。
 - **唯一例外**：除非实在在 CGoUI 内置图标库（`core/cgo-ui.js`）中匹配不到任何合适或语义相近的图标，才可作为最末降级手段。
+
+### 🚨 铁律六：严格执行线路图质量评定规范（拒收残次排版与拓扑缺陷）
+- 所有参与修改车站数据、调整走向、移植新城市或执行质量评审的 Agent，产出成果与评审打分**必须严格基于 [《线路图质量评定规范与治理方案》(docs/QUALITY_STANDARDS.md)](docs/QUALITY_STANDARDS.md) 中确立的「第三次客观评分标准」**（以北京、沈阳、上海、香港等标杆城市为参照真源）：
+  - **评审双防铁律**：既严禁第一版“唯文件论与虚高人情分”（坚决杜绝合肥式压线放行）；也严禁第二版“脱离可用性的教条极端苛刻”（坚决杜绝因待补站距或官方高精度线型而将香港、深圳断崖式降级）；
+  - **准入门槛**：发起 PR 前必须自查达到 **C 级（≥ 60 分）**；经评审整改达到 **B 级（≥ 70 分及以上）** 且通过自动化回归自检后方允许合并上线！
+  1. **排版零压线零重叠**：站名文字绝对禁止骑跨或压在轨道线上，严禁遮挡换乘图元，相邻站名严禁重叠，8 方向对齐合理；
+  2. **正交几何与倒角平滑**：斜线倾角全网统一步调，转弯必须使用标准倒角平滑过渡，**严禁使用短直线碎步拼接伪模拟曲线**。遵循「可不循已有标准，但自创标准必须美观」的底线；
+  3. **数据真实与求实底线**：**绝对禁止人为机械伪造假数据**（如石家庄机械硬编码 600m 假站距与 2min 假耗时），若数据暂缺官方里程必须使用 `"??"` 占位合规闭合；
+  4. **空间利用率与缩放可读性**：严禁大面积无效空白与松散拉跨（以北京线网为标杆，合理利用每一寸空隙），确保全图在缩小概览（Zoom-out）时文字依然清晰可读；
+  5. **硬性数据与元数据完整**：站间距 `distances` 长度严格匹配站数；`city/data.js` 中主理人 `maintainers`、`officialMapUrl`、视口中心 `center` 必须完整填写，严禁上线后信息残缺；
+  6. **方向明确防堆砌**：特色功能必须有明确的主攻方向（旅客服务导向 vs 工程规划导向，不超过 2 个），凡提供必须 100% 形成业务闭环无报错，严禁杂乱贪多堆砌半成品；
+  7. **自检前置与零污染**：提交前必须在本地运行 `node editor/tests/selfcheck.js` 确保 100% 通过自检，且控制台零报错，严禁单城带病污染全局。
+
+### 🚨 铁律七：注释精简与非北京城市去模板化规范（严禁堆砌长篇教学 Schema 注释）
+- **北京作为示例城市保留详尽注释**：北京（`city/beijing/`）作为 CGo OpenMap 全局唯一的基准与范式标杆城市，各数据文件中保留详尽的 Schema 规范、字段定义、架构依赖与移植教学指南，此设计合规且必要，供主理人与开发者学习参考。
+- **非北京城市生成时严禁照抄教学大段注释**：当 AI Agent 或主理人根据北京（或其它范例）生成/移植新城市时，**绝对禁止盲目照抄复制北京文件里的大段教学模板注释、长篇 Schema 规范字典、结构说明与移植小贴士**（例如严禁在新城市中保留 `city/beijing/...` 路径说明、`company: "北京地铁"` 示例或整屏的字段字典）。
+- **极简原则与去模板化**：新城市所有文件（`data_stations.js`、`data_lines.js`、`data_legend.js`、`{city}.js` 等）必须彻底清理掉冗长复杂的教学外框与介绍段，**只保留本城市真正必需的业务注释**（如本地特有的坐标系说明、图层特殊说明、数据源版次与换算比例等），保持代码与数据文件干净、清晰、纯粹。
+
+### 🚨 铁律八：自定义线路标（`assets/*.svg`）优先使用 `vitool` 标准导出
+
+凡是不走 `assets/svg/icon@NN.svg` 通用模板的自定义线路标，**优先使用 `CGo-Web-Tools/vitool` 的「自定义文字线路标」加载项点击「导出 OpenMap 标准 SVG」生成，并将 `vitool` 导出的格式视为标准格式**（自动完成文字转曲、注入 `--svgclr` / `--svgtext` 变量与 `stroke: #ffffff` 白色描边，并输出 `data_lines.js` 配色片段）。
+
+**两套来源、两套版式，互不混用**（同一城市内尽量只用其中一套，避免侧栏徽标风格不一致）：
+
+| 来源 | 画布 | 白色描边 | 文字 | 适用 |
+|---|---|---|---|---|
+| **vitool 导出（优先，标准格式）** | `viewBox` 高 150、宽随字数动态（≥190），色块 `x=1.5 y=26.5 rx=3.5` | **有**，`stroke: #ffffff` 3px | 自动转曲（离线降级时为 `<text>`，需后续转曲） | 普通双语文字线路标 |
+| **手动 / AI 自制（下方「手绘三档版式」）** | 固定 `220×150`，色块 `x=0 y=25 w=220 h=100 rx=5` | **无** | 必须转曲 | 双色色块、三语版等 vitool 暂未覆盖的造型 |
+
+> 下方「手绘三档版式」的所有规则（含「不加白色描边」「190px 铺满」）**只约束手动 / AI 自制的线路标，不适用于 vitool 导出文件**。
+
+**手绘三档版式**：仅当需要手动使用矢量画图工具（Illustrator / Figma）或 AI 工具自制时，**必须**沿用以下统一三档版式（版式真源为 `city/shenzhen/assets/line/L6B.svg`）：
+
+**画布与底版（三档完全一致）**
+- `viewBox="0 0 220 150"`，色块 `<rect x="0" y="25" width="220" height="100" rx="5" ry="5"/>`
+- **不加白色描边**；颜色走 CSS 变量 `--svgclr` / `--svgtext`，写在 `<svg style="...">` 上
+- 文字实际可用宽度 190px（左右各留 15px）
+
+**三档，按名称字数选**
+
+| 档位 | 适用 | 中文基线 / 字号 | 英文基线 / 字号 |
+|---|---|---|---|
+| 四字版 | 3~4 字（`金义东线`、`M-TR专线`：连续罗马字母算 1 个位） | **82** / 56~58 | **113** / 24~26 |
+| 六字版 | 5 字及以上（`都四山地轨道`、`雪山观光火车`） | **76** / 46 | **110** / 24~25 |
+| 三语版 | 越/韩 + 中 + 英 三行（胡志明市、平壤） | 61 / 94 / 117 | 30 / 30 / 20 |
+
+**文字规则**
+- **必须转曲**：线路标 SVG 里的文字**一律转成 path**，交付物中不允许出现 `<text>`。
+  客户端没装对应字体时 `<text>` 会退化成默认字体、`textLength` 也会失真；
+  转曲后造型永远一致，也顺便消除了 font-family 的跨端差异。
+  转曲时按「Arial > 思源黑体（或本语言字体）」逐字选字：
+  罗马字母用 **Arial Bold**，汉字用 **Noto Sans SC / 思源黑体**，谚文用本机韩文字体（如 Malgun Gothic）。
+  若必须保留 `<text>`（仅在无法转曲时），`font-family` 顺序也必须是
+  `Arial, 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif`。
+- 中文主行：横向压到 190px 铺满（这是"字大"的关键）；转曲前等价于
+  `textLength="190" lengthAdjust="spacingAndGlyphs"`。
+- 英文 / 罗马字母：**只压不拉**。自然宽度超过 190 才横向压缩，塞得下就按原始宽度居中，
+  **绝对不允许把短英文拉伸到满宽**。
+- 双色色块（如川西 M-TR 蓝绿）用 `clipPath` 裁圆角 + 两片矩形重叠 4px，避免交界处 1px 缝。
+- 转曲后的 path 坐标保留 2 位小数即可，再多的位数只会让文件变大。
+
+> 历史坑：早期自造标用 190×150 + 4px 白描边 + 固定 `font-size` 无 `textLength`，
+> 结果每枚标的字号、字重、上下留白都不一致，缩到侧栏 22px 时糊成一团。
 
 ---
 
@@ -76,28 +153,31 @@ openmap/
 ├── privacy.html                # 隐私政策页面
 ├── manifest.json               # PWA 配置文件
 ├── sw.js                       # Service Worker 离线缓存
-├── drunk/                      # Drunk 转换工作台 + OpenMap 城市编辑模式 (早期测试版)
-│   ├── index.html              # 沉浸式暗色工作台页面 (样式内联于 <style>，drunk.css 目前未被引用)
-│   ├── css/drunk.css           # 早期样式表，当前未被 index.html 引用
-│   └── js/                     # 转换管道、识别算法与城市工程读写
-│       ├── drunk_pipeline.js   # 交互流程调度总线 (识图/载入城市/编辑/撤销/导出)
-│       ├── city_project_io.js  # 城市工程读写层：条目级无损回写 + 分支线路访问器
-│       ├── drunk_sanitizer.js  # 识别结果净化与几何校正 (纯函数，可 Node 直跑回归)
-│       ├── deepseek_vision.js  # DeepSeek 视觉大模型识图引擎 (客户端直连)
-│       ├── pdf_vector_extractor.js # PDF & AI 矢量图层与 XMP 色板直通解析
-│       ├── city_knowledge_matcher.js # 维基百科知识库动态匹配与 Levenshtein 纠错
-│       ├── ocr_align_solver.js # 智能 OCR 与 8 方向文字排版求解器
-│       ├── topology_tracer.js  # 线网拓扑追踪 (分支/环线/换乘)
-│       ├── openmap_codegen.js  # 标准代码生成器与数据完整性自检
-│       └── drunk_logger.js     # 控制台诊断追踪日志
+├── editor/                     # 开放地图编辑器 (OpenMap Editor / CGoUI Ribbon 生产力工作台)
+│   ├── index.html              # 现代化 Ribbon 工作台页面 (Liquid Glass 折射 + 四分组功能区)
+│   ├── css/                    # 界面布局、Ribbon 工具栏与 8 方向轮盘检视面板样式
+│   │   ├── editor-layout.css
+│   │   ├── editor-ribbon.css
+│   │   └── editor-components.css
+│   ├── js/                     # 模块化流水线、纯函数几何算法与图层系统
+│   │   ├── core/               # 统一工程模型、条目级外科回写 (CityProjectIO) 与撤销栈 (HistoryManager)
+│   │   ├── algorithms/         # 折角反算 (SegmentRouter)、数据清洗 (DataSanitizer)、8方向避让 (AlignSolver)、拓扑连通 (TopologyTracer)
+│   │   ├── layers/             # 统一视口 (Viewport)、参考底图 (GhostTransformer)、线路层、车站层、水域层、自由文本层
+│   │   ├── pipelines/          # 三大流水线：矢量导入 (Ingest)、存量维护 (Surgical)、CAD自由规划 (Draw)
+│   │   ├── tools/              # PDF矢量解析、DeepSeek识图、维基匹配、批量放站、里程管理、零依赖ZIP导出
+│   │   └── ui/                 # Ribbon控制器、属性检视面板与 8 方向轮盘
+│   └── tests/
+│       └── selfcheck.js        # 自动化回归测试（221项断言覆盖15座城市与纯函数算法）
 ├── docs/                       # 架构设计与二次开发文档
+│   ├── DEVELOPER_GUIDE.md      # 核心架构、图层系统、渲染算法与底层开发手册
 │   └── STATION_MODULE_GUIDE.md # 车站信息板自定义模块开发与配置指南
 ├── core/                       # 核心渲染与交互引擎 (多城市通用)
 │   ├── script.js               # 主引擎：SVG生成、视口矩阵变换、平滑飞跃定位、事件监听
 │   ├── station-board.js        # 车站信息板调度引擎与内置标准模块注册表
 │   ├── cgo-ui.js               # Web Components 组件库 (<cgo-icon> 等)
-│   ├── path-geometry.js        # 折线倒角几何 (引擎与 Drunk 编辑模式共用的唯一真源)
-│   ├── station-icons.js        # 车站图元模板与尺寸 (引擎与 Drunk 共用的唯一真源)
+│   ├── path-geometry.js        # 折线倒角几何 (引擎与 OpenMap Editor 编辑器共用的唯一真源)
+│   ├── station-icons.js        # 车站图元模板与尺寸 (引擎与 OpenMap Editor 共用的唯一真源)
+│   ├── line-routing.js         # 交路（way1…way99）模型：交路枚举、走向归属与高亮方案的唯一真源
 │   ├── city-neighbors.js       # 邻城衔接：邻城影子、拉到边缘切换城市、缩小后双城并看 (按注册表 neighbors 配置)
 │   ├── settings.js             # 偏好设置面板逻辑 (主题、全屏、清除缓存)
 │   ├── help.js                 # 帮助与关于弹窗逻辑
@@ -158,6 +238,7 @@ const CITY_REGISTRY = {
         id: "shanghai",
         name: "上海",
         themeColor: "#b72626",          // 城市专属主题色 (Hex，驱动主要按钮、悬浮态与高亮，留空使用默认蓝色)
+        themeColorDark: "#dc3636ff",    // 暗色模式专属主题色 (Hex，驱动暗色模式下标题与Logo高亮，留空默认回退到 #ffffff)
         svglogo: '<svg xmlns="http://www.w3.org/2000/svg"><path d="..."/></svg>', // 城市官方矢量徽标 (收录去色去 viewBox，留空默认显示小火车图标)
         folder: "./city/shanghai",
         mainLogic: "./city/shanghai/shanghai.js",
@@ -174,9 +255,44 @@ const CITY_REGISTRY = {
 ```
 
 > 💡 **城市品牌定制规范**：
-> - `themeColor`：优先使用 6 位 Hex（如 `#b72626`、`#c60a16`），亦兼容 3/8 位 Hex。未设置时自动继承系统经典深蓝（`#00263b`）。不同城市之间色彩完全隔离，杜绝相互污染。
+> - `themeColor`：亮色模式城市专属主题色（优先 6 位 Hex 如 `#b72626`、`#c60a16`，亦兼容 3/8 位 Hex）。未设置时自动继承系统经典深蓝（`#00263b`）。不同城市之间色彩完全隔离，杜绝相互污染。
+> - `themeColorDark`：暗色模式专属主题色（兼容 3/6/8 位 Hex）。驱动暗色模式下顶栏城市标题（`.title-city`）与矢量徽标（`.header-logo-wrapper`）着色。未设置或留空时系统自动安全回退至纯白色（`#ffffff`）。
+> - **城市主理人色彩选定与亮暗调配原则（确保对比度与可读性）**：
+>   - **浅色系主题色**（如亮黄、明绿、浅粉青）：暗色模式（`themeColorDark`）可直接使用；亮色模式（`themeColor`）在白底上容易字迹发虚，需适当调深、加浓或增加饱和度。
+>   - **深色系主题色**（如正红、墨绿、棕褐、深紫）：亮色模式（`themeColor`）可直接使用官方原色；暗色模式（`themeColorDark`）在黑底下容易与背景融为一体，需适当调浅、提亮以增强辨识度。
+>   - **难调深色或特定体系**（如深蓝色、藏青等）：调浅后易产生发灰或脏色，在暗色模式下建议直接使用纯白色（`#ffffff`）。典型标杆如**北京地铁**：亮色模式为深蓝（`themeColor: "#004060"`），暗色模式直接配置为白色（`themeColorDark: "#ffffff"`）。
 > - `svglogo`：收录时**必须去色（移除硬编码 fill）、去 viewBox 并去除 XML 头部**。前端基于 `currentColor` 自动适配亮暗与悬浮反白，并通过 `getBBox()` 自动自适应缩放至与小火车图标一致的 `22px × 22px`。留空则自动降级展示小火车图标。
 
+
+### 4.1.1 全局物理尺度与站距等比缩放规范（针对线网过挤/过散）
+- 当收到用户要求“调整全局尺度”、“拉大/缩小站间距”、“解决文字拥挤叠字”时，**必须严格遵循 [《地图全局物理尺度与站距等比伸缩操作指南与 AI 提示词规范》(docs/GLOBAL_SCALE_PROMPT.md)](docs/GLOBAL_SCALE_PROMPT.md)**；
+- **核心红线**：这是物理坐标等比伸缩，**严禁**只调整 `defaultScale`（视口缩放会放大字号与图标，无法解决遮挡）；
+- **操作范围**：同步等比缩放 `data_stations.js`（所有 `x, y` 坐标，**严禁修改 `offset: { x, y }` 文本微调值**）、`data_lines.js`（折点 `pathPoints` 及各分支点阵）、`data_notopen.js`（若有）、`city/data.js`（`mapSize` 与 `center`），并递增 `sw.js` 缓存版本号；
+- 可直接调用项目内置 CLI 工具：`node scripts/rescale-city.js <city_id> <scaleFactor>`。
+
+### 4.1.2 门户首页（概览）城市状态与卡片排序规则
+门户首页（`index.html`）的**「概览 / 总览」选项卡**（视图模式标识 `time`，由 `core/portal-view.js` 的 `renderTimeView` 驱动）展示已收录城市卡片，Agent 在增改城市元数据（`city/data.js`）时必须严格理解并遵循以下排序与过滤机制：
+
+1. **前置准入与过滤守卫（Filtering Guard）**：
+   - 标记为 `hidden: true`（隐藏）、`status: "delisted"`（已下架）或 `status: "offline"`（未上线 / 离线规划线网，如 `beijing_plan`）的城市，在门户概览视图中**自动过滤，不予渲染展示**；
+   - 只有 `status` 为 `demo`、`active`、`updating` 的城市才进入概览卡片排序流。
+2. **三级联合排序流水线（Three-tier Sorting Pipeline）**：
+   - **一级排序：按运营状态权重（Status Rank，数值越小越靠前）**
+     - `status: "demo"`（权重 1）：**核心标杆范例**（置顶展示，如北京）；
+     - `status: "active"`（权重 2）：**已上线城市**（绝大多数正常提供服务的城市）；
+     - `status: "updating"`（权重 3）：**更新中城市**（正在进行大版本改版、站距核算或图面施工的城市，如合肥、石家庄，统一排在已上线城市之后）；
+     - 其他/未知状态（权重 99）：自动兜底排至最后。
+   - **二级排序：按车站数目降序（Station Count Descending，从多到少）**
+     - 在相同状态内部（如众多的 `active` 城市之间，或多个 `updating` 城市之间），**严格按全网车站总数从多到少降序排列**；
+     - 车站数量获取优先级：优先读取 `city/data.js` 中该城市注册项的 `stationCount`（数字）；若未定义，则自动调用 `PortalData.getCityStationCount(city)` 从 `core/portal-data.js` 的 `CITY_STATION_COUNTS` 常量字典匹配；若仍未匹配则兜底按 0 计。
+   - **三级保序：按录入入驻时间升序（Register Date Ascending，先来后到）**
+     - 若状态等级与车站数完全相同，按 `registerDate`（如 `"2026-10-28"`）升序排序，早期入驻的城市排在前面；若缺省则默认按 `'1970-01-01'` 处理。
+3. **状态胶囊徽章（Status Badge）视觉映射**：
+   - `status: "demo"` → `badge-primary`（主题紫蓝），图标 `<cgo-icon name="sparkle">`，文本「核心范例」；
+   - `status: "active"` → `badge-success`（清新绿），图标 `<cgo-icon name="check-circle">`，文本「已上线」；
+   - `status: "updating"` → `badge-warning`（警示橙），图标 `<cgo-icon name="refresh">`，文本「更新中」；
+   - `status: "recruiting"`（或主理人 `isRecruiting: true`） → `badge-warning`，图标 `<cgo-icon name="sparkle">`，文本「招募主理人」；
+   - `status: "offline"` → 隐藏徽章（在门户中不显示卡片）。
 
 ### 4.2 车站定义 (`data_stations.js`)
 
@@ -222,19 +338,37 @@ const linesData = [
         stationIds: ["M401", "M402", "M403", "M404"],
         distances: [1100, 1250, 1300, 950] // 顺时针站距 (length === stationIds.length)
     },
-    // 3. 分支/Y字形线路 (必须声明 hasbranch: true)
+    // 3. 多交路 / 分支 / Y字形线路 (必须声明 hasbranch: true)
+    //    每条 way 都是一条完整运营交路（两端终点站之间），可以有 way1 … way99
     {
         id: "M11",
         name: "11号线",
         color: "#852655",
         hasbranch: true,
-        "stationIds-way1": ["M1101", "M1102", "M1103"],
-        "stationIds-way2": ["M1101", "M1102", "M1104"],
+        wayNames: { way1: "花桥—迪士尼", way2: "嘉定北—迪士尼" }, // 可选：交路显示名
+        "stationIds-way1": ["M1101", "M1102", "M1103"],  // 花桥 → 分歧站 → 迪士尼
+        "stationIds-way2": ["M1104", "M1102", "M1103"],  // 嘉定北 → 分歧站 → 迪士尼
         "distances-way1": [1300, 1400],
-        "distances-way2": [1300, 1800]
+        "distances-way2": [1800, 1400],
+        // 走向：main = 所有交路共用主干（只画一次、只亮一次），branchN = wayN 独有区段
+        "pathPoints-main": [/* 分歧站 → 迪士尼 */],
+        "pathPoints-branch1": [/* 花桥 → 分歧站 */],
+        "pathPoints-branch2": [/* 嘉定北 → 分歧站 */]
     }
 ];
 ```
+
+> **交路（way）模型**（唯一真源 `core/line-routing.js`）：车站被哪几条交路经过，就点亮哪几条交路。
+> 点共用主干上的车站 ⇒ 主线支线一起亮；点某条交路独有的车站 ⇒ 只亮「支线 + 它贯通的主线」
+> （上海 11 号线点花桥 ⇒ 花桥—嘉定新城—迪士尼）。因此 `pathPoints-main` 必须写**真正共用**
+> 的那一截，不能把某个端部臂当主干。同一段点阵写了两遍会按点阵签名合并，只画/亮一次；
+> 被部分交路共用的区段可用 `pathPoints-xxx: { points, ways: ["way1","way2"] }` 显式声明归属。
+>
+> 走向键与交路的对应关系：`main` / `pathPoints` = 全部交路共用；`branchN` / `wayN` = 仅 wayN。
+> 一条交路有多段独有走向时用字母后缀区分：`pathPoints-way1a`、`pathPoints-way1b`（都归 way1）；
+> 若某条交路自己就是一整条点阵（如金花、台中，两条交路各自画全程），可直接写成
+> `pathPoints-way1` / `pathPoints-way2`。**写错归属会被自检拦住**：`selfcheck.js` 逐条核对
+> 「每条交路的每个车站是否都落在归属于它的走向上」，把某条交路的区段写成别人的分支会直接报错。
 
 ### 4.4 矢量徽标颜色注入机制
 - `assets/svg/icon@01.svg` ~ `icon@57.svg` 为内置矢量模板，内部使用 CSS 变量动态驱动。
@@ -288,32 +422,34 @@ const linesData = [
 
 ---
 
-## 5. Drunk 转换系统与 Agent 协作指南 (实验特性)
+## 5. OpenMap Editor (开放地图编辑器) 架构与 Agent 协作指南
 
-> [!WARNING]
-> **早期开发验证阶段声明**：  
-> **Drunk 转换系统（`drunk/`）目前处于早期开发验证阶段，仅供测试与实验使用**。系统算法与数据结构仍在频繁迭代中，导出结果请以实际运行渲染测试为准。**极其欢迎开发者与社区团队共同参与其识别算法、矢量图层直通及拓扑求解器的协同开发！**
+> [!NOTE]
+> **OpenMap Editor (`/editor/`)** 是整合了全功能交互编辑、水域河流、自由规划、百科表格放站、里程管理与智能转换（PDF/AI矢量直通提取、DeepSeek视觉识图、条目级外科手术式无损回写、8方向文字避让）的**统一现代化生产力工作台**。界面全面升级为 CGoUI 2.2 Ribbon 效率类布局与 Liquid Glass 折射空间滤镜。
 
-Drunk（`drunk/index.html`）有两种工作模式：
+OpenMap Editor（`editor/index.html`）提供三大核心流水线：
 
-- **识图模式（新城市）**：解决“新城市手工测量 `(x, y)` 坐标繁琐且易出错”，从底图/PDF/AI 自动矢量化出整套城市数据；
-- **编辑模式（已有城市）**：**Drunk 同时是 OpenMap 任意已注册城市的可视化编辑器**。从顶栏下拉框（或线路图「偏好设置 → 编辑此图」，或直接访问 `drunk/index.html?city={city_id}`）载入 `city/{city_id}/`，即可：
+- **智能提取流水线 (Ingest Pipeline)**：解决“新城市手工测量 `(x, y)` 坐标繁琐且易出错”，从高清矢量 PDF/AI 或位图自动提取并规整整套城市数据；
+- **存量维护流水线 (Surgical Pipeline)**：**OpenMap 任意已注册城市的可视化外科手术级编辑器**。从顶栏下拉框（或线路图「偏好设置 → 编辑此图」，或直接访问 `editor/index.html?city={city_id}`）载入 `city/{city_id}/`，即可：
   - **车站**：拖站 / 方向键挪站、改中英文站名、切换类型、调站名朝向与文字偏移、删站；
   - **线路**：点图例项或直接点画布上的线条选中，改线路名 / 标志色 / 运营公司 / `useStrictRounding`，
     并可拖动走向折点、双击线条插入折点、`Delete` 删折点（分支线路的
     `pathPoints-main` / `-branch1` / `-branch2` 一并支持）；
     选中拐角折点后还能调该拐角的圆角半径 `r`（留空=自动按夹角取 18/8px，`0`=保持直角）。
-
-  导出时只改写你实际动过的条目——挪一个折点，`git diff` 里就只有那一行 `{ x: …, y: … }`。
+  - **8 方向轮盘**：右侧检视面板配备 8 方向避让轮盘，毫秒级即时预览并写回 `align` 字段。
+  - 导出时只改写你实际动过的条目——挪一个折点，`git diff` 里就只有那一行 `{ x: …, y: … }`。
+- **自由规划流水线 (Draw Pipeline)**：空白画布新建城市、网格与夹角吸附（135°/90°）、河道水域绘制、自由文字注释与一键 OpenMap 标准 ZIP 打包导出。
 
 ### 5.1 核心架构与模块分工
-- `drunk/js/city_project_io.js`：**城市工程读写层**。读取 `city/{city_id}/data_*.js` 并保留源码原文，提供条目级「外科手术式回写」与分支线路数据模型访问器。
-- `drunk/js/drunk_sanitizer.js`：**识别结果净化与几何校正器**（纯函数）。噪点站剔除、脏站名清洗、同名换乘站合并、退化线路剔除，以及墨迹吸附 + 最小二乘相似变换的整体歪斜校正。
-- `drunk/js/pdf_vector_extractor.js`：基于 Mozilla PDF.js 原生解析 PDF/AI 图层，直通读取矢量路径、OCG 图层语义及 XMP 色板（CMYK/RGB 专色转 Hex），支持多行文字自适应聚类。
-- `drunk/js/deepseek_vision.js`：客户端直连 DeepSeek 官方视觉大模型（`deepseek-v4-flash-vision-exp`），零中间服务器，用于整网位图拓扑结构解析。
-- `drunk/js/city_knowledge_matcher.js`：动态拉取维基百科分类树（MediaWiki API），结合 Levenshtein 模糊编辑距离自动补全站名与中英双语对齐。
-- `drunk/js/ocr_align_solver.js`：计算站名与站点的空间相对方位，自动分配 8 方向避让锚点。
-- `drunk/js/openmap_codegen.js`：生成标准 OpenMap 格式代码，并强制执行完整性自检。
+- `editor/js/core/city-project-io.js`：**城市工程读写层**。读取 `city/{city_id}/data_*.js` 并保留源码原文，提供条目级「外科手术式回写」与分支线路数据模型访问器。
+- `editor/js/core/history-manager.js`：**统一历史撤销栈**（消解各处独立撤销栈，支持 60 步历史与脏状态追踪）。
+- `editor/js/algorithms/data-sanitizer.js`：**识别结果净化与几何校正器**（纯函数）。噪点站剔除、脏站名清洗、同名换乘站合并、退化线路剔除，以及墨迹吸附 + 最小二乘相似变换的整体歪斜校正。
+- `editor/js/algorithms/segment-router.js`：**折角与走线求解器**（纯函数，135°/90°/斜率折点反算与自动选型）。
+- `editor/js/tools/pdf-vector-extractor.js`：基于 Mozilla PDF.js 原生解析 PDF/AI 图层，直通读取矢量路径、OCG 图层语义及 XMP 色板（CMYK/RGB 专色转 Hex），支持多行文字自适应聚类。
+- `editor/js/tools/deepseek-vision.js`：客户端直连 DeepSeek 官方视觉大模型（`deepseek-v4-flash-vision-exp`），零中间服务器，用于整网位图拓扑结构解析。
+- `editor/js/tools/knowledge-matcher.js`：动态拉取维基百科分类树（MediaWiki API），结合 Levenshtein 模糊编辑距离自动补全站名与中英双语对齐。
+- `editor/js/algorithms/align-solver.js`：计算站名与站点的空间相对方位，自动分配 8 方向避让锚点。
+- `editor/js/tools/bundle-exporter.js`：纯 JS 零外部依赖直接生成标准 ZIP 压缩包与条目级补丁。
 
 ### 5.1.1 🚨 编辑模式最高铁律：回写必须无损
 
@@ -325,19 +461,30 @@ Drunk（`drunk/index.html`）有两种工作模式：
 正确做法已封装在 `CityProjectIO.patchEntries(源码, 变量名, { update, remove, append })`：
 它扫描出每条条目的字面量区间，**递归比对新旧值，只重写真正变了的那个叶子**，未改动的子树连同注释、缩进、字段顺序、手写换行逐字节保留。实测：改一座车站的 `align` 只产生 1 行 diff，改一条线路的 `color` 也只有 1 行，几百个 `pathPoints` 折点不会被重新排版。
 
-### 5.1.2 🚨 遍历线路时必须使用分支安全访问器
+### 5.1.2 🚨 遍历线路时必须使用分支安全的访问器 / 交路模型
 
-线路的站序有两种写法：普通线 `stationIds` + `distances`；分支线 `hasbranch: true` 配 `stationIds-way1` / `-way2`（及 `distances-wayN`）。折线点阵同理：`pathPoints`，或 `pathPoints-main` / `-branch1` / `-branch2`。
+线路的站序有两种写法：普通线 `stationIds` + `distances`；多交路（分支）线 `hasbranch: true` 配 `stationIds-way1` … `stationIds-way99`（及 `distances-wayN`）。折线点阵同理：`pathPoints`，或 `pathPoints-main` / `-branch1` / `-branchN`（也支持 `{ points, ways: ["way1","way2"] }` 显式声明共用归属）。
 
 北京 `S2`/`S6`/`JX`、上海 `SH5`/`SH10`/`SH11`、悉尼 `T1`/`T2`/`T4`/`T8` 都是分支线路；合肥全网则**只有 `stationIds` 而没有 `distances`**。
 
-> 凡是遍历线路的代码，**必须**走 `CityProjectIO.lineStationGroups(line)` / `linePathGroups(line)` / `lineAllStationIds(line)`，
-> 直接写 `line.stationIds.length` 一碰到这些城市就会 `undefined.length` 崩掉。
+> 凡是遍历线路的代码，**必须**走交路模型 `window.CGoLineRouting`（`core/line-routing.js`）：
+> `ways(line)` / `allStationIds(line)` / `waysOfStation(line, sid)` / `primaryWay(line, sid)` /
+> `neighbors(line, sid)` / `wayLabel(line, way, stations)` / `segments(line, stations)` /
+> `plan(line, sid, stations)`。
+> 编辑器侧仍可用 `CityProjectIO.lineStationGroups(line)` / `linePathGroups(line)` / `lineAllStationIds(line)`。
+> 直接写 `line['stationIds-way1']` 或 `line.stationIds.length`，一碰到分支城市 / 多交路线路
+> 就会算错或 `undefined.length` 崩掉。
 
-返回形状：
-- `lineStationGroups(line)` → `[{ idsKey, distKey, ids, distances }]`
-- `linePathGroups(line)` → `[{ key, points }]`，`points` 是对原数组的**引用**（编辑模式拖折点即直接改它），`key` 用于写回 `line[key]`
-- `lineAllStationIds(line)` → 跨分支去重后的车站 ID 数组
+返回形状（`CGoLineRouting`）：
+- `ways(line)` → `[{ key:'way1', index, name, ids, distances, idsKey:'stationIds-way1', distKey:'distances-way1' }, …]`
+- `allStationIds(line)` → 跨交路去重后的车站 ID 数组（保持首次出现顺序）
+- `waysOfStation(line, sid)` → 经过该站的交路数组（主干车站会有多条）
+- `neighbors(line, sid)` → `{ prev, next, multi }`，每项 `{ id, distance, wayKeys }`；
+  上一站/下一站面板的唯一数据源。多交路时各交路方向可能不一致（厦门 BRT 快5路与快2/快7 同段反向、
+  前埔枢纽站既是快3/快5 的终点又是快6/快9 的起点），所以每条候选都带回「哪几条交路这样走」，
+  面板在信息不足时才补注交路名；**不要**自己写 `ids.indexOf(sid) ± 1` 拼前后站
+- `segments(line, stations)` → `[{ key, cls, points, ways:Set<wayKey> }]`，`ways` 是该段被哪些交路使用
+- `plan(line, sid, stations)` → `{ allLit, litWays, dimWays, litSegKeys, dimSegKeys, litStationIds, dimStationIds }`
 
 另注意：`distances` 允许是空数组（在建线路）或 `"约21千"` 这类人工标注文本，不可假定为等长数字数组。
 
@@ -349,20 +496,24 @@ Drunk（`drunk/index.html`）有两种工作模式：
 该字段已在实际使用：北京 20 个折点（20/30/400px）、合肥 24 个（28/32/36px），
 上海与悉尼则是逐点 `r: 0` 保持直角（走向本就由密集折点描出）。
 
-**线路走向的来源判定**同样收敛在这里（`lineSegments(line, stations)`），判定链按优先级为：
+**线路走向的来源判定**同样收敛在这里（`lineSegments(line, stations)`，内部转调 `core/line-routing.js` 的交路分段），判定链按优先级为：
 
 1. `isPointOnly: true` → **不画走向**，只在图上落站点图元（国铁等散布全城的车站）；
-2. `hasbranch: true` → 画 `pathPoints-main` / `-branch1` / `-branch2`，**不回退站序**；
-3. `pathPoints` → 画折线点阵；
-4. 都没有 → 按 `stationIds` 顺序取站点坐标连成一段。
+2. 有 `pathPoints*` → 画显式点阵：`pathPoints-main` / `pathPoints` 归**全部交路**共用，
+   `pathPoints-branchN` 只归 wayN，`{ points, ways }` 形式按声明的交路归属；
+3. 多交路（分支）线路但没有任何 `pathPoints*` → **不回退站序**（分叉几何无法由站序唯一确定）；
+4. 单交路且没有 `pathPoints` → 按 `stationIds` 顺序取站点坐标连成一段。
+
+> 返回的每一段都带 `ways: Set<交路键>` 与段键 `key`，引擎靠它决定「点某个车站时哪几段亮」；
+> 同一段点阵被写了两遍会按点阵签名合并成一段并合并交路归属，所以重叠区间只画一次、只亮一次。
 
 > **`core/path-geometry.js` 是倒角算法与走向判定的唯一真源**，`core/script.js` 与
-> `drunk/js/drunk_pipeline.js` 都必须调用它，**严禁任何一方复刻第二份实现**。
-> 这套判定曾经两边各写一份，结果 Drunk 漏了第 1 条，把北京「中国铁路」24 座
+> `editor/js/editor-app.js` 都必须调用它，**严禁任何一方复刻第二份实现**。
+> 这套判定曾经两边各写一份，结果早期编辑器漏了第 1 条，把北京「中国铁路」24 座
 > 散布全城的国铁车站从延庆一路连到大兴，编辑器画布上凭空多出一堆横穿全图的
 > 长斜线；第 4 条又漏了倒角，北京 M11 的走向与线路图对不上。
-> Drunk 是所见即所得编辑器：若编辑器用直角折线预览、引擎渲染时倒了圆角，
-> 用户在 Drunk 里调出来的走向与圆角上线后就是另一个样子。
+> 编辑器是所见即所得编辑器：若编辑器用直角折线预览、引擎渲染时倒了圆角，
+> 用户在编辑器里调出来的走向与圆角上线后就是另一个样子。
 > （站名 `offset` 吃过同样的亏，见 `updateSingleLabelStyle` 的注释。）
 
 `selfcheck.js` 里有结构性断言守着这一点。
@@ -375,9 +526,9 @@ Drunk（`drunk/index.html`）有两种工作模式：
 （普通站的环色取第一条经停线路的标志色）。
 
 城市可用 `city.renderStationIcon(station, id)` 完全接管画法——上海的短横与
-换乘胶囊、悉尼的 Interchange 底衬即走这条路。Drunk 会在载入城市时尝试接入它。
+换乘胶囊、悉尼的 Interchange 底衬即走这条路。编辑器（OpenMap Editor）会在载入城市时尝试接入它。
 
-> ⚠️ **Drunk 不能无脑注入城市主脚本**：北京 / 合肥 / 青岛的 `{city}.js` 用
+> ⚠️ **编辑器不能无脑注入城市主脚本**：北京 / 合肥 / 青岛的 `{city}.js` 用
 > `document.write` 同步加载专属模块，在 DOMContentLoaded 之后再注入会**直接冲掉
 > 整个文档**。因此先取回源码检查，含 `document.write` 的一律跳过（这几座城市本来
 > 也没实现 `renderStationIcon`）。
@@ -386,17 +537,17 @@ Drunk（`drunk/index.html`）有两种工作模式：
 
 `_lineColors`（由线路颜色推导）、`_srcCanvasW/H`（PDF 直通的原画布尺寸）这类
 **算出来的、不属于城市数据本身**的字段，必须以 `_` 开头：
-`city_project_io.js` 的序列化与 `drunk_pipeline.js` 的脏判定都按这个前缀过滤。
+`city-project-io.js` 的序列化与编辑器的脏判定都按这个前缀过滤。
 否则一载入城市就会显示「477 处改动」，导出摘要把每座车站都列成改过，
 甚至可能把派生字段写回数据文件。
 
-### 5.1.3 改动纯函数层后必须跑自检
+### 5.1.3 改动纯函数层或编辑器核心后必须跑自检
 
 ```bash
-node drunk/tools/selfcheck.js
+node editor/tests/selfcheck.js
 ```
 
-零依赖、零构建、不需要浏览器。覆盖 `city_project_io.js` 的条目级无损回写与 `drunk_sanitizer.js` 的净化/几何校正，断言直接跑在 `city/` 下的**全部真实城市数据**上（当前 62 项断言 / 6 座城市）。改动这两个模块后**必须**跑通再提交。
+零依赖、零构建、不需要浏览器。覆盖 `city-project-io.js` 的条目级无损回写、`data-sanitizer.js` 几何校正、折角反算算法、交路（way）模型与高亮方案、维基百科 HTML 表格提取，断言直接跑在 `city/` 下的**全部真实城市数据**上（当前 1016 项断言 / 40 座城市）。改动相关模块后**必须** 100% 跑通再提交。
 
 ### 5.2 代码生成完整性自检（由 `openmap_codegen.js` 的 `validateData()` 实际执行）
 
@@ -425,15 +576,17 @@ node drunk/tools/selfcheck.js
 
 AI Agent 在处理用户任务（如新增城市特性、扩展车站信息板模块、调整线网排版及装饰元素）时，**必须且只能严格参考现有成熟城市的标准化实现模板**，杜绝随意自创新格式：
 
-### 6.0 🚨 三城共享层与「持续更新中的模块」
+### 6.0 🚨 多城共享层与「持续更新中的模块」
 
-沈阳（`city/shenyang/`）、大连（`city/dalian/`）、长春（`city/changchun/`）三城共用一份位于
-`city/shenyang/shared/` 的**共享层**（临时位置，计划迁入 `core/`）。上游开发团队建议：这类
-持续演进的功能**由各城市自行维护、不设为核心强制字段**。
+沈阳（`city/shenyang/`）、大连（`city/dalian/`）、长春（`city/changchun/`）、哈尔滨（`city/harbin/`）、
+呼和浩特（`city/hohhot/`）五城共用一份位于 `core/shared/` 的**多城共享层**（已由原 `city/shenyang/shared/`
+迁入 `core/shared/`）；福州（`city/fuzhou/`）与苏州（`city/suzhou/`）也按需接入了其中的行程规划链等能力。
+上游开发团队建议：这类持续演进的功能**由各城市自行维护、不设为核心强制字段**。
 
-- **完整清单、对外接口与开发约定**：[city/shenyang/shared/README.md](city/shenyang/shared/README.md)；
-- 其中的**首末班车渲染、车站地图卡片、侧栏站名标题、提示卡片、站名题字、开通时刻**等模块
-  仍在持续增补，各模块当前由哪个城市在推进、以哪座城市为参考实现，均在该文档第三节列明；
+- **完整清单、对外接口与开发约定**：[core/shared/README.md](core/shared/README.md)；
+- 其中的**首末班车渲染、车站地图卡片、侧栏站名标题、提示卡片、站名题字、开通时刻、车站设施与
+  出入口页签、反馈面板、行程规划、地图小工具**等模块仍在持续增补，各模块当前由哪些城市接入、
+  以哪座城市为参考实现，均在该文档第二节与第三节列明；
 - 若参与者想为自己的城市实现同类内容，**直接参考该文档标注的城市实现模式即可**，不必从零设计；
   新增共享能力后请同步更新该文档第二节与第三节。
 - **命名约定**：这类自维护能力一律带 `cgo` / `CGo` 前缀（如 `window.CGoOpening`、
@@ -506,11 +659,18 @@ AI Agent 在处理用户任务（如新增城市特性、扩展车站信息板�
 
 ## 7. AI Agent 常见任务执行 SOP
 
+### 7.0 🚨 提交纪律：提交时机一律由用户决定
+
+- **未经用户明确指示，禁止执行 `git commit` / `git push`**（含 `git commit --amend`、`git reset` 等改写历史的操作）。
+- 每完成一步（改数据、改代码、跑自检、升版本号等）先停下汇报改动与验证结果，**不要急着提交**；等用户明确说“提交”时再提交。
+- 用户指示提交后，先跑该步对应的自检，再统一 `git add` + `git commit`；不要自行拆分、合并或改写提交。
+- 多步任务可以在工作区连续修改并随时汇报，但提交节奏始终以用户指令为准。
+
 ### 任务 A：为项目移植新城市
 根据用户情况选择以下两种路径之一：
 
-#### 路径一：借助 Drunk 工作台快速提取并由 Agent 后期整合（推荐，测试阶段）
-1. 引导用户启动本地静态服务并访问 `http://localhost:8080/drunk/`；
+#### 路径一：借助 OpenMap Editor 开放地图编辑器快速提取与编辑（推荐）
+1. 引导用户启动本地静态服务并访问 `http://localhost:8080/editor/`；
 2. 上传该城市的高清线路图图片、PDF 或 Adobe Illustrator (.ai) 文件；
 3. 执行“视觉识图”或矢量解析，利用 8 方向轮盘排版并执行“45°/90°吸附”；
 4. 点击“导出城市工程”，将代码交付给 Agent 或直接放置于 `city/{city_id}/` 下；
@@ -520,8 +680,8 @@ AI Agent 在处理用户任务（如新增城市特性、扩展车站信息板�
 1. **创建城市目录**：在 `city/` 下新建 `city/{city_id}/`，参考 `city/beijing/`、`city/shenyang/`、`city/qingdao/` 或 `city/hefei/` 准备各个 `data_*.js` 文件。
 2. **注册城市**：在 `city/data.js` 的 `CITY_REGISTRY` 中添加新城市元数据。
 3. **编写车站与线路**：按顺序填充 `data_stations.js` 和 `data_lines.js`。
-4. **引入脚本**：在 `main.html` 底部修改引入的城市脚本路径，或保留动态加载支持（通过 `main.html?city={city_id}` 动态访问）。
-5. **添加 PWA 快捷方式**：在 `manifest.json` 的 `shortcuts` 中登记该城市快捷入口（`url: "./main.html?city={city_id}"`）。
+4. **清理冗余教学注释（极重要）**：严格遵循铁律七，严禁复制北京示例中大段的 Schema 规范、字段字典、介绍段与移植小贴士，只保留新城市必需的业务注释（如坐标系说明），保持文件整洁清爽。
+5. **引入脚本**：在 `main.html` 底部修改引入的城市脚本路径，或保留动态加载支持（通过 `main.html?city={city_id}` 动态访问）。
 6. **更新离线缓存**：在 `sw.js` 的 `ASSETS_TO_CACHE` 中登记新城市资源并递增 `CACHE_NAME` 版本号。
 7. **验证测试**：启动静态服务验证首页展示、卡片跳转及地图渲染与缩放。
 

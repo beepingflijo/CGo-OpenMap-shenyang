@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN" glass-mode="liquid" header-mode="floating">
+
+<head>
+    <script>
+        (function () {
+            // 全局深浅色主题同步
+            var t = localStorage.getItem('app-theme') || localStorage.getItem('cgo-theme');
+            if (t) document.documentElement.setAttribute('data-theme', t);
+
+            var pageKey = 'openmap_offline_header_mode';
+            var hm = localStorage.getItem(pageKey) || 'floating';
+            document.documentElement.setAttribute('header-mode', hm);
+
+            var gm = localStorage.getItem('cgo_glass_mode');
+            if (gm) document.documentElement.setAttribute('glass-mode', gm);
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <title>离线模式 - CGo OpenMap 线路图开放平台</title>
+    <link rel="shortcut icon" href="./assets/icons/favicon.ico">
+    <link rel="apple-touch-icon" href="./assets/icons/mapicon2.png">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="CGo开放地图">
+
+    <link rel="modulepreload" href="core/cgo-ui.js?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_clr.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_element.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_ui.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_components.css?v=261123.131500">
+    <script type="module" src="core/cgo-ui.js?v=261123.131500"></script>
+    <script src="city/data.js?v=261123.131500"></script>
+
+    <style>
+        body {
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            box-sizing: border-box;
+            background-color: var(--bg-color, #f8f9fa);
+            color: var(--text-main, #1f2328);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+        }
+
+        .offline-card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg, #ffffff);
+            border-radius: 20px;
+            padding: 36px 28px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+        }
+
+        [data-theme="dark"] body {
+            background-color: #121212;
+            color: #e6edf3;
+        }
+
+        [data-theme="dark"] .offline-card {
+            background: rgba(30, 30, 30, 0.85);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+        }
+
+        .offline-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            background: rgba(234, 67, 53, 0.1);
+            color: #ea4335;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .offline-icon svg {
+            width: 36px;
+            height: 36px;
+            stroke-width: 2;
+        }
+
+        .offline-title {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 10px;
+        }
+
+        .offline-desc {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-secondary, #656d76);
+            margin: 0 0 24px;
+        }
+
+        [data-theme="dark"] .offline-desc {
+            color: #8b949e;
+        }
+
+        .offline-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: #1a73e8;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(0, 0, 0, 0.05);
+            color: inherit;
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .offline-tips {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+            font-size: 12px;
+            color: var(--text-secondary, #656d76);
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .cached-cities-card {
+            margin-top: 22px;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.025);
+            border-radius: 14px;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+        }
+
+        [data-theme="dark"] .cached-cities-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .cached-cities-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-main, #1f2328);
+        }
+
+        [data-theme="dark"] .cached-cities-header {
+            color: #e6edf3;
+        }
+
+        .cached-cities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 8px;
+        }
+
+        .cached-city-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: var(--card-bg, #ffffff);
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+            color: inherit;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        [data-theme="dark"] .cached-city-btn {
+            background: rgba(45, 45, 45, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .cached-city-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .cached-city-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .city-badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .reconnect-toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f883d;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            z-index: 9999;
+            animation: toastPop 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+
+        @keyframes toastPop {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="reconnectToast" class="reconnect-toast" style="display: none;">
+        <cgo-icon name="check-circle" size="18"></cgo-icon>
+        <span>网络已恢复，正在返回主界面...</span>
+    </div>
+
+    <div class="offline-card">
+        <div class="offline-icon" aria-hidden="true">
+            <cgo-icon name="map" size="36"></cgo-icon>
+        </div>
+        <h1 class="offline-title">网络连接已断开</h1>
+        <p class="offline-desc">
+            检测到当前处于离线状态。CGo OpenMap 支持 PWA 离线运行，您可以直接返回已缓存的首页或查看此前已下载的城市线路图。
+        </p>
+
+        <div class="offline-actions">
+            <button class="btn btn-primary" onclick="retryConnection()" aria-label="尝试重新连接网络">
+                <cgo-icon name="refresh" size="16"></cgo-icon>
+                重新连接
+            </button>
+            <a href="./index.html" class="btn btn-secondary" aria-label="访问本地已缓存的首页">
+                <cgo-icon name="home" size="16"></cgo-icon>
+                访问本地缓存首页
+            </a>
+        </div>
+
+        <div id="cachedCitiesContainer" class="cached-cities-card" style="display: none;">
+            <div class="cached-cities-header">
+                <cgo-icon name="location" size="14"></cgo-icon>
+                <span>已离线就绪的城市（点击可直接进入）：</span>
+            </div>
+            <div id="cachedCitiesList" class="cached-cities-grid"></div>
+            <div id="partialCitiesSection" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color, rgba(0,0,0,0.08)); font-size: 11px; color: var(--text-light, #64748b);">
+                <span id="partialCitiesText"></span>
+            </div>
+        </div>
+
+        <div class="offline-tips">
+            <cgo-icon name="info" size="14"></cgo-icon>
+            <span>提示：已缓存的城市在离线状态下仍可完整交互缩放、站点查询与换乘计算。</span>
+        </div>
+    </div>
+
+    <script>
+        function retryConnection() {
+            if (navigator.onLine) {
+                showOnlineToastAndRedirect();
+            } else {
+                fetch('./index.html', { method: 'HEAD', cache: 'no-store' })
+                    .then(function () {
+                        showOnlineToastAndRedirect();
+                    })
+                    .catch(function () {
+                        alert('网络仍未恢复，请检查蜂窝数据或 Wi-Fi 连接。');
+                    });
+            }
+        }
+
+        function showOnlineToastAndRedirect() {
+            var toast = document.getElementById('reconnectToast');
+            if (toast) toast.style.display = 'flex';
+            setTimeout(function () {
+                var target = document.referrer && document.referrer.includes(window.location.host)
+                    ? document.referrer
+                    : './index.html';
+                window.location.href = target;
+            }, 600);
+        }
+
+        window.addEventListener('online', function () {
+            showOnlineToastAndRedirect();
+        });
+
+        function normalizeUrlPath(url) {
+            try {
+                var u = new URL(url, window.location.href);
+                return u.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+            } catch (_) {
+                return (url || '').split('?')[0].replace(/^\.?\/+/, '').replace(/\/+$/, '');
+            }
+        }
+
+        async function detectCachedCities() {
+            if (!('caches' in window)) return;
+            try {
+                var cacheNames = await caches.keys();
+                var currentCacheName = cacheNames.find(function (n) {
+                    return n.startsWith('cgo-openmap-');
+                });
+                if (!currentCacheName) return;
+                var cache = await caches.open(currentCacheName);
+                var requests = await cache.keys();
+
+                var cachedPaths = new Set();
+                requests.forEach(function (req) {
+                    cachedPaths.add(normalizeUrlPath(req.url));
+                });
+
+                var registry = window.CITY_REGISTRY || {};
+                var readyCities = [];
+                var partialCities = [];
+
+                Object.keys(registry).forEach(function (id) {
+                    var reg = registry[id];
+                    var folder = (reg.folder || ('./city/' + id)).replace(/^\.?\/+/, '').replace(/\/+$/, '');
+                    var mainJs = (reg.mainLogic || (folder + '/' + id + '.js')).replace(/^\.?\/+/, '');
+                    var stationsJs = folder + '/data_stations.js';
+                    var linesJs = folder + '/data_lines.js';
+
+                    var hasMain = cachedPaths.has(mainJs);
+                    var hasStations = cachedPaths.has(stationsJs);
+                    var hasLines = cachedPaths.has(linesJs);
+
+                    // 离线可用性铁律：必须同时拥有核心业务脚本、车站数据与线路数据，方可确认离线就绪
+                    if (hasMain && hasStations && hasLines) {
+                        readyCities.push({
+                            id: id,
+                            name: reg.name || id,
+                            color: reg.themeColor || '#1a73e8'
+                        });
+                    } else if (hasMain || hasStations || hasLines) {
+                        partialCities.push(reg.name || id);
+                    } else {
+                        var hasAny = Array.from(cachedPaths).some(function (p) {
+                            return p.indexOf(folder + '/') === 0;
+                        });
+                        if (hasAny) {
+                            partialCities.push(reg.name || id);
+                        }
+                    }
+                });
+
+                var container = document.getElementById('cachedCitiesContainer');
+                var list = document.getElementById('cachedCitiesList');
+                var partialSection = document.getElementById('partialCitiesSection');
+                var partialText = document.getElementById('partialCitiesText');
+
+                if (readyCities.length > 0 || partialCities.length > 0) {
+                    if (container && list) {
+                        if (readyCities.length > 0) {
+                            list.innerHTML = readyCities.map(function (c) {
+                                return '<a href="./main.html?city=' + encodeURIComponent(c.id) + '" class="cached-city-btn" title="进入 ' + c.name + ' 离线地图">' +
+                                    '<span class="cached-city-left">' +
+                                    '<span class="city-badge-dot" style="background-color: ' + c.color + '"></span>' +
+                                    '<span>' + c.name + '</span>' +
+                                    '</span>' +
+                                    '<cgo-icon name="chevron-right" size="12"></cgo-icon>' +
+                                    '</a>';
+                            }).join('');
+                            list.style.display = 'grid';
+                        } else {
+                            list.innerHTML = '';
+                            list.style.display = 'none';
+                        }
+
+                        if (partialSection && partialText) {
+                            if (partialCities.length > 0) {
+                                partialText.textContent = '缓存预热中（尚未完整）：' + partialCities.join('、');
+                                partialSection.style.display = 'block';
+                            } else {
+                                partialSection.style.display = 'none';
+                            }
+                        }
+                        container.style.display = 'block';
+                    }
+                } else if (container) {
+                    container.style.display = 'none';
+                }
+            } catch (err) {
+                console.warn('[Offline] 检测离线缓存城市异常:', err);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', detectCachedCities);
+        } else {
+            detectCachedCities();
+        }
+    </script>
+</body>
+
+</html>

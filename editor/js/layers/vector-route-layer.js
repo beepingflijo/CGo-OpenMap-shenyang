@@ -1,0 +1,319 @@
+/**
+ * 开放地图编辑器 (OpenMap Editor) - 矢量线路走向与折点手柄层
+ * 强制调用 core/path-geometry.js 生成平滑倒角 path，并与主地图 main.html 描边规范 100% 对齐：
+ * 1. 外描边底色 (line-visual-outer): 7px stroke-width，底色隔离相交线路防粘连与分叉白缝；
+ * 2. 实体内描边 (line-visual-inner): 5.4px stroke-width，线路标志色，端点与拐角全圆角；
+ * 3. 纹理叠加层 (line-visual-overlay): 支持市郊铁路/国铁 overlayStyle；
+ * 4. 未开通虚线 (line-visual-notopen): 3.4px stroke-width，6,6 虚线，圆角端点；
+ * 5. 交互判定热区 (line-interaction): 15px 透明热区，提供精准点击拾取与折点手柄。
+ */
+
+window.OpenMapEditor = window.OpenMapEditor || {};
+
+window.OpenMapEditor.VectorRouteLayer = (function () {
+    'use strict';
+
+    var dom = {
+        lineLayer: null,
+        handleLayer: null
+    };
+
+    var NOT_OPEN_STYLE = {
+        color: '#94a3b8',
+        width: 3.4,
+        dashArray: '6,6'
+    };
+
+    function init(lineLayerEl, handleLayerEl) {
+        dom.lineLayer = lineLayerEl;
+        dom.handleLayer = handleLayerEl;
+    }
+
+    function getGeometryEngine() {
+        return window.CGoPathGeometry;
+    }
+
+    /**
+     * 渲染线路图元及折点手柄
+     * @param {Object} project 工程数据对象
+     * @param {Object} options { selectedSegmentId, selectedLineId, activeLineId, isNotOpenMode }
+     */
+    function render(project, options) {
+        if (!dom.lineLayer) return;
+        dom.lineLayer.innerHTML = '';
+        if (dom.handleLayer) dom.handleLayer.innerHTML = '';
+        if (!project || !project.segments) return;
+
+        var opt = options || {};
+        var geom = getGeometryEngine();
+
+        // 建立线路色彩与配置映射表
+        var lineMap = {};
+        (project.lines || []).forEach(function (l) {
+            lineMap[l.id] = l;
+        });
+
+        // 多线共线平行走线计算 (若开启，自动为共享重合通道的多条线路计算法向平行偏移)
+        var parallelMap = {};
+        var router = window.OpenMapEditor && window.OpenMapEditor.ParallelCorridorRouter;
+        if (opt.enableParallelCorridor !== false && router && typeof router.computeParallelOffsets === 'function') {
+            parallelMap = router.computeParallelOffsets(project.segments, { spacing: opt.corridorSpacing || 5.4 });
+        }
+
+        // 分层收集器：外描边底色 -> 未开通层 -> 实体主题层 -> 叠加纹理层 -> 交互与高亮层
+        // 确保所有外描边在最底层，绝不会在 Y 形分歧处遮挡先画线段留下白缝
+        var outerLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        outerLayer.setAttribute('class', 'lines-outer-group');
+
+        var notOpenLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        notOpenLayer.setAttribute('class', 'lines-notopen-group');
+
+        var innerLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        innerLayer.setAttribute('class', 'lines-inner-group');
+
+        var overlayLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        overlayLayer.setAttribute('class', 'lines-overlay-group');
+
+        var highlightLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        highlightLayer.setAttribute('class', 'lines-highlight-group');
+
+        var interactionLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        interactionLayer.setAttribute('class', 'lines-interaction-group');
+
+        project.segments.forEach(function (seg) {
+            var pts = (parallelMap && parallelMap[seg.id]) ? parallelMap[seg.id] : (seg.points || []);
+            if (pts.length < 2) return;
+
+            var lineConf = lineMap[seg.lineId] || {};
+            var strict = !!lineConf.useStrictRounding;
+
+            // 调用唯一真源倒角生成算法
+            var pathD = '';
+            if (geom && typeof geom.generateRoundedPath === 'function') {
+                pathD = geom.generateRoundedPath(pts, strict);
+            } else {
+                pathD = 'M ' + pts[0].x + ' ' + pts[0].y;
+                for (var i = 1; i < pts.length; i++) {
+                    pathD += ' L ' + pts[i].x + ' ' + pts[i].y;
+                }
+            }
+
+            if (!pathD) return;
+
+            var isSelected = (seg.id === opt.selectedSegmentId || (opt.selectedLineId && seg.lineId === opt.selectedLineId));
+
+            if (seg.notOpen) {
+                // 1. 未开通/在建虚线走向 (严格对齐主地图 renderNotOpenLines)
+                var pathNotOpen = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathNotOpen.setAttribute('d', pathD);
+                pathNotOpen.setAttribute('class', 'line-visual-notopen');
+                pathNotOpen.setAttribute('stroke', lineConf.notOpenColor || NOT_OPEN_STYLE.color);
+                pathNotOpen.setAttribute('stroke-width', String(NOT_OPEN_STYLE.width));
+                pathNotOpen.setAttribute('stroke-dasharray', NOT_OPEN_STYLE.dashArray);
+                pathNotOpen.setAttribute('stroke-linecap', 'round');
+                pathNotOpen.setAttribute('stroke-linejoin', 'round');
+                pathNotOpen.setAttribute('fill', 'none');
+                notOpenLayer.appendChild(pathNotOpen);
+            } else {
+                var baseWidth = (lineConf.strokeWidth !== undefined && lineConf.strokeWidth !== null && !isNaN(parseFloat(lineConf.strokeWidth)))
+                    ? parseFloat(lineConf.strokeWidth)
+                    : 5.4;
+                var outerWidth = Math.round((baseWidth + 1.6) * 10) / 10;
+
+                // 2. 常规线路：底层外描边 (主地图规范：隔离不同相交线路，增强立体可读性)
+                var pathOuter = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathOuter.setAttribute('d', pathD);
+                pathOuter.setAttribute('class', 'line-visual-outer');
+                pathOuter.setAttribute('stroke', 'var(--map-bg, #ffffff)');
+                pathOuter.setAttribute('stroke-width', String(outerWidth));
+                pathOuter.setAttribute('stroke-linecap', 'round');
+                pathOuter.setAttribute('stroke-linejoin', 'round');
+                pathOuter.setAttribute('fill', 'none');
+                outerLayer.appendChild(pathOuter);
+
+                // 3. 常规线路：表层实体主题色描边 (主地图规范)
+                var pathInner = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathInner.setAttribute('d', pathD);
+                pathInner.setAttribute('class', 'line-visual-inner');
+                pathInner.setAttribute('stroke', lineConf.color || '#00263b');
+                pathInner.setAttribute('stroke-width', String(baseWidth));
+                pathInner.setAttribute('stroke-linecap', lineConf.strokeLinecap || 'round');
+                pathInner.setAttribute('stroke-linejoin', lineConf.strokeLinejoin || 'round');
+                if (lineConf.strokeDasharray) {
+                    pathInner.setAttribute('stroke-dasharray', lineConf.strokeDasharray);
+                }
+                pathInner.setAttribute('fill', 'none');
+                innerLayer.appendChild(pathInner);
+
+                // 4. 叠加纹理 (例如市郊铁路/国铁 overlayStyle)
+                if (lineConf.overlayStyle) {
+                    var pathOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    pathOverlay.setAttribute('d', pathD);
+                    pathOverlay.setAttribute('class', 'line-visual-overlay');
+                    pathOverlay.setAttribute('stroke', lineConf.overlayStyle.color || '#000000');
+                    pathOverlay.setAttribute('stroke-width', String(lineConf.overlayStyle.width || 2));
+                    if (lineConf.overlayStyle.opacity !== undefined) {
+                        pathOverlay.setAttribute('stroke-opacity', String(lineConf.overlayStyle.opacity));
+                    }
+                    if (lineConf.overlayStyle.dashArray) {
+                        pathOverlay.setAttribute('stroke-dasharray', lineConf.overlayStyle.dashArray);
+                    }
+                    pathOverlay.setAttribute('stroke-linecap', 'butt');
+                    pathOverlay.setAttribute('fill', 'none');
+                    overlayLayer.appendChild(pathOverlay);
+                }
+            }
+
+            // 5. 选中高亮光晕 (Halo)
+            if (isSelected) {
+                var halo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                halo.setAttribute('d', pathD);
+                halo.setAttribute('fill', 'none');
+                halo.setAttribute('stroke', '#38bdf8');
+                halo.setAttribute('stroke-width', '11');
+                halo.setAttribute('stroke-linecap', 'round');
+                halo.setAttribute('stroke-linejoin', 'round');
+                halo.setAttribute('opacity', '0.65');
+                halo.setAttribute('pointer-events', 'none');
+                highlightLayer.appendChild(halo);
+            }
+
+            // 6. 交互判定热区 (15px 透明加宽路径，确保微小线段也能轻松点选)
+            var pathHit = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathHit.setAttribute('d', pathD);
+            pathHit.setAttribute('class', 'line-interaction');
+            pathHit.setAttribute('data-segment-id', seg.id);
+            pathHit.setAttribute('data-line-id', seg.lineId || '');
+            pathHit.setAttribute('stroke', 'transparent');
+            pathHit.setAttribute('stroke-width', '15');
+            pathHit.setAttribute('stroke-linecap', 'round');
+            pathHit.setAttribute('stroke-linejoin', 'round');
+            pathHit.setAttribute('fill', 'none');
+            pathHit.style.cursor = 'pointer';
+            interactionLayer.appendChild(pathHit);
+
+            // 7. 选中的线段渲染折点控制手柄与中点添加手柄
+            if (isSelected && dom.handleLayer) {
+                var selPtIdx = (opt.selectedPointIdx !== undefined && opt.selectedPointIdx !== null) ? Number(opt.selectedPointIdx) : -1;
+
+                // 7.1 先渲染各线段中点添加手柄 (Midpoint Add Handle)
+                for (var mi = 0; mi < pts.length - 1; mi++) {
+                    var pA = pts[mi], pB = pts[mi + 1];
+                    var mx = (pA.x + pB.x) / 2;
+                    var my = (pA.y + pB.y) / 2;
+
+                    var midGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    midGroup.setAttribute('class', 'segment-midpoint-handle');
+                    midGroup.setAttribute('data-seg-id', seg.id);
+                    midGroup.setAttribute('data-insert-after', String(mi));
+                    midGroup.style.cursor = 'pointer';
+
+                    var midCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    midCircle.setAttribute('cx', String(mx));
+                    midCircle.setAttribute('cy', String(my));
+                    midCircle.setAttribute('r', '4');
+                    midCircle.setAttribute('fill', '#ffffff');
+                    midCircle.setAttribute('stroke', '#0284c7');
+                    midCircle.setAttribute('stroke-width', '1.5');
+                    midCircle.setAttribute('opacity', '0.85');
+
+                    var midDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    midDot.setAttribute('cx', String(mx));
+                    midDot.setAttribute('cy', String(my));
+                    midDot.setAttribute('r', '1.5');
+                    midDot.setAttribute('fill', '#0284c7');
+
+                    var titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                    titleEl.textContent = '点击在中段增加折点 (快捷增点)';
+                    midGroup.appendChild(titleEl);
+                    midGroup.appendChild(midCircle);
+                    midGroup.appendChild(midDot);
+                    dom.handleLayer.appendChild(midGroup);
+                }
+
+                // 7.2 渲染所有折点与端点控制手柄 (Vertex Handles)
+                pts.forEach(function (p, pIdx) {
+                    var isPtActive = (pIdx === selPtIdx);
+
+                    if (isPtActive) {
+                        var activeHalo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        activeHalo.setAttribute('cx', p.x);
+                        activeHalo.setAttribute('cy', p.y);
+                        activeHalo.setAttribute('r', '9');
+                        activeHalo.setAttribute('fill', 'none');
+                        activeHalo.setAttribute('stroke', '#f59e0b');
+                        activeHalo.setAttribute('stroke-width', '1.5');
+                        activeHalo.setAttribute('stroke-dasharray', '2,2');
+                        activeHalo.setAttribute('pointer-events', 'none');
+                        dom.handleLayer.appendChild(activeHalo);
+                    }
+
+                    var handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    handle.setAttribute('cx', p.x);
+                    handle.setAttribute('cy', p.y);
+                    handle.setAttribute('class', 'segment-point-handle');
+                    handle.setAttribute('r', isPtActive ? '6' : (p.nid || pIdx === 0 || pIdx === pts.length - 1 ? '5' : '4.5'));
+                    handle.setAttribute('fill', isPtActive ? '#f59e0b' : (p.nid ? '#10b981' : '#ffffff'));
+                    handle.setAttribute('stroke', isPtActive ? '#b45309' : (p.nid ? '#047857' : '#0284c7'));
+                    handle.setAttribute('stroke-width', '2');
+                    handle.setAttribute('data-seg-id', seg.id);
+                    handle.setAttribute('data-point-idx', String(pIdx));
+                    handle.style.cursor = 'grab';
+
+                    var pTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                    pTitle.textContent = (p.nid ? ('车站折点: ' + p.nid) : ('拐角折点 #' + pIdx + (p.r !== undefined ? ' (r:' + p.r + ')' : ''))) +
+                        '\n可拖拽移动；按 Delete 可删除折点拉直';
+                    handle.appendChild(pTitle);
+
+                    dom.handleLayer.appendChild(handle);
+
+                    // 7.4 选中折点的内圈动态圆角手柄 (Live Corner Radius Handle)
+                    if (isPtActive && !p.nid && pIdx > 0 && pIdx < pts.length - 1) {
+                        var pPrev = pts[pIdx - 1], pNext = pts[pIdx + 1];
+                        var v1x = pPrev.x - p.x, v1y = pPrev.y - p.y;
+                        var v2x = pNext.x - p.x, v2y = pNext.y - p.y;
+                        var l1 = Math.hypot(v1x, v1y) || 1;
+                        var l2 = Math.hypot(v2x, v2y) || 1;
+                        var bx = (v1x / l1 + v2x / l2);
+                        var by = (v1y / l2 + v2y / l2);
+                        var blen = Math.hypot(bx, by);
+                        if (blen > 0.01) {
+                            var curR = (p.r !== undefined && p.r !== null) ? p.r : 18;
+                            var offsetDist = Math.max(10, Math.min(curR, 26));
+                            var chX = p.x + (bx / blen) * offsetDist;
+                            var chY = p.y + (by / blen) * offsetDist;
+                            var cornerHandle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                            cornerHandle.setAttribute('cx', String(Math.round(chX)));
+                            cornerHandle.setAttribute('cy', String(Math.round(chY)));
+                            cornerHandle.setAttribute('r', '4');
+                            cornerHandle.setAttribute('class', 'live-corner-handle');
+                            cornerHandle.setAttribute('data-seg-id', seg.id);
+                            cornerHandle.setAttribute('data-point-idx', String(pIdx));
+                            var cTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                            cTitle.textContent = '拖动微调倒角圆角半径 (当前: ' + curR + 'px)';
+                            cornerHandle.appendChild(cTitle);
+                            dom.handleLayer.appendChild(cornerHandle);
+                        }
+                    }
+                });
+            }
+        });
+
+        // 统一按 外描边 -> 未开通 -> 实体描边 -> 叠加纹理 -> 高亮光圈 -> 交互热区 顺序挂载
+        dom.lineLayer.appendChild(outerLayer);
+        dom.lineLayer.appendChild(notOpenLayer);
+        dom.lineLayer.appendChild(innerLayer);
+        dom.lineLayer.appendChild(overlayLayer);
+        dom.lineLayer.appendChild(highlightLayer);
+        dom.lineLayer.appendChild(interactionLayer);
+    }
+
+    return {
+        init: init,
+        render: render,
+        getGeometryEngine: getGeometryEngine
+    };
+})();
+
+// 保留全局别名兼容
+window.VectorRouteLayer = window.OpenMapEditor.VectorRouteLayer;

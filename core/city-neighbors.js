@@ -1,30 +1,5 @@
 /**
  * CGo OpenMap - 邻城衔接引擎 (core/city-neighbors.js)
- *
- * ==============================================================================
- * 作用
- * ==============================================================================
- * 两座城市在系统里仍是各自独立的线路图，但地理上相邻时（如深圳与香港），可以在
- * 城市注册表里互相声明 `neighbors`，本模块据此：
- *
- * 1. 影子：把邻城的线网（取自它自己的 data_stations.js / data_lines.js）按比例画在
- *    本城画布之外，只在本城画布以外的区域显示，平时是淡淡的一层「影子」；
- * 2. 上拉进入：拖到画布边缘时允许继续露出一段影子，再往外拉会出现进度提示，
- *    拉满后以过渡动画切换到邻城，并把视口对齐到刚才看到的同一片区域；
- * 3. 双城并看：缩得足够小时，边界放宽到「本城 ∪ 邻城」，两座城市同时可见，
- *    点击影子即可进入邻城；
- * 4. 衔接比例：scale 取两座城市示意图线宽之比，保证影子与本城线路粗细一致。
- *
- * 配置示例（city/data.js）：
- *   neighbors: [{
- *       id: "shenzhen", edge: "top",          // 邻城位于本城的哪一侧：top / bottom / left / right
- *       scale: 1.5, offset: { x: -1050, y: -2047 },  // 本城坐标 = offset + scale × 邻城坐标
- *       title: ["深圳", "Shenzhen"]
- *   }]
- * 邻城自身的注册项可提供 lineWidth（示意图线宽）与 shadowDeco（影子底图）。
- *
- * 本模块不含任何城市私有逻辑；未声明 neighbors 的城市完全不受影响。
- * ==============================================================================
  */
 
 (function () {
@@ -337,12 +312,39 @@
 
     const EDGE_ICON = { top: "arrow-up", bottom: "arrow-down", left: "arrow-left", right: "arrow-right" };
     const EDGE_VERB = { top: "上滑", bottom: "下滑", left: "左滑", right: "右滑" };
-    function peekShown(nb) {
+    /** 本城画布边缘到视口边缘的屏幕距离：>0 表示「画布外」那一侧已经在视口里露出来了 */
+    function edgeGap(nb) {
         const s = S(), e = nb.cfg.edge;
-        if (e === "top") return window.currentY - topOffset() > 24;
-        if (e === "bottom") return window.currentY + H * s < CH - 24;
-        if (e === "left") return window.currentX > 24;
-        return window.currentX + W * s < CW - 24;
+        if (e === "top") return window.currentY - topOffset();
+        if (e === "bottom") return CH - (window.currentY + H * s);
+        if (e === "left") return window.currentX;
+        return CW - (window.currentX + W * s);
+    }
+    /**
+     * 边缘状态：gap = 画布边缘在视口内露出的像素；rest = 常态留白（整图居中时两侧各留多少）；
+     * peek = gap - rest = 「额外朝邻城方向拉出来」的量，只有主动拉边才会 > 0。
+     */
+    function edgeMetrics(nb) {
+        const s = S(), e = nb.cfg.edge;
+        const horizontal = e === "left" || e === "right";
+        const span = horizontal ? W * s : H * s;
+        const view = horizontal ? CW : CH;
+        const gap = edgeGap(nb);
+        const rest = span >= view ? 0 : (view - span) / 2;
+        return { gap, rest, peek: gap - rest, span, view };
+    }
+    // 影子可见口径（松）：画布外那一侧露出来了就画。整图居中时也会成立，这正是影子的用处。
+    function peekShown(nb) {
+        return edgeMetrics(nb).gap > 24;
+    }
+    // 提示胶囊口径（紧）：只有真的滑到边、或正在朝邻城方向拉，才提示。
+    // 画布在该方向装得下时（宽屏 + 2565px 的苏州画布就是这种情况），引擎会把整图居中，
+    // 常态留白会被松口径误判成「已经滑到边」，于是刚进页面就弹「继续右滑进入上海」。
+    function atEdge(nb) {
+        const { gap, rest, peek } = edgeMetrics(nb);
+        if (peek > 2) return true;          // 正在往邻城方向拉（画布被拉出了常态位置）
+        if (rest > 0) return false;         // 整图居中、画布比视口小：只能主动拉，谈不上「贴边」
+        return gap >= -8 && gap <= 24;      // 画布比视口大：真的滑到头了
     }
     // 只在内容真的变化时才写 DOM：拖动时每帧都会调用，重复写入会触发图标组件重绘与重新排版
     const hintState = {};
@@ -353,8 +355,8 @@
     }
     function updateHint() {
         const union = S() <= unionScale();
-        const nb = active || nbs.find(peekShown);
-        const show = nb && (leaving || (!union && (pressure > 0 || peekShown(nb))));
+        const nb = active || nbs.find(atEdge);
+        const show = nb && (leaving || (!union && (pressure > 0 || atEdge(nb))));
         put("on", Boolean(show), (v) => hint.classList.toggle("on", v));
         if (!nb) return;
         put("city", nb.cfg.id, (v) => { hint.dataset.city = v; });
@@ -567,8 +569,13 @@
 #nb-hint .nb-hint-text { overflow: hidden; text-overflow: ellipsis; }
 #nb-hint[data-edge="top"] { top: 88px; }
 #nb-hint[data-edge="bottom"] { bottom: 28px; }
-#nb-hint[data-edge="left"], #nb-hint[data-edge="right"] { top: 50%; }
+/* 左右邻城：贴到对应一侧，不要再停在屏幕正中——像苏州 11 号线那样贴右边的走廊，
+   居中摆放的提示胶囊会正好压住线路与站名。 */
+#nb-hint[data-edge="left"] { left: 18px; top: 50%; }
+#nb-hint[data-edge="right"] { left: auto; right: 18px; top: 50%; }
+#nb-hint[data-edge="left"], #nb-hint[data-edge="right"] { transform: translate(0, -50%) scale(.92); }
 #nb-hint.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0) scale(1); }
+#nb-hint.on[data-edge="left"], #nb-hint.on[data-edge="right"] { transform: translate(0, -50%) scale(1); }
 #nb-hint.ready { background: var(--primary-color, #00263b); color: #fff; }
 #nb-hint .nb-ring { width: 26px; height: 26px; transform: rotate(-90deg); flex: none; }
 #nb-hint .nb-ring-bg { fill: none; stroke: currentColor; opacity: .15; stroke-width: 3; }

@@ -5,8 +5,9 @@
  * 官网 1200×1000 示意图坐标已等比映射到本项目 2200×1400 画布；坐标仅用于图形排版。
  * 为改善线路图的留白与拐角观感，部分站点在映射坐标上做了局部排版偏移，详见对应线路控制点。
  * 原始数据未提供英文名的车站保留为空，避免使用未经核验的翻译。
- * 地图中英文标签支持在 cn/en 中使用 \n 或 <br> 换行；搜索和导航仍使用自动清理换行后的标准站名。
- * 站名前置图标使用 labelIcon: { src, alt?, title? }，也可使用 label: { cn, icon } 独立配置标签文本。
+ * 地图中英文标签支持在 cn/en 中使用 <br> 换行；搜索和导航仍使用自动清理换行后的标准站名。
+ * 站名前置图标使用 labelIcon: { icon }（CGoUI 内置图标名，随主题自动染色）或
+ * { src, alt?, title? }（城市自绘 SVG），也可使用 label: { cn, icon } 独立配置标签文本。
  */
 
 const stationsData = {
@@ -127,7 +128,7 @@ const stationsData = {
         "x": 1675,
         "y": 227,
         "cn": "大医三院",
-        "en": "The Third Hospital of\n Dalian Medical University",
+        "en": "The Third Hospital of<br>Dalian Medical University",
         "align": "bottom",
         "offset": {
             "x": 0,
@@ -305,7 +306,7 @@ const stationsData = {
         "cn": "大连站",
         "en": "Dalian Railway<br> Station",
         "labelIcon": {
-            "src": "./city/dalian/assets/railway.svg",
+            "icon": "railway",
             "title": "铁路换乘"
         },
         "align": "top-right",
@@ -337,13 +338,13 @@ const stationsData = {
     "0303": {
         "type": "dot",
         "x": 1021,
-        "y": 605,
+        "y": 603,
         "cn": "金家街",
         "en": "Jinjia Street",
-        "align": "right",
+        "align": "top-right",
         "offset": {
             "x": 6,
-            "y": 0
+            "y": -6
         },
         "textScale": {
             "cn": 1,
@@ -688,10 +689,12 @@ const stationsData = {
     },
     "0213": {
         "type": "dot",
-        "x": 800,
+        "x": 799,
         "y": 796,
         "cn": "辽师大",
         "en": "Liaoning Normal<br> University",
+        // 旧名「辽师」（2015-05-22 随 2 号线一期开通，2017-06-07 随二期东段更名）
+        "aliases": ["辽师", "Liaoning Normal University"],
         "align": "top",
         "offset": {
             "x": 0,
@@ -704,7 +707,7 @@ const stationsData = {
     },
     "0214": {
         "type": "dot",
-        "x": 760,
+        "x": 757,
         "y": 796,
         "cn": "马栏广场",
         "en": "Malan Square",
@@ -720,7 +723,7 @@ const stationsData = {
     },
     "0215": {
         "type": "dot",
-        "x": 720,
+        "x": 716,
         "y": 796,
         "cn": "湾家",
         "en": "Wanjia",
@@ -736,7 +739,7 @@ const stationsData = {
     },
     "0216": {
         "type": "dot",
-        "x": 680    ,
+        "x": 674,
         "y": 796,
         "cn": "红旗西路",
         "en": "Hongqi West Road",
@@ -753,7 +756,7 @@ const stationsData = {
     "0217": {
         "type": "dot",
         "x": 633,
-        "y": 753,
+        "y": 748,
         "cn": "虹锦路",
         "en": "Hongjin Road",
         "align": "right",
@@ -769,7 +772,7 @@ const stationsData = {
     "0218": {
         "type": "dot",
         "x": 633,
-        "y": 715,
+        "y": 700,
         "cn": "虹港路",
         "en": "Honggang Road",
         "align": "right",
@@ -785,11 +788,11 @@ const stationsData = {
     "0219": {
         "type": "dot",
         "x": 633,
-        "y": 668,
+        "y": 651,
         "cn": "机场",
         "en": "Airport",
         "labelIcon": {
-            "src": "./city/dalian/assets/airport.svg",
+            "icon": "plane",
             "title": "机场"
         },
         "align": "right",
@@ -805,13 +808,13 @@ const stationsData = {
     "0220": {
         "type": "dot",
         "x": 633,
-        "y": 632,
+        "y": 603,
         "cn": "辛寨子",
         "en": "Xinzhaizi",
-        "align": "right",
+        "align": "bottom-left",
         "offset": {
-            "x": 6,
-            "y": 0
+            "x": -10,
+            "y": 4
         },
         "textScale": {
             "cn": 1,
@@ -821,7 +824,7 @@ const stationsData = {
     "0221": {
         "type": "dot",
         "x": 633,
-        "y": 593,
+        "y": 566,
         "cn": "前革",
         "en": "Qian'ge",
         "align": "right",
@@ -837,7 +840,7 @@ const stationsData = {
     "0222": {
         "type": "dot",
         "x": 633,
-        "y": 546,
+        "y": 530,
         "cn": "中革",
         "en": "Zhongge",
         "align": "right",
@@ -853,7 +856,7 @@ const stationsData = {
     "0223": {
         "type": "dot",
         "x": 633,
-        "y": 508,
+        "y": 493,
         "cn": "革镇堡",
         "en": "Gezhenpu",
         "align": "right",
@@ -868,7 +871,7 @@ const stationsData = {
     },
     "0224": {
         "type": "dot",
-        "x": 687,
+        "x": 691,
         "y": 456,
         "cn": "后革",
         "en": "Houge",
@@ -937,7 +940,7 @@ const stationsData = {
         "cn": "大连北站",
         "en": "Dalian North Railway Station",
         "labelIcon": {
-            "src": "./city/dalian/assets/railway.svg",
+            "icon": "railway",
             "title": "铁路换乘"
         },
         "align": "right",
@@ -1036,9 +1039,9 @@ const stationsData = {
         "y": 603,
         "cn": "松江路",
         "en": "Songjiang Road",
-        "align": "right",
+        "align": "top-left",
         "offset": {
-            "x": 6,
+            "x": -6,
             "y": 0
         },
         "textScale": {
@@ -1052,9 +1055,9 @@ const stationsData = {
         "y": 632,
         "cn": "东纬路",
         "en": "Dongwei Road",
-        "align": "right",
+        "align": "left",
         "offset": {
-            "x": 6,
+            "x": -6,
             "y": 0
         },
         "textScale": {
@@ -1179,7 +1182,7 @@ const stationsData = {
         "x": 896,
         "y": 993,
         "cn": "大医二院",
-        "en": "2nd Hospital of Dalian \nMedical University",
+        "en": "2nd Hospital of Dalian<br>Medical University",
         "align": "bottom-right",
         "offset": {
             "x": 0,
@@ -1500,9 +1503,9 @@ const stationsData = {
         "y": 652,
         "cn": "梭鱼湾南",
         "en": "Suoyuwan South",
-        "align": "right",
+        "align": "left",
         "offset": {
-            "x": 6,
+            "x": -6,
             "y": 0
         },
         "textScale": {
@@ -1516,10 +1519,10 @@ const stationsData = {
         "y": 625,
         "cn": "梭鱼湾",
         "en": "Suoyuwan",
-        "align": "right",
+        "align": "bottom-right",
         "offset": {
             "x": 6,
-            "y": 0
+            "y": 4
         },
         "textScale": {
             "cn": 1,
@@ -2278,14 +2281,14 @@ const stationsData = {
         "y": 739,
         "cn": "大连站",
         "en": "Dalian Railway Station",
-        "align": "top",
+        "align": "right",
         hideLabel: true,
         "offset": {
             "x": 0,
             "y": 0
         },
         "textScale": {
-            "cn": 0.9,
+            "cn": 1,
             "en": 1
         },
      },
@@ -2304,8 +2307,236 @@ const stationsData = {
         },
         "textScale": {
             "cn": 0.9,
+            "en": 1
         }
-     }
+     },
+    // —— 4 号线（在建，站序：梭鱼湾东→营城子；线注册与未开通登记后续补）——
+    // y603 走廊：梭鱼湾东/东方路 走梭鱼湾→金家街的「水平+45°斜+水平」夹心段，
+    // 金三角居金家街与松江路中点，松江路→辛寨子四站均分，辛寨子以西按 X 步进 -40。
+    "0401": {
+        "type": "no",
+        "x": 1155,
+        "y": 625,
+        "cn": "梭鱼湾东",
+        "en": "Suoyuwan East",
+        "align": "right",
+        "offset": {
+            "x": 10,
+            "y": 0
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0402": {
+        "type": "no",
+        "x": 1089,
+        "y": 614,
+        "cn": "东方路",
+        "en": "Dongfang Road",
+        "align": "bottom-left",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0403": {
+        "type": "no",
+        "x": 971,
+        "y": 603,
+        "cn": "金三角",
+        "en": "Jinsanjiao",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0404": {
+        "type": "no",
+        "x": 864,
+        "y": 603,
+        "cn": "西北路",
+        "en": "Xibei Road",
+        "align": "top",
+        "offset": {
+            "x": -30,
+            "y": -4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0405": {
+        "type": "no",
+        "x": 806,
+        "y": 603,
+        "cn": "新达街",
+        "en": "Xinda Street",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0406": {
+        "type": "no",
+        "x": 749,
+        "y": 603,
+        "cn": "泽龙湖",
+        "en": "Zelong Lake",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": -4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0407": {
+        "type": "no",
+        "x": 691,
+        "y": 603,
+        "cn": "工业大学",
+        "en": "Industrial University",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 8
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0408": {
+        "type": "no",
+        "x": 593,
+        "y": 603,
+        "cn": "辛萍街",
+        "en": "Xinping Street",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": -4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0409": {
+        "type": "no",
+        "x": 553,
+        "y": 603,
+        "cn": "银杏大道",
+        "en": "Yinxing Avenue",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0410": {
+        "type": "no",
+        "x": 513,
+        "y": 603,
+        "cn": "周家",
+        "en": "Zhoujia",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": -4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0411": {
+        "type": "no",
+        "x": 473,
+        "y": 603,
+        "cn": "东南山",
+        "en": "Dongnanshan",
+        "align": "bottom",
+        "offset": {
+            "x": 0,
+            "y": 4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0412": {
+        "type": "no",
+        "x": 433,
+        "y": 603,
+        "cn": "前牧",
+        "en": "Qianmu",
+        "align": "top",
+        "offset": {
+            "x": 0,
+            "y": -4
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0413": {
+        "type": "no",
+        "x": 393,
+        "y": 623,
+        "cn": "幸福",
+        "en": "Xingfu",
+        "align": "bottom-right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    },
+    "0414": {
+        "type": "no",
+        "x": 365,
+        "y": 651,
+        "cn": "营城子",
+        "en": "Yingchengzi",
+        "align": "bottom-right",
+        "offset": {
+            "x": 0,
+            "y": 0
+        },
+        "textScale": {
+            "cn": 1,
+            "en": 1
+        }
+    }
 };
 
 if (typeof window !== "undefined") window.stationsData = stationsData;

@@ -1,0 +1,48 @@
+/**
+ * CGo OpenMap - 呼和浩特「快速前往」静态清单（行程规划面板的推荐目的地）
+ *
+ * 口径同 city/shenyang/data_hotspots.js：纯静态写入、无热度算法、不消费规划结果。
+ * ⚠️ 白塔机场的地铁站为「白塔」（M120，2026-11-26 正式更名前名「坝堰（机场）」），显示名用机场常用名；
+ * 该机场自 2026-11-26 零时起关闭，航班整体转至盛乐国际机场（暂无轨道接驳，故不收录）：
+ * 关闭前保留条目并标注关闭日期，关闭后自动从「快速前往」移除，避免继续把旅客导向已停用机场。
+ * ⚠️ 内蒙古博物院 2025-06 迁出旧馆：新馆在呼和浩特东站南侧（赛罕区新华东街 76 号），官方开馆
+ *   交通指引为「1 号线呼和浩特东站 F 口出站、向南步行约 800 米（途经人行天桥）」，故本条目挂
+ *   M116 / F 口；旧馆旁的 M114 已按新地标改名「内蒙古大剧院」（2026-11-26 生效），与博物院无关。
+ * 大召寺、昭君墓、五塔寺等站名对不上的暂不收录（宁少勿错）。
+ * 接驳口字段（exit / enterExit / leaveExit）可选，未配则点选只填车站、不指定口。
+ * 供共享层 shared/route/route-panel.js 读取（约定全局 CGO_HOTSPOTS）。
+ */
+const BAITA_AIRPORT_CLOSE_AT = Date.parse("2026-11-26T00:00:00+08:00");
+const baiTaAirportOpen = Date.now() < BAITA_AIRPORT_CLOSE_AT;
+
+const HOHHOT_HOTSPOTS = [
+    // ── 交通枢纽 ──
+    { name: "呼和浩特站", sid: "M213", kind: "hub", icon: "railway", exit: "A" },
+    { name: "呼和浩特东站", sid: "M116", kind: "hub", icon: "railway", exit: "A" },
+    // 白塔机场两口天然分向：A 仅供出站、B 仅供进站——用双字段分别指定
+    ...(baiTaAirportOpen ? [{
+        name: "白塔机场", sid: "M120", kind: "hub", icon: "plane",
+        tag: "11月26日起关闭",
+        enterExit: "B", leaveExit: "A"
+    }] : []),
+    // ── 名胜景点 ──
+    // 内蒙古博物院（新馆）：1 号线呼和浩特东站 F 口出站向南步行约 800 米（博物院 2025 年开馆交通指引）
+    { name: "内蒙古博物院", sid: "M116", kind: "poi", tag: "省博", exit: "F" },
+    // 内蒙古大剧院 = 乌兰恰特大剧院（同一座剧院的两个叫法），A 口地标即「乌兰恰特大剧院演出中心」
+    { name: "内蒙古大剧院", sid: "M114", kind: "poi", tag: "乌兰恰特大剧院", exit: "A" },
+    // 将军衙署：本地宝地铁攻略明确「1 号线将军衙署站 C2 口」（据以修正此前的 A 口）
+    { name: "将军衙署", sid: "M110", kind: "poi", tag: "全国文保", exit: "C2" },
+    // 以下按「官方交通建议含地铁」补录（2026-10-09 搜索核实，接驳口待逐口核对暂不配）：
+    // 大召无量寺（国保）：本地宝地铁攻略「1 号线附属医院站 C 口 + 接驳」
+    { name: "大召无量寺", sid: "M107", kind: "poi", tag: "全国文保", exit: "C" },
+    // 五塔寺（1988 国保）：本地宝地铁攻略「2 号线诺和木勒站 D 口」（1 号线南茶坊站本站数据未收录）
+    { name: "五塔寺", sid: "M216", kind: "poi", tag: "全国文保", exit: "D" },
+    // 公主府博物馆（全国文保）：本地宝地铁攻略「2 号线公主府站 A 口步行 1.1 公里」
+    { name: "公主府博物馆", sid: "M212", kind: "poi", tag: "全国文保", exit: "A" },
+    // ── 省市级公共建筑（2026-10-09 按呼市本地宝「景点地铁出行攻略」补录）──
+    { name: "内蒙古美术馆", sid: "M115", kind: "poi", tag: "省属场馆", exit: "C" },
+    { name: "内蒙古科技馆", sid: "M115", kind: "poi", tag: "省属场馆", exit: "D" },
+    { name: "呼和浩特雕塑艺术馆", sid: "M114", kind: "poi", tag: "省属场馆", exit: "C" }
+];
+window.HOHHOT_HOTSPOTS = HOHHOT_HOTSPOTS;
+window.CGO_HOTSPOTS = HOHHOT_HOTSPOTS;

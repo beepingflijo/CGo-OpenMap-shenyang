@@ -1,6 +1,6 @@
 /**
  * CGo OpenMap - 上海图例配置 (city/shanghai/data_legend.js)
- * 由 Drunk 转换系统自动生成
+ * 由 OpenMap Editor 自动生成
  */
 
 const LEGEND_CONFIG = [
@@ -140,6 +140,18 @@ const LEGEND_CONFIG = [
                     "name": "市域机场线"
           }
 ]
+    },
+    {
+        type: "title",
+        title: "跨省换乘",
+        subtitle: "Intercity Transfer"
+    },
+    {
+        type: "grid",
+        cols: 1,
+        items: [
+            { targets: ["SZ11"], name: "苏州轨道交通11号线 Suzhou Rail Transit Line 11" }
+        ]
     }
 ];
 

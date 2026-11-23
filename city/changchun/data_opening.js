@@ -2,7 +2,7 @@
  * CGo OpenMap - 长春开通时刻表 (city/changchun/data_opening.js)
  *
  * 记录已确定开通时间的未开通区段与车站；由共享层
- * city/shenyang/shared/opening-schedule.js 在渲染前应用：
+ * core/shared/station/opening-schedule.js 在渲染前应用：
  *   - 开通时刻之前：车站保持 type "no"，区段虚线保留，车站面板底部显示倒计时；
  *   - 开通时刻之后：车站转为开通后站型，未开通区段虚线撤销，跨过时刻时页面自动刷新。
  * 未在此登记的未开通车站与区段一律按"永久未开通"处理，不做任何转换。
@@ -35,6 +35,15 @@ const CGO_OPENING_SCHEDULE = [
         // 开通后并入既有站并把既有站升级为换乘站。
         // 东大桥（0501）不在合并之列：它与 3 号线东大桥站厅并不连通，属付费出站换乘，
         // 开通后保留为独立车站（站型由 opensAs 决定），换乘关系登记在 data_virtual_transfers.js。
+        //
+        // ⚠️ 本表**必须保留**，即便站点数据已写回开通态：
+        //   - 新开通通知（shared/station/opening-schedule.js 的 getOpenNotices，推送窗口
+        //     noticeWindowDays 默认 30 天）与开通前倒计时都以本表为唯一数据源，
+        //     删掉条目＝通知与倒计时一起失效；
+        //   - 下面的 merge / notOpenLines 现在只是**幂等兜底**：站点数据（data_stations.js
+        //     的 -1 站条目已删、data_lines.js 的 5 号线站序已改指既有站、既有站已标 tsf、
+        //     data_notopen.js 的 CCM05 虚线已撤）写回开通态后，这两项在运行时不再有实际动作，
+        //     但保留可在数据回退时自动恢复合并行为。
         merge: {
             "0127-1": "0127",
             "0233-1": "0233",
@@ -45,6 +54,16 @@ const CGO_OPENING_SCHEDULE = [
         // 长影旧址博物馆（0508）暂缓开通：5 号线一期 9-28 开通初期运营时该站不开通
         holdStations: ["0508"],
         notOpenLines: ["CCM05"]
+    },
+    {
+        // 5 号线一期暂缓站长影旧址博物馆（0508）补开。
+        // 开通时刻取当日该站两方向中较早的首班车（上行 5:36，下行 5:49）。
+        id: "CCM05-changying-museum",
+        lineId: "CCM05",
+        name: "长影旧址博物馆站",
+        opensAt: "2026-10-22T05:36+08:00",
+        opensAs: "dot",
+        stationIds: ["0508"]
     }
 ];
 

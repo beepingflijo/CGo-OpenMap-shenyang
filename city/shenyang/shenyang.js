@@ -52,6 +52,17 @@
         + `<path d="M3.0434,9.4494 C3.0434,9.4494 2.9943,9.7439 2.9943,9.8911 L7.9522,9.8911 C7.9522,9.8911 7.9522,9.5475 7.9276,9.4739 C7.8786,9.4003 7.6822,9.4003 7.584,9.3757 L6.455,9.1548 C6.2832,9.1303 6.0869,9.1057 5.9641,8.9585 C5.8169,8.8112 5.8169,8.6394 5.8169,8.4431 L5.8169,6.6268 C5.8169,6.3568 5.8169,6.1359 6.1359,6.0378 C6.3568,5.9641 6.6023,5.8905 6.8477,5.8414 C6.8477,5.7678 6.8477,5.6205 6.8477,5.5224 C6.8477,5.2278 6.8723,4.9333 6.6514,4.7369 C6.4796,4.6142 6.3814,4.6142 6.1359,4.5897 C5.7187,4.5651 5.3015,4.5651 4.8842,4.5897 C4.6879,4.5897 4.4915,4.6142 4.3688,4.7124 C4.2461,4.8106 4.1724,4.9333 4.1724,5.1787 C4.1724,5.3751 4.1724,5.6205 4.1724,5.8169 C4.197,5.8169 4.7124,5.9641 4.8106,5.9887 C5.0069,6.0378 5.2033,6.1114 5.2033,6.4059 C5.2033,6.9459 5.2033,7.4859 5.2033,8.0504 C5.2033,8.2713 5.2278,8.6394 5.1542,8.8112 C5.056,9.0321 4.8842,9.0812 4.6388,9.1303 L3.6079,9.3266 C3.6079,9.3266 3.1171,9.4494 3.068,9.4739" fill="#FFFFFF"/>`
         + `</svg>`;
 
+    /**
+     * 浑南现代有轨电车标志（源: assets/hntram.svg，viewBox 0 0 70 70）
+     *
+     * 有轨电车归浑南现代有轨电车运营有限公司，官网查询也落在盛京通（mtii.cn），
+     * 图标不能沿用沈阳地铁的城市徽标。与上面的国铁徽标、长春公交集团标志一样内联
+     * 而非 <img>，目的是让 fill 吃到 currentColor，跟随按钮文字色并适配亮/暗主题。
+     */
+    const HNT_ICON = `<svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg">`
+        + `<path d="M70,35Q70,35.8592,69.95784,36.717369Q69.91568,37.575535,69.831467,38.430599Q69.747253,39.28566,69.621178,40.135563Q69.495102,40.985466,69.327484,41.828156Q69.159859,42.670845,68.951088,43.504295Q68.742325,44.337753,68.492912,45.159958Q68.2435,45.982162,67.954033,46.791138Q67.664581,47.600113,67.335777,48.393913Q67.006973,49.187714,66.639618,49.964424Q66.272263,50.741135,65.867233,51.498882Q65.462204,52.25663,65.020493,52.993591Q64.578773,53.730553,64.101425,54.44495Q63.624077,55.159355,63.112255,55.849472Q62.600426,56.539589,62.055359,57.203766Q61.510288,57.867935,60.933281,58.504562Q60.356277,59.141186,59.748734,59.748734Q59.141186,60.356277,58.504559,60.933285Q57.867935,61.510288,57.203766,62.055359Q56.539589,62.600426,55.849476,63.112251Q55.159355,63.624077,54.444954,64.101425Q53.730553,64.578773,52.993591,65.020493Q52.25663,65.462204,51.498882,65.867233Q50.741135,66.272263,49.964428,66.639618Q49.187717,67.006973,48.393917,67.335777Q47.600121,67.664581,46.791142,67.954033Q45.982166,68.243492,45.159962,68.492905Q44.337757,68.742317,43.504303,68.951088Q42.670853,69.159851,41.828159,69.327477Q40.985466,69.495102,40.135567,69.62117Q39.285664,69.747253,38.430599,69.831467Q37.575535,69.91568,36.717369,69.95784Q35.8592,70,35,70Q32.103825,70,29.247038,69.523956Q32.787022,55.320229,43.5,45.5Q55.447464,34.548157,69.873077,32.022053Q70,33.508324,70,35ZM69.501205,29.112169Q58.55888,31.601969,47.288513,36.716095L42.315639,33.498356Q57.082081,27.240499,68.730614,25.659473Q69.20327,27.366325,69.501205,29.112169ZM68.104187,23.637215Q52.937527,24.883671,36,31Q19.999794,36.777851,3.9995866,51.247288Q3.017992,49.374367,2.269022,47.396896Q1.5200522,45.419426,1.0146025,43.366165Q0.50915295,41.312908,0.25457647,39.21373Q0,37.114555,0,35Q0,34.1408,0.042159025,33.282631Q0.084318049,32.424465,0.16853453,31.569401Q0.25275102,30.714334,0.37882206,29.864431Q0.50489312,29.014528,0.67251503,28.171835Q0.84013689,27.329144,1.0489058,26.495691Q1.2576748,25.662239,1.5070879,24.840034Q1.7565011,24.01783,2.0459573,23.208851Q2.3354137,22.399876,2.6642158,21.606075Q2.9930182,20.812275,3.360374,20.035568Q3.7277303,19.258858,4.1327553,18.501112Q4.5377798,17.743362,4.9794979,17.006401Q5.4212155,16.26944,5.8985624,15.555039Q6.3759093,14.840639,6.8877354,14.150522Q7.3995614,13.460405,7.9446335,12.796234Q8.4897051,12.132062,9.0667095,11.495436Q9.6437149,10.858809,10.251262,10.251262Q10.858809,9.6437149,11.495436,9.0667095Q12.132062,8.4897051,12.796234,7.9446335Q13.460405,7.3995614,14.150521,6.8877354Q14.840639,6.3759093,15.555038,5.8985624Q16.269438,5.4212155,17.006401,4.9794979Q17.743362,4.5377798,18.501112,4.1327553Q19.25886,3.7277303,20.035568,3.360374Q20.812279,2.9930182,21.606077,2.6642158Q22.399876,2.3354137,23.208853,2.0459576Q24.01783,1.7565011,24.840036,1.5070879Q25.662239,1.2576748,26.495691,1.0489058Q27.329144,0.84013689,28.171837,0.67251503Q29.01453,0.50489312,29.864433,0.37882206Q30.714336,0.25275102,31.569401,0.16853453Q32.424465,0.084318049,33.282631,0.042159025Q34.1408,0,35,0Q35.678295,2.4989113e-16,36.356079,0.026280567Q37.033867,0.052561134,37.710121,0.1050828Q38.386379,0.15760446,39.060093,0.23628837Q39.73381,0.31497225,40.403969,0.41970018Q41.074127,0.52442813,41.739727,0.65504289Q42.405327,0.78565764,43.065365,0.94196296Q43.725407,1.0982683,44.378895,1.2800297Q45.032379,1.4617909,45.678333,1.6687351Q46.324287,1.8756793,46.961742,2.1074958Q47.59919,2.3393121,48.22718,2.5956526Q48.855171,2.8519928,49.472763,3.1324725Q50.090347,3.4129519,50.696602,3.7171493Q51.302856,4.0213466,51.896873,4.348805Q52.490891,4.6762638,53.07177,5.0264912Q53.652649,5.376719,54.219524,5.7491899Q54.7864,6.1216612,55.338417,6.5158157Q55.890434,6.9099712,56.426769,7.3252177Q56.9631,7.7404647,57.482941,8.1761799Q58.002781,8.6118965,58.505348,9.0674257Q59.007919,9.5229559,59.492458,9.9976149Q59.977001,10.472275,60.442791,10.965352Q60.908577,11.458428,61.354908,11.969182Q61.801243,12.479937,62.227451,13.0076Q62.653664,13.535263,63.059109,14.079043Q63.464554,14.622824,63.848625,15.181906Q64.232697,15.740986,64.594818,16.314528Q64.95694,16.888071,65.29657,17.475212Q65.6362,18.062355,65.95282,18.662214Q66.26944,19.262074,66.562592,19.873753Q66.855728,20.48543,67.124954,21.108006Q67.39418,21.730583,67.639076,22.363123Q67.88398,22.995663,68.104187,23.637215ZM11.045823,60.51857Q14.099455,63.385002,17.743196,65.450005Q29.472139,45.513931,42.5,39Q43.002533,38.748734,43.504391,38.502636L38.218594,35.331158Q23.915489,42.370262,11.045823,60.51857Z" fill="currentColor" fill-rule="evenodd"/>`
+        + `</svg>`;
+
     const ShenyangCity = {
         id: "shenyang",
         name: "沈阳",
@@ -136,7 +147,8 @@
         maintainers: [
             { name: "jrzhang", role: "城市主理人", github: "https://github.com/beepingflijo" },
             { name: "从恒隆到细河", role: "运营数据支持" },
-            { name: "普兰店大鹅", role: "有轨数据支持" }
+            { name: "普兰店大鹅", role: "有轨数据支持" },
+            { name: "工业大学站", role: "站名题字资源支持" }
         ],
         dataFiles: {
             stanameCsvUrl: "./city/shenyang/staname.csv",
@@ -196,7 +208,13 @@
                 "modules/shenyang_station_title.js",
                 "modules/shenyang_calligraphy.js",
                 "modules/shenyang_cultural.js",
-                "modules/shenyang_service_info.js"
+                "modules/shenyang_service_info.js",
+                "modules/shenyang_facilities.js",
+                "modules/shenyang_exits.js"
+            ],
+            // 出入口独立页签（自定义 tab），渲染在「车站信息」之前
+            tabs: [
+                { id: "shenyang-exits", title: "出入口", icon: "gate" }
             ],
             modules: {
                 "header-controls": { enabled: true, order: 10 },
@@ -207,11 +225,19 @@
                 "header-badges": { enabled: true, order: 30 },
                 "stacard": { enabled: true, targetTab: "line-tab", order: 10 },
                 "shenyang-timetable": { enabled: true, targetTab: "line-tab", order: 15 },
-                "shenyang-calligrapher-intro": { enabled: true, targetTab: "station-info", order: 12 },
-                "shenyang-cultural-destinations": { enabled: true, targetTab: "station-info", order: 15 },
+                // 报站目的地指引排在「车站信息」页签最前，紧挨标签栏（配置里的 order
+                // 会覆盖模块注册时的 order，改顺序以这里为准）
+                "shenyang-cultural-destinations": { enabled: true, targetTab: "station-info", order: 1 },
+                // 车站层级图（官网剖面图，默认折叠、展开才加载）与官网设施位置合并为一个板块，
+                // 避免两个语义相近的板块在信息板里并列
+                "shenyang-facilities": { enabled: true, targetTab: "station-info", order: 6 },
+                // 站名题写者插在「车站设施」(6) 与「车站类型」(10) 之间
+                "shenyang-calligrapher-intro": { enabled: true, targetTab: "station-info", order: 7 },
                 "adjacent-stations": { enabled: true, targetTab: "line-tab", order: 20 },
                 "transfers": { enabled: true, targetTab: "line-tab", order: 30 },
                 "station-type": { enabled: true, targetTab: "station-info", order: 10 },
+                // 出入口页签（自定义 tab，见上方 tabs）
+                "shenyang-exits": { enabled: true, targetTab: "shenyang-exits", order: 10 },
                 "operators": { enabled: true, targetTab: "station-info", order: 20 },
                 "footer-actions": { enabled: true, order: 10 }
             }
@@ -219,10 +245,63 @@
     };
 
     /**
+     * 「位置在出入口的扶梯 / 电梯」搬迁规则（共享层 exit-vertical.js 读取）
+     *
+     * 官网设施数据里，一部分无障碍电梯与自动扶梯的位置是「以某个出入口为起终点」，
+     * 这部分已从车站设施板块搬到出入口页签的对应出口下；其余（站厅-站台、站台层、设备层等
+     * 站内垂直交通）留在设施板块。
+     *
+     * 判据必须是「前缀」而不是「是否提到出口编号」：「站厅-站台 A出入口附近」同样提到出口，
+     * 但它是站内电梯，只有前缀能区分二者。
+     *
+     * 前缀还必须**按类型分开配**：「站厅层 …出入口」对上行与下行的含义正好相反 ——
+     * 上行扶梯在站厅层，是「站厅 → 地面出口」的起点（属于出口）；
+     * 下行扶梯在站厅层，是「站厅 → 站台层」的向下交通（与出口无关），
+     * 真正属于出口的下行扶梯位置写的是「地面层」（地面 → 站厅）。
+     * 三类共用一组前缀会把站厅层的下行扶梯一并误搬进出口。
+     *
+     * types 的展示名与图标须与 modules/shenyang_facilities.js 的 types 保持一致。
+     */
+    window.CGO_EXIT_VERTICAL = {
+        types: {
+            // 无障碍电梯：只有「地面 ↔ 站厅」这一段属于出入口
+            elevator: {
+                name: "无障碍电梯",
+                icon: "elevator",
+                patterns: [/^(地面-站厅|地面-过街通道-站厅|站厅-地面)/]
+            },
+            // 上行扶梯：起点在站厅（站厅层 / 地下一层），终点是地面出口
+            escalator_up: {
+                name: "自动扶梯（上行）",
+                icon: "escup",
+                patterns: [/^(站厅层|地下一层)/]
+            },
+            // 下行扶梯：起点在地面出口，故只有「地面层」开头的属于出入口
+            escalator_down: {
+                name: "自动扶梯（下行）",
+                icon: "escdown",
+                patterns: [/^地面层/]
+            }
+        }
+    };
+
+    /**
+     * 出入口清单的筛选模式（共享层 exits.js 读取）
+     *
+     * 每个模式声明「命中其中之一即算符合」的设施类型（与设施表的 type 同名）；
+     * 只有本站确有出口命中时才显示该按钮，故不必担心某城缺某类设施。
+     */
+    window.CGO_EXIT_FILTERS = [
+        { id: "luggage", name: "携带行李", icon: "luggage", types: ["elevator", "escalator_up", "escalator_down"] },
+        { id: "accessible", name: "无障碍", icon: "vi-stn", types: ["elevator"] }
+    ];
+
+    /**
      * 行程规划的城市侧配置
      *
      * 共享层负责算法、面板、坐标索引与站外换乘收集，本城只描述「数据长什么样」：
-     * - coords：坐标兜底数据源，供缺官方站距的线路算里程（有轨 5 号线属此列）
+     * - coords：坐标兜底数据源 —— 里程以 data_lines.js 的 distances 为准（地铁取自沈阳
+     *   地铁官网公布的站间距；有轨 5 号线为 OSM 走向实测，见下），仅缺失路段回退估算
      * - reader：把 serviceHours 摊平成构建器要的时间条目（dest / period / label / time）
      * - fare：本城票价政策；不配则该城结果不显示票价
      * 三者都在实际规划时才被读取，因此不必担心此刻共享层尚未加载
@@ -230,10 +309,19 @@
      */
     window.CGO_ROUTE_CONFIG = {
         coords: "./city/shenyang/amap_data.json",
-        // 线路编号徽标的城市覆盖：有轨 5 号线写作 T5，与地铁 5 号线区分开
-        lineCodes: { HNT5: "T5" },
+        // 线路编号徽标的城市覆盖：有轨 5 号线写作 T5，与地铁 5 号线区分开；
+        // T 是小号修饰字（prefix），主编号仍是 5
+        lineCodes: { HNT5: { prefix: "T", code: "5" } },
         lineCodeShape: "circle",   // 本城地铁用圆形编号徽标（有轨与其他城市保持圆角方形）
         cityIcon: "shenyang",   // 官网查询按钮使用城市官方徽标（CGoUI 内置）
+        /**
+         * 官网查询按钮的图标：地铁走沈阳地铁官网（stationInfo2），用 CGoUI 内置城市徽标；
+         * 有轨电车（HNT*）查的是盛京通 / mtii.cn，改用浑南现代有轨电车标志
+         * （内联 SVG 才能吃到 currentColor，随按钮文字色适配亮 / 暗主题）。
+         */
+        officialIcon(lineId) {
+            return ShenyangCity.isTramLine(lineId) ? { svg: HNT_ICON } : { name: "shenyang" };
+        },
         reader(line, sid) {
             const hours = window.SHENYANG_STACARD_DATA?.[String(sid)]?.[String(line.id)]?.serviceHours || [];
             const slot = window.CGoRouteData.hourSlots;
@@ -249,6 +337,15 @@
          *   28 公里以上每 10 公里加 1 元，线网 7 元封顶
          * - tram：浑南现代有轨电车——2 元起价、4 元封顶（0-8 公里 2 元、8-16 公里 3 元、16 公里以上 4 元），
          *   换乘线路须重新购票（由内核按「连续同制式段」分别结算）
+         *
+         * ⚠️ 计价口径的已知偏差：本表按**站距**（data_lines.js 的 distances）套费率，
+         * 而票价实际按**计价里程**分档结算 —— 两者不是同一套数，**档位分界点附近的站对
+         * 可能错一档**（同一段路在临界处差 1 元）。本城站距来源分两类：
+         *   · 地铁（1/2/3/4/9/10 号线）：沈阳地铁官网公布的站间距；
+         *   · 有轨 5 号线：**OSM 线路走向实测**（route 6059624；站点取本城高德坐标，
+         *     先把 OSM 折线由 WGS-84 转 GCJ-02 再投影）—— 非官方数据，精度约 ±2%。
+         * 福州已改用官网抓取的站间票价表（city/fuzhou/data_official_fare.js，10302 组）
+         * 消除该误差，本城暂维持按费率推算。若要完全对齐，需拿到本城官网的分站票价表。
          */
         fare: {
             metro(km) {
@@ -264,32 +361,304 @@
                 if (km <= 16) return 3;
                 return 4;
             }
+        },
+        /**
+         * 站外换乘的步行时间（分钟）。键为 `起点ID|终点ID`，逐对覆盖共享层的 6 分钟
+         * 默认值（机制见 shared/route/route-data.js；行程规划、等时圈与票价图的用时都吃这个数）。
+         *
+         * 本城 `data_virtual_transfers.js` 登记 8 组站外配对（3 组国铁 ⇄ 同名地铁站、
+         * 5 组有轨 5 号线 ↔ 地铁 9 号线），现已全部录入：
+         *
+         * 口径 = 「出站 → 步行 → 进站 → 到站台」的总时间 = 出站口至对侧车站的步行距离
+         * ÷ 60 米/分钟 + 3 分钟（进出站、安检与上下站台）。
+         *
+         * 2026-10-06 起主体并入高德地图步行路径规划口径（距离 ÷ 60 米/分钟 + 3 分钟，
+         * 国铁站以出站口 POI 为起点），本城 8 组站外配对已全覆盖：
+         *   · 沈阳南站（国铁）⇄ 沈阳南站（4 号线）6 分：出站口距地铁进站口不到 200 米，
+         *     火车站地下一层与地铁站相连（辽沈晚报 2023-09-28《沈阳开启“空铁联运”时代》）。
+         *     高德按站前广场绕行给 585 米 / 13 分，不采用（站外绕行不代表站内实际走行）；
+         *   · 沈阳站（国铁 东出站口）⇄ 沈阳站（1 号线）7 分：高德 257 米。沈阳站地铁站
+         *     位于东广场地下一层、距东出站口 100 米（TravelChinaGuide 站况）；东广场改造后
+         *     地铁站厅（负三层）与国铁出站层（负二层）以扶梯直连（沈阳市交通运输局
+         *     2024-10-15 引辽宁日报）；
+         *   · 沈阳北站（国铁 南出站口）⇄ 沈阳北站（2/4 号线）4 分：铁路旅客换乘地铁步行
+         *     距离 **50 米**（《沈阳北站综合枢纽区域一体化交通规划设计》，李绍岩 / 刘威，
+         *     中国城市交通规划年会论文，结论为「与国内其他车站 100–300 米比较换乘条件较好」）。
+         *     高德 267 米，不采用；
+         *   · 有轨 5 号线 ↔ 地铁（高德步行距离换算）：奥体中心 411 米 → 10 分、行政服务中心
+         *     ⇄ 朗日街 343 米 → 9 分、浑南图书馆 ⇄ 朗日街 121 米 → 5 分、浑南实验小学
+         *     ⇄ 长青南街 72 米 → 4 分、建筑大学 329 米 → 8 分。
+         *
+         * 两个方向写同一分钟数 —— 步行时间与方向无关。
+         */
+        walkMinutes: {
+            // 站外换乘用时（分钟）：出站 → 步行 → 进站 → 到站台。2026-10-06 起并入高德地图
+            // 步行路径规划口径：距离 ÷ 60 米/分钟 + 3 分钟（进出站安检与上下站台），
+            // 国铁站以「出站口 POI」为起点。仅沈阳南站、沈阳北站两组沿用媒体/论文口径，
+            // 因为国铁出站层与地铁站厅直连，高德按站前广场绕行会明显偏大。
+
+            // 沈阳南站（国铁 东出站口）⇄ 沈阳南站（4 号线）：辽沈晚报 2023-09-28 载
+            // 地铁站位于国铁沈阳南站东广场地下、出站口距地铁进站口不到 200 米 → 6 分钟。
+            // 高德按站前广场绕行给 585 米 / 13 分钟（站外绕行不代表站内实际走行），不采用。
+            "SOT|0422": 6, "0422|SOT": 6,
+            // 沈阳站（国铁 东出站口）⇄ 沈阳站（1 号线）：高德 257 米 → 7 分钟。
+            "SYT|0114": 7, "0114|SYT": 7,
+            // 沈阳北站（国铁 南出站口）⇄ 沈阳北站（2/4 号线）：《沈阳北站综合枢纽区域
+            // 一体化交通规划设计》载铁路旅客换乘地铁步行距离 50 米（并注明「与国内其他
+            // 车站 100~300 米比较换乘条件较好」）→ 4 分钟。高德 267 米（南出站口 POI
+            // 经站前广场绕行），不采用。
+            "SBT|0207": 4, "0207|SBT": 4,
+            // 奥体中心（有轨 5 号线）⇄ 奥体中心（2/9 号线）：高德 411 米 → 10 分钟。
+            "T501|0215": 10, "0215|T501": 10,
+            // 行政服务中心（有轨 5 号线）⇄ 朗日街（9 号线）：高德 343 米 → 9 分钟。
+            "T505|0921": 9, "0921|T505": 9,
+            // 浑南图书馆（有轨 5 号线）⇄ 朗日街（9 号线）：高德 121 米 → 5 分钟。
+            "T506|0921": 5, "0921|T506": 5,
+            // 浑南实验小学（有轨 5 号线）⇄ 长青南街（9/10 号线）：高德 72 米 → 4 分钟。
+            "T508|0922": 4, "0922|T508": 4,
+            // 建筑大学（有轨 5 号线）⇄ 建筑大学（9 号线）：高德 329 米 → 8 分钟。
+            "T510|0923": 8, "0923|T510": 8
+        },
+        /**
+         * 地上（高架）车站清单（站 ID）。沈阳地铁仅 3 号线李达—余良区间为地上站，
+         * 其余车站均为地下站——**不在本清单即为地下站**（共享层据此给「携带行李」
+         * 需求出行方向指引：地下站进站找下行扶梯、高架站反过来）。
+         * 9 站：李达 0301、铁西汽车工厂 0302、马贝 0303、中德大街 0304、细河悠谷 0305、
+         * 翟家 0306、工业大学 0307、宁官 0308、余良 0309（主理人 2026-10-09 口径）。
+         */
+        elevatedStations: ["0301", "0302", "0303", "0304", "0305", "0306", "0307", "0308", "0309"],
+        /**
+         * 站内换乘方式与换乘用时（分钟）。键为换乘站 ID，机制见 shared/route/route-data.js
+         * 的 transferAt。未列出的换乘站用共享层默认值（2 分钟）。
+         *
+         * 换乘方式按步行尺度分档：同台 / 节点换乘 1 分钟量级，站厅换乘 2~3 分钟，
+         * 通道换乘 4~5 分钟。全图 15 座换乘站（10 号线开通后线网口径见辽宁日报
+         * 2020-04-29，其后 4 号线 2023-09、3 号线 2026-06 陆续接入）。
+         *
+         * 依据优先级：城市主理人的现场走行口径（2026-10 提供，逐站注明）＞ 官方/媒体
+         * 公开报道。耗时未逐站实测的，按其换乘方式档位取值：站台层经楼梯直连记 1 分钟、
+         * 站厅直接相接记 2 分钟、站厅之间另有通道记 3 分钟、需走较长换乘通道记 4~5 分钟。
+         *
+         * 用词说明：无明确交叉几何（十字 / T 型 / L 型）依据的站，统一按主理人现场口径
+         * 记作「节点换乘」；几何形式有公开依据的（青年大街十字、淮河街 L 形）保留前缀。
+         */
+        transferAt: {
+            // 青年大街 1号线 ⇄ 2号线：公开报道确证两线在青年大街与十一纬路交口交叉成
+            // 十字，1 号线沿十一纬路及大西路东西向（在下层）、2 号线沿青年大街南北向
+            // （在上层，侧式站台），站台之间有换乘楼梯直连，另有 4 条经站厅付费区的
+            // 弧形换乘通道，记者体验「换乘最多只需要 1 分钟」（辽沈晚报 / 中国地铁网
+            // 2011-12-29《沈阳：体验地铁换乘最多只需1分钟》）。
+            // 主理人现场口径：**1 号线换 2 号线为节点换乘（约 1 分钟），
+            // 2 号线换 1 号线为通道换乘（约 3 分钟）** —— 这是按线路对方向的不对称
+            // （由站体结构决定，与列车上下行无关），用 pairs 的**有向键**「A>B」表达。
+            "0117": {
+                needs: {
+                    luggage: { mode: "通道换乘（通道双向扶梯）" },
+                    accessible: { mode: "通道换乘（通道有电梯）" }
+                },
+                mode: "十字节点换乘", minutes: 1,
+                pairs: {
+                    "SYM01>SYM02": { mode: "十字节点换乘", minutes: 1 },
+                    "SYM02>SYM01": { mode: "通道换乘", minutes: 3 }
+                }
+            },
+            // 铁西广场 1号线 ⇄ 9号线：从 1 号线下车可在站台层直接向下走到 9 号线站台层，
+            // 反向乘扶梯 / 步行梯上行（搜狐·一点资讯《驶向新时代 沈阳地铁九号线开通
+            // 试运营》2019-05-25）。主理人现场口径：1 号线换 9 号线为节点换乘，
+            // 9 号线站厅北端接入 1 号线站厅中部（即节点为主、站厅相接为辅）。
+            "0112": {
+                needs: {
+                    luggage: { mode: "站厅平接换乘（9号线站厅双向扶梯）" },
+                    accessible: { mode: "站厅平接换乘",  note: "两线直梯分处站厅两头、疑隔非付费区，能否跨线使用待核，以现场为准" }
+                },
+                mode: "节点换乘", minutes: 1 },
+            // 淮河街沈医二院 9号线 ⇄ 10号线：设计为「L」形换乘站，10 号线车站地下两层、
+            // 9 号线车站地下三层，站厅层实现付费区与非付费区换乘，站台与站台以换乘楼梯
+            // 连接、单向循环换乘（中国网 / 央视网 2012-07-04《沈阳地铁9、10号线重要站点
+            // 怎么建》）。主理人现场口径：10 号线换 9 号线使用站台一端楼梯换乘，
+            // 站厅之间有通道连接。
+            "0902": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "L型节点换乘", minutes: 1 },
+            // 中医药大学 2号线 ⇄ 10号线：10 号线车站沿崇山中路东西向、上跨 2 号线，
+            // 与 2 号线实现通道换乘，两线共用一个换乘厅（同上 2012-07-04 报道）。
+            // 主理人现场口径：通道换乘。→ 取通道换乘档下限 4 分钟。
+            "0205": {
+                needs: {
+                    luggage: { mode: "通道换乘（双向扶梯）" },
+                    accessible: { mode: "通道换乘（换乘通道有升降平台）" }
+                },
+                mode: "通道换乘", minutes: 4 },
+            // 滂江街 1号线 ⇄ 10号线：10 号线滂江街站为地下三层岛式站台（地下一层站厅、
+            // 地下二层设备层、地下三层站台），与 1 号线滂江街车站通道换乘、单向循环
+            // （同上 2012-07-04 报道）。主理人现场口径：10 号线站厅北端有楼梯直通
+            // 1 号线 A 口所在的东站厅，也有通道连接到 1 号线 C 口所在的西站厅
+            // —— 两条路径都在站厅层面，仍按通道换乘档取 4 分钟。
+            "0121": {
+                needs: {
+                    luggage: { mode: "站厅换乘（走 B/C 口方向通道）" },
+                    accessible: { mode: "站厅换乘（走 B/C 口方向通道，有升降平台与直梯）",  note: "升降平台与直梯在通向 B/C 口的 1 号线站厅一侧" }
+                },
+                mode: "通道换乘", minutes: 4 },
+            // 奥体中心 2号线 ⇄ 9号线：9 号线车站沿浑河大街设置，既有 2 号线奥体中心站
+            // 位于本站东北侧（同上 2012-07-04 报道）。主理人现场口径：9 号线站厅东端
+            // 接入 2 号线站厅中部 —— 属站厅换乘；现场换乘实录用时约 3 分钟
+            // （B 站《沈阳地铁「奥体中心站」换乘实录》2026-05，爱好者现场实测）。
+            "0215": {
+                needs: {
+                    luggage: { mode: "站厅平接换乘（9号线站厅双向扶梯）" },
+                    accessible: { mode: "站厅平接换乘（两线均有直梯）" }
+                },
+                mode: "站厅换乘", minutes: 3 },
+            // 太原街 1号线 ⇄ 4号线：主理人现场口径：两个站厅之间有通道连接。
+            // 现场实录另述该通道明显偏长（B 站换乘实录标题即「长通道换乘！沈阳地铁
+            // 太原街站 4 号线换乘 1 号线第一视角记录」「谁让你把换乘通道修那么长的？」）
+            // → 按通道换乘档上限取 5 分钟。
+            "0115": {
+                needs: {
+                    luggage: { mode: "通道换乘（通道双向扶梯）" },
+                    accessible: { mode: "通道换乘（通道与站厅有直梯）" }
+                },
+                mode: "通道换乘", minutes: 5 },
+            // 工业展览馆 2号线 ⇄ 3号线：主理人现场口径：两条线的站厅之间有通道连接。
+            // 官方报道亦述两线以换乘通道相连，通道内设置沈阳工业发展史时间轴
+            // （沈阳晚报 / 辽宁日报 2026-06-30 3 号线东段开通报道引沈阳地铁集团口径）
+            // → 站厅之间另有通道，取 3 分钟。
+            "0212": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "站厅换乘", minutes: 3 },
+            // 沈阳北站 2号线 ⇄ 4号线：主理人现场口径：两个站厅之间有通道连接 → 3 分钟。
+            // （国铁沈阳北站经「联建通道」进站属站外换乘，见上方 walkMinutes 的未收录说明。）
+            "0207": {
+                needs: {
+                    luggage: { mode: "通道换乘（双向扶梯）" },
+                    accessible: { mode: "通道换乘（换乘通道有升降平台）" }
+                },
+                mode: "站厅换乘", minutes: 3 },
+            // 砂阳 3号线 ⇄ 4号线：主理人现场口径：3 号线站厅东端接入 4 号线站厅南端
+            // —— 两个站厅直接相接、无额外长通道，取 2 分钟。
+            "0414": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "站厅换乘", minutes: 2 },
+            // 大通湖街 3号线 ⇄ 9号线：主理人现场口径：两条线的站厅之间有通道连接 → 3 分钟。
+            "0911": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "站厅换乘", minutes: 3 },
+            // 长白南 4号线 ⇄ 9号线：主理人现场口径：9 号线换 4 号线有楼梯直通（节点），
+            // 两个站厅之间另有通道连接 → 按主路径的节点换乘取 1 分钟。
+            "0915": {
+                needs: {
+                    luggage: { mode: "站厅平接换乘（双向扶梯）" },
+                    accessible: { mode: "站厅平接换乘（有直梯）" }
+                },
+                mode: "节点换乘", minutes: 1 },
+            // 长青南街 9号线 ⇄ 10号线：主理人现场口径：9 号线换 10 号线有楼梯直通，
+            // 10 号线站厅南端接入 9 号线站厅中部 → 按主路径的节点换乘取 1 分钟。
+            "0922": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "节点换乘", minutes: 1 },
+            // 合作街 4号线 ⇄ 10号线：主理人现场口径：4 号线换 10 号线有楼梯直通，
+            // 站厅之间有通道连接 → 按主路径的节点换乘取 1 分钟。
+            "1011": {
+                needs: {
+                    luggage: { mode: "站厅平接换乘（双向扶梯）" },
+                    accessible: { mode: "站厅平接换乘（有直梯）" }
+                },
+                mode: "节点换乘", minutes: 1 },
+            // 江东街 3号线 ⇄ 10号线：主理人现场口径：两条线的站厅之间有通道连接 → 3 分钟。
+            "1017": {
+                needs: {
+                    luggage: { mode: "站厅换乘（双向扶梯）" },
+                    accessible: { mode: "站厅换乘（有直梯）" }
+                },
+                mode: "站厅换乘", minutes: 3 }
         }
     };
 
     function loadStationBoardModules() {
         if (typeof document === "undefined" || typeof document.write !== "function") return;
-        const version = "260928.0907";
+        const version = "261123.112538";
+        // 环线方向文案（内环 / 外环）：须早于行程规划与时刻表渲染
+        document.write(`<script src="./core/shared/route/loop-direction.js?v=${version}"><\/script>`);
+        // 站距「约X米」估算：有经纬度优先取球面距离（异常偏离回退画布等比，见文件头注释）
+        document.write(`<script src="./core/shared/base/geo-estimate.js?v=${version}"><\/script>`);
         // 行程规划：数据构建器 → 内核 → 面板（顺序不可颠倒）
-        document.write(`<script src="./city/shenyang/shared/route-data.js?v=${version}"><\/script>`);
-        document.write(`<script src="./city/shenyang/shared/route-planner.js?v=${version}"><\/script>`);
-        document.write(`<script src="./city/shenyang/shared/route-panel.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/route/route-data.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/route/route-planner.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/route/route-panel-icons.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/route/route-panel-search.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/route/route-panel.js?v=${version}"><\/script>`);
+        // 公共栅格化零件（分享卡海报与沿革视频导出共用，须早于 poster.js 与 opening-history.export.js）
+        document.write(`<script src="./core/shared/base/svg-raster.js?v=${version}"><\/script>`);
+        // 分享卡（车站卡 / 行程卡）：接管两个面板的分享按钮；出图基建 poster.js 须先于其加载
+        document.write(`<script src="./core/shared/base/poster.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/base/share-card.js?v=${version}"><\/script>`);
         // 跨城市「查找最近车站」：接管核心的 findNearestStation 及其「距离较远」confirm
-        document.write(`<script src="./city/shenyang/shared/nearest-station.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/station/nearest-station.js?v=${version}"><\/script>`);
         // 固定侧栏「浮岛卡片」改造（须晚于 route-panel.js，样式表以本层为准）
-        document.write(`<script src="./city/shenyang/shared/sidebar-refit.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/base/sidebar-refit.js?v=${version}"><\/script>`);
+        // 地图小工具（票价图 / 等时圈 / 多人汇合）：入口在「查找最近车站」按钮下方
+        document.write(`<script src="./core/shared/tools/map-tools-color.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/tools/map-tools.js?v=${version}"><\/script>`);
         // 城市私有数据（须早于依赖它的模块加载）
         document.write(`<script src="./city/shenyang/data_calligraphy.js?v=${version}"><\/script>`);
+        document.write(`<script src="./city/shenyang/data_facilities.js?v=${version}"><\/script>`);
+        document.write(`<script src="./city/shenyang/data_exits.js?v=${version}"><\/script>`);
+        // 「快速前往」静态推荐清单（行程规划面板；约定全局 CGO_HOTSPOTS）
+        document.write(`<script src="./city/shenyang/data_hotspots.js?v=${version}"><\/script>`);
         // 共享层（本目录下，须早于各城模块加载）
-        document.write(`<script src="./city/shenyang/shared/timetable-renderer.js?v=${version}"><\/script>`);
-        document.write(`<script src="./city/shenyang/shared/station-title.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/station/timetable-renderer.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/base/station-title.js?v=${version}"><\/script>`);
         // 浮层遮挡：声明浮层占用的边缘尺寸，由引擎据此收窄平移边界与居中区
-        document.write(`<script src="./city/shenyang/shared/viewport-inset.js?v=${version}"><\/script>`);
-        document.write(`<script src="./city/shenyang/shared/tip-card.js?v=${version}"><\/script>`);
-        document.write(`<script src="./city/shenyang/shared/calligraphy.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/base/viewport-inset.js?v=${version}"><\/script>`);
+        // 移动端抽屉已由核心统一接管（core/mobile-sheet.js，含底栏停靠与页签横滑），共享层不再自建
+        // 车站信息板横滑切页的补充通道：补上「在交互元素（整宽链接 / 按钮）上左右滑」这一缺口
+        document.write(`<script src="./core/shared/base/panel-tab-swipe-relay.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/station/tip-card.js?v=${version}"><\/script>`);
+        // 呼出线随标签进入 active：按 data-cgo-callout 把站名标签的选中态同步到引线
+        document.write(`<script src="./core/shared/base/label-active.js?v=${version}"><\/script>`);
+        // 有轨车站站名标签字号缩到 80%（共享机制，按城市 isTramStation / 有轨线路站序判定）
+        document.write(`<script src="./core/shared/base/tram-label-scale.js?v=${version}"><\/script>`);
+        // 上一站 / 下一站点击跳转：面板装配完成后给 info-value 绑定目标站（core 零改动）
+        document.write(`<script src="./core/shared/station/adjacent-jump.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/station/calligraphy.js?v=${version}"><\/script>`);
+        // 出入口垂直交通：把「地面-站厅 X出入口」这类电梯/扶梯从设施板块搬到出口页签
+        // （须早于 facilities.js 与 exits.js，两者都调用它）
+        document.write(`<script src="./core/shared/station/exit-vertical.js?v=${version}"><\/script>`);
+        // 车站设施（含可选的车站层级图）：配置驱动，大连等城同用
+        document.write(`<script src="./core/shared/station/facilities.js?v=${version}"><\/script>`);
+        // 反馈面板（出入口「待补充」、题字投稿与右上角「更多」入口共用；须早于 exits.js）
+        document.write(`<script src="./core/shared/feedback/feedback.js?v=${version}"><\/script>`);
+        // 车站出入口独立页签：配置驱动，大连等城同用
+        document.write(`<script src="./core/shared/station/exits.js?v=${version}"><\/script>`);
+        // 出入口检索：全局搜索栏与行程规划起终点的出入口命中（须在 exits.js 之后）
+        document.write(`<script src="./core/shared/station/exit-search.js?v=${version}"><\/script>`);
         // 未开通区段与车站的开通时刻（共享层读取并应用）
-        document.write(`<script src="./city/shenyang/shared/opening-schedule.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/station/opening-schedule.js?v=${version}"><\/script>`);
         document.write(`<script src="./city/shenyang/data_opening.js?v=${version}"><\/script>`);
+        // 开通沿革时间线（发展史动态演示的数据源，约定全局 CGO_OPENING_HISTORY）
+        document.write(`<script src="./city/shenyang/data_opening_history.js?v=${version}"><\/script>`);
+        // 线网发展史：把沿革时间线播成生长动画，经 CGoMapTools.registerTool 挂进「地图小工具」
+        document.write(`<script src="./core/shared/tools/opening-history.js?v=${version}"><\/script>`);
+        // 线网发展史拆成三层：本文件 = 内核（几何 / 渲染 / 面板 / 挂载），下面两个是它的扩展，
+        // 必须晚于内核加载（经 window.CGoOpeningHistoryShared 注入）
+        document.write(`<script src="./core/shared/tools/opening-history.model.js?v=${version}"><\/script>`);
+        document.write(`<script src="./core/shared/tools/opening-history.export.js?v=${version}"><\/script>`);
         (ShenyangCity.stationBoard?.scripts || []).forEach((scriptPath) => {
             document.write(`<script src="./city/shenyang/${scriptPath}?v=${version}"><\/script>`);
         });
@@ -313,4 +682,24 @@
         isDefault: false,
         ...ShenyangCity
     });
+
+    // ── 画布尺寸对齐 ────────────────────────────────────────────────────────────
+    // 引擎只按 city.mapSize 计算平移 / 居中边界，DOM 上的 #map-content 仍是
+    // css/style.css 里的默认尺寸（1850×1300），必须在这里把它对齐到本市实际画布，
+    // 否则画布与边界对不上。口径与大连 modules/dalian_map.js、哈尔滨
+    // modules/harbin_map.js 里的 installMapCanvas 一致。
+    (function installMapCanvas() {
+        const apply = () => {
+            const mapContent = document.getElementById("map-content");
+            const size = ShenyangCity.mapSize;
+            if (!mapContent || !size) return;
+            mapContent.style.setProperty("width", `${size.width}px`, "important");
+            mapContent.style.setProperty("height", `${size.height}px`, "important");
+        };
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", apply, { once: true });
+        } else {
+            apply();
+        }
+    })();
 })();

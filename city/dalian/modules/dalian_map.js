@@ -2,7 +2,7 @@
  * CGo OpenMap - 大连画布尺寸、站名与图例交互模块
  *
  * 海域底图已按项目规范迁到 data_scattered.js（散点装饰层），
- * 主题适配由 modules/dalian_sea.js 负责，本模块不再自建地理图层。
+ * 由引擎以 <img> 直出原 SVG，本模块不再自建地理图层。
  *
  * @event cgo:city-module-ready
  * @property {{ cityId: string, moduleId: string }} detail
@@ -42,13 +42,12 @@
     }
 
     function hasLabelBreak(text) {
-        return /\r?\n|<br\s*\/?\s*>/i.test(String(text));
+        return /<br\s*\/?\s*>/i.test(String(text));
     }
 
     function getPlainStationName(text) {
         return String(text || "")
             .replace(/<br\s*\/?\s*>/gi, "")
-            .replace(/\r?\n/g, "")
             .trim();
     }
 
@@ -85,10 +84,16 @@
         });
     }
 
+    /**
+     * 标签多行：换行统一用 core 支持的 `<br>`（数据里也写 `<br>`，不再用 `\n`）。
+     * 每行一个 span 之外**还要补一个真正的 `<br>` 元素** —— 标签位置由 core 与导出侧按
+     * `<br>` 拆行，缺了它，导出（以及站名缓存）会把多行并成一行。
+     */
     function createLabelLines(text, textClass, lineClass) {
         const textElement = document.createElement("span");
         textElement.className = textClass;
-        String(text).replace(/<br\s*\/?\s*>/gi, "\n").split(/\r?\n/).forEach((line) => {
+        String(text).split(/<br\s*\/?\s*>/i).forEach((line, i) => {
+            if (i) textElement.appendChild(document.createElement("br"));
             const lineElement = document.createElement("span");
             lineElement.className = lineClass;
             lineElement.textContent = line;
@@ -102,8 +107,6 @@
         const style = document.createElement("style");
         style.id = DALIAN_LABEL_STYLE_ID;
         style.textContent = `
-            #labels-layer .stacn,
-            #labels-layer .staen { white-space: pre; }
             #info-panel .panel-cn-name,
             .ctx-header { white-space: pre-line; }
             #labels-layer .dalian-label-icon {
@@ -112,6 +115,8 @@
                 margin-right: 2px;
                 vertical-align: -0.12em;
                 object-fit: contain;
+                /* <cgo-icon> 分支：内置图标尺寸走 --cgo-icon-size，与 <img> 分支同为 1em */
+                --cgo-icon-size: 1em;
             }
             #labels-layer .dalian-label-cn-text {
                 display: inline-block;
@@ -123,7 +128,9 @@
             }
             #labels-layer .dalian-label-cn-line,
             #labels-layer .dalian-label-en-line {
-                display: block;
+                /* 行与行之间由真正的 <br> 断开（createLabelLines 里补的）：这里必须保持 inline，
+                   否则 block 换行与 <br> 叠加会多空一整行（用户实测）。 */
+                display: inline;
                 white-space: nowrap;
             }
             #labels-layer .dalian-label-en-text { display: block; }
@@ -150,14 +157,27 @@
             if (!hasCnEnhancement && !hasEnEnhancement) return;
 
             const iconConfig = typeof config.icon === "string" ? { src: config.icon } : (config.icon || {});
-            const labelKey = `${cnText}\u0000${iconConfig.src || ""}\u0000${enText}`;
-            if (label.dataset.dalianLabelKey === labelKey) return;
+            // 两种图标写法取其一：icon 为 CGoUI 内置图标名（随主题自动染色），
+            // src 为城市自绘 SVG 路径（保留兼容）。
+            const iconKey = iconConfig.icon ? `cgo:${iconConfig.icon}` : (iconConfig.src || "");
+            const labelKey = `${cnText}\u0000${iconKey}\u0000${enText}`;
+            // ⚠️ 这个键**只挂在 JS 属性上，不能写进 data-\***：它用 U+0000 拼成，而 NUL 在 XML 里
+            //    非法 ——「线网发展史」导出视频要把整棵 DOM 序列化成 SVG，一旦写进属性，整份 SVG 会因
+            //    `invalid attribute value` 解析失败（实测每帧 14 个 NUL，即 7 个增强标签 × 2 个分隔符）。
+            if (label.__dalianLabelKey === labelKey) return;
 
             if (hasCnEnhancement) {
                 cnLabel.replaceChildren();
                 const contentElement = document.createElement("span");
                 contentElement.className = "dalian-label-content";
-                if (iconConfig.src) {
+                if (iconConfig.icon) {
+                    const icon = document.createElement("cgo-icon");
+                    icon.className = "dalian-label-icon";
+                    icon.setAttribute("name", iconConfig.icon);
+                    icon.title = iconConfig.title || "";
+                    icon.setAttribute("aria-hidden", "true");
+                    contentElement.appendChild(icon);
+                } else if (iconConfig.src) {
                     const icon = document.createElement("img");
                     icon.className = "dalian-label-icon";
                     icon.src = iconConfig.src;
@@ -174,7 +194,8 @@
                 enLabel.replaceChildren();
                 enLabel.appendChild(createLabelLines(enText, "dalian-label-en-text", "dalian-label-en-line"));
             }
-            label.dataset.dalianLabelKey = labelKey;
+            delete label.dataset.dalianLabelKey;   // 清掉旧版本可能留下的属性
+            label.__dalianLabelKey = labelKey;
         });
     }
 

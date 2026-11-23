@@ -23,7 +23,7 @@
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#key-features">Key Features</a> •
-  <a href="#drunk-intelligent-map-conversion-workbench">Drunk Workbench</a> •
+  <a href="#openmap-editor-transit-map-editor">OpenMap Editor</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#documentation">Documentation</a> •
   <a href="#project-architecture">Architecture</a> •
@@ -52,23 +52,30 @@ It is built with native Web technologies and is designed to be **ready to use, l
 >
 > The only exception is a narrow class of background monitoring tasks, such as monitoring station operating status or external Web pages, where Node.js/PM2 may be used for lightweight background services. The map engine and all major interactive map features must remain native front-end code.
 
-The repository currently includes complete or reference implementations for **Beijing, Shenyang, Dalian, Changchun, Qingdao, Hefei, Fuzhou, Shanghai, Sydney, and Hong Kong**. The common rendering engine is separated from city-specific business data, so new cities can be ported by following the standardized data model without rewriting the core renderer.
+The repository currently includes complete or reference implementations for **Beijing, Shenyang, Dalian, Changchun, Qingdao, Fuzhou, Shanghai, Sydney, and Hong Kong**. The common rendering engine is separated from city-specific business data, so new cities can be ported by following the standardized data model without rewriting the core renderer.
 
-The project also includes **Drunk**, an intelligent transit-map conversion workbench. It can take a high-resolution image, vector PDF, or Adobe Illustrator project and help convert it into CGo OpenMap city data through vector parsing, AI-assisted topology recognition, knowledge-base matching, visual editing, and code export.
+> 🏅 **Transit Map Quality Standards & PR Acceptance Criteria**:  
+> To guarantee professional visual aesthetics and rigorous topological integrity across all cities, the project adopts a quantified evaluation model and PR gatekeeper mechanism (contributors should self-evaluate to Tier C / ≥60 pts before submitting a PR, and collaborate with reviewers to reach Tier B / ≥70 pts before formal merge). For detailed scoring metrics and S-tier benchmarks (Beijing, Shanghai, Shenyang), see **[Transit Map Quality Standards & Governance Specification (docs/QUALITY_STANDARDS.md)](./docs/QUALITY_STANDARDS.md)**.
+
+> [!NOTE]
+> **City Network Maintenance Note (Hefei)**:
+> - **Maintenance Status**: The Hefei transit network (`city/hefei/`) is currently undergoing layout orthogonality alignment and distance data verification, and is temporarily not featured on the portal cards. All underlying code and data are fully preserved and accessible directly via `main.html?city=hefei`.
+> - **Community Collaboration**: The maintainer tenure for [Evin](https://github.com/walternie) is maintained. Community contributors and transit enthusiasts are welcome to collaborate and refine the network per quality guidelines!
+
+The project also includes **OpenMap Editor**, a modern transit-map editor and conversion workbench. It can take a high-resolution image, vector PDF, or Adobe Illustrator project and help convert it into CGo OpenMap city data through vector parsing, AI-assisted topology recognition, knowledge-base matching, visual editing, and code export.
 
 ---
 
 ## Key Features
 
 - **Pure front-end, zero framework dependency** — built with HTML5, native SVG, Vanilla JavaScript, Web Components, and CSS variables. No bundler or build pipeline is required for the core application.
-- **Drunk intelligent conversion workbench** — a full or semi-automatic mapping workspace under `drunk/`. It supports raster images, vector/scanned PDFs, and Adobe Illustrator files, plus AI-assisted topology recognition, Wikipedia-based station-name correction, an eight-direction label placement control, 45°/90° snapping, and standardized city-code export.
+- **OpenMap Editor** — a full-featured visual mapping workspace under `editor/`. It supports raster images, vector/scanned PDFs, and Adobe Illustrator files, plus AI-assisted topology recognition, Wikipedia-based station-name correction, an eight-direction label placement control, 45°/90° snapping, and standardized city-code export.
 - **Native vector interaction** — smooth zooming, free panning, viewport boundary control, mouse-wheel support, and mobile multi-touch gestures, all rendered through SVG.
 - **Light and dark themes** — automatically follows system preferences or can be manually locked to a theme, with crisp vector rendering on high-DPI displays.
 - **Multi-dimensional station search** — supports Chinese and English station names, full Pinyin, Pinyin initials, polyphonic characters, aliases, and former station names.
 - **Modular station information boards** — the registration-based architecture in `core/station-board.js` allows each city to enable, reorder, or extend modules for tourism guidance, timetables, estimated arrivals, transfer walking guidance, bus/taxi connections, platform layouts, elevators, nursing rooms, AED locations, and other local services.
-- **Detailed station and line models** — supports transfer information, operator information, exits, platform and stair diagrams, first/last train interfaces, time-limited virtual transfers, and geographic-distance-assisted map spacing.
 - **Location-aware assistance** — uses the browser Geolocation API to estimate nearby stations and direct distance, and can hand off to external navigation or railway services.
-- **City-specific branding** — each city can register its own `themeColor` and official vector logo. Theme palettes are derived per city and remain isolated to avoid cross-city style leakage.
+- **City-specific branding** — each city can register its own `themeColor` and dark-mode `themeColorDark` alongside an official vector logo. Theme palettes are derived per city with tailored contrast tuning (light colors deepened for bright backgrounds, deep colors lightened for dark backgrounds, or defaulting to white for hard-to-tune deep blues like Beijing), strictly isolated between cities.
 - **Decoupled multi-city architecture** — the core renderer under `core/` is separated from city-specific configuration under `city/`, making it possible to add a city without modifying the rendering engine.
 - **PWA and offline support** — includes a Service Worker caching strategy and Web App Manifest so the project can be installed and used offline on mainstream desktop and mobile platforms.
 
@@ -112,18 +119,18 @@ Visit `http://localhost:8080`, or the port shown by your static server.
 
 ---
 
-## Drunk: Intelligent Map Conversion Workbench
+## OpenMap Editor: Transit Map Editor & Conversion Workbench
 
-> [!WARNING]
-> **Early development / validation status:** Drunk is currently in an early Beta stage and should be treated as an experimental tool. Recognition algorithms, layer parsing, and data structures are still evolving, and exported results should be manually reviewed. Contributions to its algorithms and interactions are very welcome.
+> [!TIP]
+> **Modern Productivity Workbench:** **OpenMap Editor (`editor/`) is CGo OpenMap's official map editor and conversion workspace**. Built with the CGoUI Ribbon layout and Liquid Glass styling, it supports vector parsing, AI-assisted recognition, and surgical lossless code export.
 
-**Drunk** is CGo OpenMap's map vectorization, migration, and visual editing workbench. After starting a local static server, open `http://localhost:8080/drunk/`.
+**OpenMap Editor** is CGo OpenMap's map vectorization, editing, and migration workbench. After starting a local static server, open `http://localhost:8080/editor/`.
 
 ### What problem does it solve?
 
 Traditionally, porting a city requires manually measuring hundreds or thousands of station coordinates, adjusting label alignment station by station, and connecting every line by hand.
 
-Drunk turns that workflow into:
+OpenMap Editor turns that workflow into:
 
 **Upload source map → intelligent extraction → visual adjustment → one-click project export**
 
@@ -138,13 +145,13 @@ Drunk turns that workflow into:
 
 ### Edit mode for existing cities
 
-Drunk is also the visual editor for any registered OpenMap city.
+OpenMap Editor is also the visual editor for any registered OpenMap city.
 
 You can enter edit mode from:
 
 - **More → Preferences → Edit this map → Open edit mode** on the transit map;
-- the city selector in the Drunk toolbar, followed by **Edit this map**;
-- `drunk/index.html?city={city_id}`.
+- the city selector in the editor toolbar, followed by **Load city**;
+- `editor/index.html?city={city_id}`.
 
 **Stations:** drag stations, edit Chinese/English names, switch station types, rotate label placement with the eight-direction control, fine-tune label offsets with `Alt + arrow keys`, or delete a station.
 
@@ -163,7 +170,7 @@ Keyboard shortcuts: **Ctrl/Cmd + Z** to undo, **Ctrl/Cmd + S** to export, and **
 | Audience / task | Resource | Description |
 | :--- | :--- | :--- |
 | New users | [QUICKSTART.md](./QUICKSTART.md) | Beginner-friendly environment setup and AI-assisted development guide |
-| Intelligent conversion and visual editing | [Drunk Workbench](./drunk/index.html) | Raster/vector conversion, AI-assisted extraction, and editing existing cities |
+| Intelligent conversion and visual editing | [OpenMap Editor](./editor/index.html) | Raster/vector conversion, AI-assisted extraction, and editing existing cities |
 | AI-assisted development | [AGENTS.md](./AGENTS.md) | Architecture rules, decoupling requirements, and data conventions for coding agents |
 | Porting city data | [PORTING.md](./PORTING.md) | City data structures, coordinates, lines, and legend configuration |
 | Contributing | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution workflow, city-maintainer model, and pull-request checklist |
@@ -174,7 +181,7 @@ The supporting documents are currently primarily written in Chinese. English tra
 
 ## Project Architecture
 
-The repository separates the core engine, conversion/editing tools, and city data.
+The repository separates the core engine, editor/conversion tools, and city data.
 
 ```text
 openmap/
@@ -191,7 +198,7 @@ openmap/
 ├── privacy.html                # Privacy notice
 ├── manifest.json               # PWA manifest
 ├── sw.js                       # Service Worker
-├── drunk/                      # Conversion workbench and city editor
+├── editor/                     # OpenMap Editor (Ribbon productivity workbench)
 ├── core/                       # Shared multi-city rendering engine
 ├── city/                       # City-specific data and behavior
 │   ├── data.js                 # CITY_REGISTRY
@@ -214,9 +221,9 @@ openmap/
 
 There are two supported workflows.
 
-### Recommended: use Drunk
+### Recommended: use OpenMap Editor
 
-1. Start a local static server and open `http://localhost:8080/drunk/`.
+1. Start a local static server and open `http://localhost:8080/editor/`.
 2. Upload an official transit-map image, PDF, or Illustrator file.
 3. Run visual recognition or vector parsing.
 4. Adjust stations and labels on the canvas and use snapping where appropriate.
@@ -225,7 +232,7 @@ There are two supported workflows.
 7. Add required offline assets and increment the cache version in `sw.js`.
 8. Review the generated result manually before submitting.
 
-After a city is online, the same Drunk workbench can be used for day-to-day maintenance such as moving stations, correcting names, or adjusting label directions.
+After a city is online, the same OpenMap Editor can be used for day-to-day maintenance such as moving stations, correcting names, or adjusting label directions.
 
 ### Traditional manual workflow
 
@@ -235,7 +242,7 @@ After a city is online, the same Drunk workbench can be used for day-to-day main
 4. Define line sequences, `stationIds`, route geometry, and line colors in `data_lines.js`.
 5. Reuse or add vector route badges in `assets/svg/`.
 6. Optionally create local station-board modules under `city/{city_id}/modules/`.
-7. Add PWA shortcuts and Service Worker assets where required.
+7. Update Service Worker assets and increment cache version where required.
 8. Validate the result locally in both light and dark themes.
 
 For detailed conventions, see [PORTING.md](./PORTING.md).
@@ -249,7 +256,7 @@ CGo OpenMap follows an **open collaboration + city stewardship** model. Contribu
 - **Beijing:** [NaL](https://github.com/NokiaimuL/) — City Maintainer; SierraQin — operations-data support; Freedom Space — suburban railway review
 - **Shenyang:** [jrzhang](https://github.com/beepingflijo) — City Maintainer; 从恒隆到细河 — operations-data support
 - **Qingdao:** [YoTra青通](https://github.com/YoTraYoungTraffic) — City Maintainer
-- **Hefei:** [Evin](https://github.com/walternie) — City Maintainer
+- **Hefei:** [Evin](https://github.com/walternie) — City Maintainer (*Maintenance Note: Currently undergoing layout refinement and data verification, temporarily not displayed on portal cards; community contributions welcome*)
 - **Shanghai:** [Ryan Si](https://github.com/ryan-si) — City Maintainer
 - **Dalian:** [jrzhang](https://github.com/beepingflijo) — City Maintainer; duckinglim — operations-data support
 - **Changchun:** [jrzhang](https://github.com/beepingflijo) — City Maintainer

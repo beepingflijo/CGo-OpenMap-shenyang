@@ -4,28 +4,41 @@
 <head>
     <script>
         (function () {
-            var t = localStorage.getItem('app-theme');
+            // 1. 全局深浅色主题同步
+            var t = localStorage.getItem('app-theme') || localStorage.getItem('cgo-theme');
             if (t) document.documentElement.setAttribute('data-theme', t);
-            var hm = localStorage.getItem('root_cgo_header_mode') || localStorage.getItem('cgo_header_mode');
-            if (hm) document.documentElement.setAttribute('header-mode', hm);
+
+            // 2. 彻底清理历史全局无前缀污染键，杜绝跨项目混用打架
+            try {
+                localStorage.removeItem('cgo_header_mode');
+                localStorage.removeItem('root_cgo_header_mode');
+                localStorage.removeItem('main_cgo_header_mode');
+            } catch (e) {}
+
+            // 3. 页面特性严格由页面自身决定：privacy.html 专属双岛浮动标题栏
+            var pageKey = 'openmap_privacy_header_mode';
+            var hm = localStorage.getItem(pageKey) || 'floating';
+            document.documentElement.setAttribute('header-mode', hm);
+
+            // 4. 液态玻璃模式
             var gm = localStorage.getItem('cgo_glass_mode');
             if (gm) document.documentElement.setAttribute('glass-mode', gm);
         })();
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
     <title>隐私政策 - CGo OpenMap 线路图开放平台</title>
     <link rel="shortcut icon" href="./assets/icons/favicon.ico">
     <link rel="apple-touch-icon" href="./assets/icons/mapicon2.png">
 
-    <!-- CGoUI 核心 JS 模块预编译与最高优先级预加载 -->
-    <link rel="modulepreload" href="core/cgo-ui.js?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_clr.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_element.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_ui.css?v=260926.2300">
-    <link rel="stylesheet" href="css/cgo_components.css?v=260926.2300">
-    <script type="module" src="core/cgo-ui.js?v=260926.2300"></script>
+    <link rel="modulepreload" href="core/cgo-ui.js?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_clr.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_element.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_ui.css?v=261123.131500">
+    <link rel="stylesheet" href="css/cgo_components.css?v=261123.131500">
+    <script type="module" src="core/cgo-ui.js?v=261123.131500"></script>
 
     <style>
         body {
@@ -73,6 +86,34 @@
         .article-content a:hover {
             text-decoration: underline;
         }
+
+        /* ---- 无障碍：本页不加载 css/style.css，以下与其「20. 无障碍」一节保持一致 ---- */
+        :root {
+            --focus-ring: #1a73e8; /* 对 #fff 4.51 / #f8f9fa 4.27 */
+        }
+
+        [data-theme="dark"] {
+            --focus-ring: #8ab4f8; /* 对 #1a1a1a 8.26 / #1f2020 7.75 */
+        }
+
+        :where(a, button, input, select, textarea, summary, [tabindex], [role="button"], [role="tab"], [role="option"]):focus-visible {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-delay: 0s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                transition-delay: 0s !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -96,7 +137,8 @@
             <div class="header-island-divider" aria-hidden="true"></div>
             <div class="header-center">
                 <div class="img-icon-wrapper header-logo-wrapper">
-                    <img src="./assets/icons/mapicon.png" alt="Logo" class="header-logo" loading="lazy" decoding="async" fetchpriority="low"
+                    <img src="./assets/icons/mapicon.png" alt="Logo" class="header-logo" loading="lazy" decoding="async"
+                        fetchpriority="low"
                         onload="this.classList.add('loaded');this.parentElement&&this.parentElement.classList.add('loaded');">
                     <cgo-icon name="sparkle" class="icon-placeholder"></cgo-icon>
                 </div>
@@ -112,7 +154,8 @@
     </header>
 
     <!-- Main Content Container -->
-    <main class="tool-container" style="max-width: 860px; margin: 0 auto; padding-top: 80px; padding-bottom: 40px; box-sizing: border-box;">
+    <main class="tool-container"
+        style="max-width: 860px; margin: 0 auto; padding-top: 80px; padding-bottom: 40px; box-sizing: border-box;">
         <article class="tool-card article-content glass-panel" style="padding: 32px 28px; border-radius: 16px;">
             <div class="liquid-glass-effect"></div>
             <h1>隐私政策</h1>
@@ -151,7 +194,9 @@
             <p>如果您对本隐私政策或开源项目有任何疑问，请通过以下方式联系：</p>
             <p>电子邮件：<a href="mailto:centralgo@163.com">centralgo@163.com</a></p>
 
-            <div class="update-date" style="color: var(--text-light); font-size: 0.88em; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--border-color);">最后更新日期：2026年9月</div>
+            <div class="update-date"
+                style="color: var(--text-light); font-size: 0.88em; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+                最后更新日期：2026年9月</div>
         </article>
     </main>
 

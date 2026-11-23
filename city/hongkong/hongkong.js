@@ -87,7 +87,10 @@
         _routable = {};
         allLines().forEach(l => {
             if (l.isPointOnly || l.drawOnly) return;
-            const ways = l.hasbranch ? [l["stationIds-way1"], l["stationIds-way2"]] : [l.stationIds];
+            // ways 是「每條交路的完整站序」：分支綫可有多條，不再固定 way1 / way2
+            const ways = window.CGoLineRouting
+                ? window.CGoLineRouting.ways(l).map(w => w.ids)
+                : (l.hasbranch ? [l["stationIds-way1"], l["stationIds-way2"]] : [l.stationIds]);
             _routable[l.id] = { id: l.id, ways, ref: ways[0], color: l.color };
         });
         return _routable;
@@ -193,6 +196,60 @@
             width: b, height: b,
             className: "hk-marker"
         };
+    }
+
+
+    /**
+     * OpenMap Editor 钩子共用：经过本站的站台、全部线路色，以及换乘图元的排布轴。
+     * 站台分开时沿两端站台连线排布（对应真实站台位置），否则垂直于线路走向并排。
+     */
+    function stylePlan(station) {
+        const lines = (typeof linesData !== "undefined" && Array.isArray(linesData)) ? linesData : [];
+        const lib = window.CGoStationIcons;
+        const plats = (lib && lib.stationPlatforms) ? lib.stationPlatforms(station, lines, 14) : [];
+        const colors = [];
+        plats.forEach((p) => p.colors.forEach((c) => { if (colors.indexOf(c) === -1) colors.push(c); }));
+        (station.lineColors || []).forEach((c) => { if (c && colors.indexOf(c) === -1) colors.push(c); });
+        let axis = plats.length ? plats[0].angle + 90 : 0, cx = 0, cy = 0, spread = 0;
+        if (plats.length >= 2) {
+            let a = plats[0], b = plats[1];
+            plats.forEach((p) => plats.forEach((q) => {
+                const d = Math.hypot(p.x - q.x, p.y - q.y);
+                if (d > spread) { spread = d; a = p; b = q; }
+            }));
+            if (spread > 2) {
+                axis = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+                cx = (a.dx + b.dx) / 2; cy = (a.dy + b.dy) / 2;
+            } else spread = 0;
+        }
+        const r2 = (v) => Math.round(v * 100) / 100;
+        return { plats, colors: colors.length ? colors : ["#888888"], axis: r2(axis), cx: r2(cx), cy: r2(cy), spread, r2,
+            lineAngle: plats.length ? plats[0].angle : 0 };
+    }
+
+    /** OpenMap Editor 鉤子：按經過本站的綫路生成港鐵圖的單圓環 / 連珠換乘 */
+    function styleOptions(station) {
+        const P = stylePlan(station), r2 = P.r2;
+        const lib = window.CGoStationIcons;
+        const n = Math.max(P.colors.length, 1);
+        const opts = [{ key: "ring", name: "單圓環", desc: "普通站", patch: { type: "dot", mk: {} } }];
+        if (n >= 2 && lib && lib.capsulePath) {
+            const SP = 8.03, R = RING_R;
+            const len = P.spread ? Math.max(P.spread + 2 * R, (n - 1) * SP + 2 * R) : (n - 1) * SP + 2 * R;
+            const step = (len - 2 * R) / (n - 1);
+            const a = P.axis * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
+            const bars = P.colors.slice(0, n).map((c, i) => {
+                const t = -(len / 2 - R) + i * step;
+                const t0 = Math.max(-(len / 2) + 2.6, t - step / 2), t1 = Math.min(len / 2 - 2.6, t + step / 2);
+                const pt = (tt, s0) => `${r2(P.cx + ux * tt + nx * s0)},${r2(P.cy + uy * tt + ny * s0)}`;
+                return { c, p: [pt(t1, 1.35), pt(t0, 1.35), pt(t0, -1.35), pt(t1, -1.35)].join(" ") };
+            });
+            const ex = Math.abs(ux) * len / 2 + Math.abs(nx) * R, ey = Math.abs(uy) * len / 2 + Math.abs(ny) * R;
+            opts.push({ key: "chain", name: `連珠換乘 ×${n}`, desc: "外框 + 各綫色條",
+                patch: { type: "tsf", mk: { o: lib.capsulePath(P.cx, P.cy, len, R, P.axis), bars,
+                    w: r2(2 * (Math.abs(P.cx) + ex)), h: r2(2 * (Math.abs(P.cy) + ey)) } } });
+        }
+        return opts;
     }
 
     // ==========================================================================
@@ -604,6 +661,11 @@
     function polylinesOf(lid) {
         const l = allLines().find(x => x.id === lid);
         if (!l) return [];
+        // 走向判定（含主幹 / 各交路獨有區段）統一在核心，城市側不再自己拼 pathPoints-*
+        const segments = window.CGoPathGeometry?.lineSegments?.(l, stationMap());
+        if (Array.isArray(segments)) {
+            return segments.map(seg => seg.points).filter(pts => Array.isArray(pts) && pts.length >= 2);
+        }
         return l.hasbranch ? [l["pathPoints-main"], l["pathPoints-branch1"], l["pathPoints-branch2"]].filter(Boolean) : [l.pathPoints];
     }
     /** 把點投影到折綫上，返回所在綫段序號、段內比例、投影點與距離 */
@@ -710,7 +772,8 @@
         const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
         const pad = 80;
         const card = document.getElementById("hk-route-card");
-        const reserveW = card && window.innerWidth > 640 ? card.offsetWidth + 40 : 0;
+        const hkDocked = window.CGoWMAdapter?.isActive?.() && window.CGoWMAdapter?.isSidebar?.("hk-route");
+        const reserveW = !hkDocked && card && card.offsetWidth > 0 && window.innerWidth > 640 ? card.offsetWidth + 40 : 0;
         const reserveH = card && window.innerWidth <= 640 ? card.offsetHeight + 16 : 0;
         const ctrl = document.getElementById("modern-zoom-control");
         const left = ctrl && window.innerWidth > 640 ? ctrl.getBoundingClientRect().right - cont.getBoundingClientRect().left + 10 : 0;
@@ -779,10 +842,10 @@
         return m <= 0 ? "即將抵達" : m === 1 ? "1 分鐘" : `${m} 分鐘`;
     }
     /** 渲染實時列車行：「2 號月台 · 即將抵達 · 4 分 · 8 分」 */
-    function liveHtml(res, list, end) {
+    function liveHtml(res, list, end, emptyText = "暫無此方向班次") {
         if (!res) return "";
         if (!res.ok) return `<span class="hk-live-off">${res.message}</span>`;
-        if (!list.length) return `<span class="hk-live-off">暫無此方向班次</span>`;
+        if (!list.length) return `<span class="hk-live-off">${emptyText}</span>`;
         const plat = list[0].plat ? `<span class="hk-platnum"><span class="hk-plat-no">${list[0].plat}</span>號月台</span>` : "";
         const items = list.slice(0, 3).map((t, i) => {
             const other = end && t.dest !== end ? `<i>往${stName(t.dest)}</i>` : "";
@@ -949,43 +1012,83 @@
         html += `</ol><div class="hk-rt-foot">行車時間按站間實際距離估算，換乘另加 5 分鐘；實時班次與車費來自港鐵開放數據，僅供參考。點選路段可在圖上放大查看。</div>`;
         return html;
     }
+    let hkRouteWmRegistered = false;
+    let hkClosingRouteFromWm = false;
+    const isHkWmDesktop = () => window.innerWidth > 640 && !!window.CGoWMAdapter?.isActive?.();
+
     function ensureRouteCard() {
         let card = document.getElementById("hk-route-card");
-        if (card) return card;
-        card = document.createElement("div");
-        card.id = "hk-route-card";
-        card.innerHTML = `
-            <div class="hk-rt-top">
-                <cgo-icon name="route" size="18"></cgo-icon>
-                <span class="hk-rt-title">行程規劃</span>
-                <button class="hk-rt-close" title="結束行程"><cgo-icon name="close" size="18"></cgo-icon></button>
-            </div>
-            <div class="hk-rt-fields">
-                <button class="hk-rt-field" data-pick="from"></button>
-                <button class="hk-rt-field" data-pick="to"></button>
-                <button class="hk-rt-swap" title="對調起訖站"><cgo-icon name="reverse" size="16"></cgo-icon></button>
-            </div>
-            <div class="hk-rt-result"></div>`;
-        document.body.appendChild(card);
-        card.querySelector(".hk-rt-swap").addEventListener("click", (e) => {
-            e.stopPropagation();
-            [routeState.from, routeState.to] = [routeState.to, routeState.from];
-            updateRoute();
-        });
-        card.querySelector(".hk-rt-close").addEventListener("click", cancelTrip);
-        card.addEventListener("click", (e) => {
-            const f = e.target.closest("[data-pick]");
-            if (f) { e.stopPropagation(); openStationPicker(f.dataset.pick); return; }
-            const a = e.target.closest("[data-jump]");
-            if (a) { if (window.selectStation) window.selectStation(a.dataset.jump); return; }
-            const leg = e.target.closest(".hk-rt-ride[data-step]");
-            if (leg && card._route) {
-                const st = card._route.steps[+leg.dataset.step];
-                card.querySelectorAll(".hk-rt-ride").forEach(el => el.classList.toggle("focus", el === leg));
-                fitToStations(st.stops);
-            }
-        });
-        ["pointerdown", "wheel", "touchstart"].forEach(ev => card.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+        if (!card) {
+            card = document.createElement("div");
+            card.id = "hk-route-card";
+            card.innerHTML = `
+                <div class="hk-rt-top">
+                    <cgo-icon name="route" size="18"></cgo-icon>
+                    <span class="hk-rt-title">行程規劃</span>
+                    <button class="hk-rt-close" title="結束行程"><cgo-icon name="close" size="18"></cgo-icon></button>
+                </div>
+                <div class="hk-rt-fields">
+                    <button class="hk-rt-field" data-pick="from"></button>
+                    <button class="hk-rt-field" data-pick="to"></button>
+                    <button class="hk-rt-swap" title="對調起訖站"><cgo-icon name="reverse" size="16"></cgo-icon></button>
+                </div>
+                <div class="hk-rt-result"></div>`;
+            document.body.appendChild(card);
+            card.querySelector(".hk-rt-swap").addEventListener("click", (e) => {
+                e.stopPropagation();
+                [routeState.from, routeState.to] = [routeState.to, routeState.from];
+                updateRoute();
+            });
+            card.querySelector(".hk-rt-close").addEventListener("click", cancelTrip);
+            card.addEventListener("click", (e) => {
+                const f = e.target.closest("[data-pick]");
+                if (f) { e.stopPropagation(); openStationPicker(f.dataset.pick); return; }
+                const a = e.target.closest("[data-jump]");
+                if (a) { if (window.selectStation) window.selectStation(a.dataset.jump); return; }
+                const leg = e.target.closest(".hk-rt-ride[data-step]");
+                if (leg && card._route) {
+                    const st = card._route.steps[+leg.dataset.step];
+                    card.querySelectorAll(".hk-rt-ride").forEach(el => el.classList.toggle("focus", el === leg));
+                    fitToStations(st.stops);
+                }
+            });
+            ["pointerdown", "wheel", "touchstart"].forEach(ev => card.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+        }
+        if (!hkRouteWmRegistered && window.CGoWMAdapter?.isActive?.() && typeof window.CGoWMAdapter.registerResponsivePanel === "function") {
+            hkRouteWmRegistered = true;
+            window.CGoWMAdapter.registerResponsivePanel({
+                id: "hk-route",
+                title: "行程規劃",
+                icon: "route",
+                className: "openmap-route-window hk-route-wm-window",
+                element: card,
+                mobileHome: document.body,
+                allowModes: ["float", "sidebar"],
+                sidebarSide: "right",
+                showMinimize: true,
+                resizable: true,
+                autoHeight: false,
+                defaultWidth: 350,
+                defaultHeight: 540,
+                minWidth: 280,
+                minHeight: 280,
+                onClose: () => {
+                    if (!hkClosingRouteFromWm) cancelTrip({ fromCgoWm: true });
+                },
+                onViewportSwitch: (mob) => {
+                    const isOpen = document.body.classList.contains("hk-route-open");
+                    card.classList.toggle("show", isOpen);
+                    if (!mob) {
+                        if (isOpen) {
+                            window.CGoWMAdapter.open("hk-route");
+                        } else if (window.CGoWMAdapter.isOpen("hk-route")) {
+                            hkClosingRouteFromWm = true;
+                            try { window.CGoWMAdapter.close("hk-route"); } finally { hkClosingRouteFromWm = false; }
+                        }
+                    }
+                }
+            });
+        }
         return card;
     }
     /** 起訖站欄位：顯示已選車站（含所屬綫路色點），未選時顯示提示 */
@@ -1215,16 +1318,23 @@
     function openRoute() {
         ensureRouteCard().classList.add("show");
         document.body.classList.add("hk-route-open");
+        if (isHkWmDesktop() && hkRouteWmRegistered) {
+            window.CGoWMAdapter.open("hk-route");
+        }
         updateRoute();
     }
     /** 結束行程：清空起訖站、收起行程卡與提示條、移除圖上路綫 */
-    function cancelTrip() {
+    function cancelTrip(opts) {
         if (track.on) stopTracking();
         const bar = document.getElementById("hk-track-bar");
         if (bar) bar.classList.remove("show");
         const card = document.getElementById("hk-route-card");
         if (card) card.classList.remove("show");
         document.body.classList.remove("hk-route-open", "hk-picking");
+        if (isHkWmDesktop() && hkRouteWmRegistered && !(opts && opts.fromCgoWm) && window.CGoWMAdapter.isOpen("hk-route")) {
+            hkClosingRouteFromWm = true;
+            try { window.CGoWMAdapter.close("hk-route"); } finally { hkClosingRouteFromWm = false; }
+        }
         routeState.from = routeState.to = null;
         hideTripBanner();
         drawRoute(null);
@@ -1808,7 +1918,79 @@
         }
     };
 
-    /** 綫路分頁：仿月台方向牌，列出兩個行車方向的下一站與距終點站數 */
+    /** 保留常規終點，實時區間車按實際目的地加入，班次只歸屬一張卡。 */
+    function directionRows(lid, sid, res) {
+        const L = routableLines()[lid];
+        if (!L) return [];
+        const rows = new Map();
+        function displayWays(viaRacecourse) {
+            if (lid !== "EAL") return L.ways;
+            // 港鐵 route=RAC 表示經馬場「取代」火炭，不能把兩站串成必經站。
+            // 只校正方向牌，原始站序仍留給地圖與尋路使用。
+            return L.ways.map(w => viaRacecourse
+                ? [...new Set(w.map(id => id === "FOT" ? "RAC" : id))]
+                : w.filter(id => id !== "RAC"));
+        }
+        function add(end, viaRacecourse = false) {
+            viaRacecourse = lid === "EAL" && (viaRacecourse || sid === "RAC" || end === "RAC");
+            const w = displayWays(viaRacecourse).find(w => w.includes(sid) && w.includes(end));
+            if (!w) return;
+            const i = w.indexOf(sid), j = w.indexOf(end);
+            if (i < 0 || j < 0 || i === j) return;
+            const dir = j > i ? 1 : -1;
+            const key = `${dir}|${end}|${viaRacecourse ? "RAC" : ""}`;
+            const short = !L.ways.some(w => w[0] === end || w[w.length - 1] === end);
+            if (!rows.has(key)) rows.set(key, { key, dir, end, next: w[i + dir], left: Math.abs(j - i), short, viaRacecourse, trains: [] });
+            return rows.get(key);
+        }
+        [-1, 1].forEach(dir => displayWays(sid === "RAC").forEach(w => {
+            const i = w.indexOf(sid);
+            if (i !== -1 && w[i + dir]) add(dir > 0 ? w[w.length - 1] : w[0]);
+        }));
+        if (res && res.ok) res.trains.forEach(t => {
+            if (t.valid === "N") return;
+            const row = add(t.dest, lid === "EAL" && t.route === "RAC");
+            if (row) row.trains.push(t);
+        });
+        rows.forEach(r => r.trains.sort((a, b) => (+a.ttnt) - (+b.ttnt)));
+        return [...rows.values()];
+    }
+
+    function directionBoardHtml(lid, sid, res) {
+        const L = routableLines()[lid];
+        if (!L) return "";
+        const groups = new Map();
+        directionRows(lid, sid, res).forEach(r => {
+            // 分岔站的下一站可不同，仍用共同方向組織各目的地。
+            const key = r.dir;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(r);
+        });
+        const color = lineColor(lid);
+        const isTerminus = L.ways.filter(w => w.includes(sid)).every(w => w[0] === sid || w[w.length - 1] === sid);
+        const board = [...groups.values()].map(rows => {
+            const first = rows[0];
+            const sameNext = rows.every(r => r.next === first.next);
+            const heading = sameNext ? `經 ${stName(first.next)} 方向` : "同一行車方向";
+            const cards = rows.map(r => `
+                <button type="button" class="hk-dir" data-jump="${r.next}" data-end="${r.key}">
+                    <span class="hk-dir-arrow" style="background:${color}"><cgo-icon name="arrow-${r.dir > 0 ? "right" : "left"}" size="16"></cgo-icon></span>
+                    <span class="hk-dir-main">
+                        <span class="hk-dir-to">往 <b>${stName(r.end)}</b><i>to ${stEn(r.end)}</i>${r.short ? '<small class="hk-dir-short">區間車</small>' : ""}${r.viaRacecourse ? '<small class="hk-dir-short">經馬場</small>' : ""}</span>
+                        <span class="hk-dir-next">下一站 <b>${stName(r.next)}</b> · 距終點站 ${r.left} 站</span>
+                        ${NT_LINES.includes(lid) ? `<span class="hk-live">${res ? liveHtml(res, r.trains, r.end, "暫無開往此站的班次") : "載入實時班次…"}</span>` : ""}
+                    </span>
+                    <cgo-icon class="hk-dir-go" name="chevron-right" size="16"></cgo-icon>
+                </button>`).join("");
+            return `<section class="hk-dir-group" style="--hk-direction-color:${color}" aria-label="${heading}">
+                <div class="hk-dir-group-title"><cgo-icon name="arrow-${first.dir > 0 ? "right" : "left"}" size="14"></cgo-icon>${heading}${rows.length > 1 ? '<span>同方向 · 不同終點</span>' : ""}</div>
+                <div class="hk-dir-group-cards">${cards}</div>
+            </section>`;
+        }).join("");
+        return `${isTerminus ? `<div class="hk-terminus">本站為${(LINE_NAMES[lid] || [lid])[0]}終點站</div>` : ""}${board}`;
+    }
+
+    /** 綫路分頁：同方向分組、按終點並列顯示常規及區間車。 */
     const DirectionModule = {
         id: "hk-directions",
         name: "月台方向牌",
@@ -1816,43 +1998,36 @@
         order: 20,
         render(ctx) {
             const sid = ctx.station.id, lid = ctx.lineInfo && ctx.lineInfo.id;
-            const L = routableLines()[lid];
-            if (!L) return "";
-            const color = lineColor(lid);
-            const rows = [];
-            [-1, 1].forEach(dir => {
-                // 同一方向可能因支綫而有不同終點：按終點分組
-                const byEnd = new Map();
-                L.ways.forEach(w => {
-                    const i = w.indexOf(sid);
-                    if (i === -1 || !w[i + dir]) return;
-                    const end = dir > 0 ? w[w.length - 1] : w[0];
-                    if (!byEnd.has(end)) byEnd.set(end, { next: w[i + dir], left: dir > 0 ? w.length - 1 - i : i });
-                });
-                byEnd.forEach((v, end) => rows.push({ dir, end, ...v }));
-            });
-            if (!rows.length) return "";
-            const isTerminus = rows.length === 1 && L.ways.every(w => w[0] === sid || w[w.length - 1] === sid);
-            const board = rows.map(r => `
-                <div class="hk-dir" data-jump="${r.next}">
-                    <div class="hk-dir-arrow" style="background:${color}"><cgo-icon name="arrow-${r.dir > 0 ? "right" : "left"}" size="16"></cgo-icon></div>
-                    <div class="hk-dir-main">
-                        <div class="hk-dir-to">往 <b>${stName(r.end)}</b><i>to ${stEn(r.end)}</i></div>
-                        <div class="hk-dir-next">下一站 <b>${stName(r.next)}</b> · 距終點站 ${r.left} 站</div>
-                        ${NT_LINES.includes(lid) ? `<div class="hk-live" data-live="${lid}|${sid}|${r.dir}|${r.end}">載入實時班次…</div>` : ""}
-                    </div>
-                    <cgo-icon class="hk-dir-go" name="chevron-right" size="16"></cgo-icon>
-                </div>`).join("");
-            return `<div class="hk-dirs">${isTerminus ? `<div class="hk-terminus">本站為${(LINE_NAMES[lid] || [lid])[0]}終點站</div>` : ""}${board}</div>`;
+            if (!routableLines()[lid]) return "";
+            return `<div class="hk-dirs" data-direction-line="${lid}" data-direction-station="${sid}">${directionBoardHtml(lid, sid, null)}</div>`;
         },
         onMounted(panel, ctx) {
-            panel.querySelectorAll(".hk-dir[data-jump]").forEach(el => el.addEventListener("click", (e) => {
+            const pane = panel.querySelector(`.tab-pane[data-tab-index="${ctx.tabIndex}"]`) || panel;
+            const board = [...pane.querySelectorAll(".hk-dirs")].find(el =>
+                el.dataset.directionLine === (ctx.lineInfo && ctx.lineInfo.id) && el.dataset.directionStation === ctx.station.id);
+            if (!board || board.dataset.bound) return;
+            board.dataset.bound = "1";
+            board.addEventListener("click", e => {
+                const el = e.target.closest(".hk-dir[data-jump]");
+                if (!el || !board.contains(el)) return;
                 e.stopPropagation();
                 window.selectStation && window.selectStation(el.dataset.jump);
-            }));
-            // 各綫分頁各自掛載；只處理本分頁內的實時班次
-            const pane = panel.querySelector(`.tab-pane[data-tab-index="${ctx.tabIndex}"]`) || panel;
-            mountLive(pane);
+            });
+            const lid = board.dataset.directionLine, sid = board.dataset.directionStation;
+            if (!NT_LINES.includes(lid)) return;
+            const run = () => fetchNextTrains(lid, sid).then(res => {
+                if (!board.isConnected) return;
+                // 更新時保留正在操作的卡片焦點。
+                const focused = board.contains(document.activeElement) ? document.activeElement.closest(".hk-dir") : null;
+                const end = focused && focused.dataset.end;
+                board.innerHTML = directionBoardHtml(lid, sid, res);
+                if (end) [...board.querySelectorAll(".hk-dir")].find(el => el.dataset.end === end)?.focus();
+            });
+            run();
+            const timer = setInterval(() => {
+                if (!board.isConnected) { clearInterval(timer); return; }
+                run();
+            }, 30000);
         }
     };
 
@@ -2147,6 +2322,21 @@
 
         renderStationIcon,
         getStationLabelStyle() { return null; },
+
+        getStationStyleOptions(station) { return styleOptions(station); },
+
+        /** OpenMap Editor 渲染鉤子：站名按墨跡框逐行貼合，與綫路圖共用 layoutStationLabel */
+        decorateStationLabel(el, station, sid) {
+            if (!station) return;
+            if (!useWebFonts && webFontsAvailable()) useWebFonts = true;
+            layoutStationLabel(el, Object.assign({ id: sid }, station));
+        },
+        /** OpenMap Editor 渲染鉤子：等網頁字體就緒後再重排一次，避免以回退字體度量 */
+        prepareRender() {
+            return fontCssReady.then(() => loadFaces(FONT_SAMPLE)).then(() => {
+                if (webFontsAvailable()) useWebFonts = true;
+            }, () => { /* 字體服務不可用：保留系統字體 */ });
+        },
 
         // 資訊板只在香港定制：關閉通用的上一站/下一站、車站類型、運營單位與高德導航，
         // 改用月台方向牌、車站資訊與 Google 地圖；標題模塊換成帶車站代號的版本

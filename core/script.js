@@ -1,26 +1,9 @@
 /**
  * CGo OpenMap - 核心矢量渲染与交互引擎 (core/script.js)
- * 
- * ==============================================================================
- * 核心架构与引擎工作流 (Engine Architecture & Workflow)
- * ==============================================================================
- * 本脚本为 CGo OpenMap 的核心中枢，负责：
- * 1. 【城市上下文解耦】读取当前激活城市配置 (getActiveCity)；
- * 2. 【数据解析与拓扑构建】合并重复物理点位、统计换乘关系 (processData)；
- * 3. 【SVG 矢量图形渲染】自动将折线点阵倒角生成 45°/90° 平滑圆角路径 (renderLines, generateRoundedPath)；
- * 4. 【站点与标签布局】根据 align 对齐方式渲染站点圆环与双语标签 (renderStations)；
- * 5. 【手势与漫游系统】支持滚轮缩放、触控板手势、双指捏合缩放、鼠标平移拖拽 (initInputControls)；
- * 6. 【多维车站检索】拼音/汉字/英文/历史别名模糊索引与快速飞跃居中 (bindSearchAndLegendEvents)；
- * 7. 【车站卡片与微缩视窗】StaCard API 动态接入高德切片与立体站台结构 (renderUserModePanel, StaCard)；
- * 8. 【LBS 地理定位】WGS-84 转 GCJ-02 加密坐标算法与最近车站计算 (findNearestStation, wgs2gcj)；
- * 9. 【侧边栏吸附与响应式】移动端底部抽屉与桌面端常驻侧边栏自动切换适配 (dockStationPanel, handleResponsiveSwitch)。
- * 
- * 开发者移植说明：
- * 核心引擎完全通用，制作新城市无需修改本文件任何核心逻辑！
- * ==============================================================================
  */
 
-const APP_VERSION = "260903.220000";
+
+const APP_VERSION = "261123.131500";
 const originalTitle = document.title;
 const originalDesc = document.querySelector('meta[name="description"]')?.getAttribute('content') || "CGo OpenMap";
 
@@ -38,6 +21,79 @@ function resolveScheduleHref(entry) {
     return null;
 }
 
+const isCgoWmActive = () => !!window.CGoWMAdapter?.isActive?.();
+const isCgoWmDesktop = () => window.innerWidth > 640 && isCgoWmActive();
+let closingStationFromScript = false;
+let cgoWmPanelsRegistered = false;
+
+function getStationHistoryLimit() {
+    const savedLimit = localStorage.getItem('cgo_openmap_history_limit') || localStorage.getItem('nal_sidebar_history_limit');
+    const parsed = savedLimit ? parseInt(savedLimit, 10) : 5;
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(9, parsed) : 5;
+}
+
+function formatStationWindowTitle(station) {
+    if (!station) return '车站详情';
+    const cn = typeof plainName === 'function' ? plainName(station.cn || '') : String(station.cn || '').replace(/<[^>]*>/g, '').trim();
+    if (!cn) return '车站详情';
+    if (/^[\x00-\x7F]+$/.test(cn)) return cn;
+    if (cn.endsWith('站')) {
+        const hasDuplicate = Object.values(processedStations || {}).some(other => {
+            if (!other || other.id === station.id) return false;
+            const otherCn = typeof plainName === 'function' ? plainName(other.cn || '') : String(other.cn || '').replace(/<[^>]*>/g, '').trim();
+            return otherCn === cn;
+        });
+        if (hasDuplicate) {
+            const isRail = (station.relatedLines && station.relatedLines.some(lid => lid === 'Rwy' || lid === 'Rwy2' || isSuburbanLine(lid))) || station.type === 'rdot';
+            return isRail ? `${cn} (火车站)` : `${cn} (地铁站)`;
+        }
+        return cn;
+    }
+    return `${cn}站`;
+}
+
+function buildStationWindowMeta(station) {
+    if (!station) return { title: '车站详情', lines: [] };
+    const lines = [];
+    const seen = new Set();
+    const sortedIds = (station.relatedLines || []).slice().sort((a, b) => window.getLineSortIndex(a) - window.getLineSortIndex(b));
+    sortedIds.forEach(lid => {
+        if (seen.has(lid)) return;
+        seen.add(lid);
+        const line = (typeof linesData !== 'undefined' && Array.isArray(linesData))
+            ? linesData.find(l => l.id === lid)
+            : null;
+        if (!line) return;
+        lines.push({
+            id: line.id,
+            name: line.name || line.id,
+            color: line.color || 'var(--primary-color, #00263b)'
+        });
+    });
+    return {
+        id: station.id,
+        title: formatStationWindowTitle(station),
+        lines
+    };
+}
+
+function recordStationHistory(station, options = {}) {
+    if (!station || !station.id) return;
+    const preserveOrder = options.preserveOrder === true;
+    const maxLimit = getStationHistoryLimit();
+    const history = Array.isArray(window.STATION_HISTORY) ? window.STATION_HISTORY : [];
+    if (history.includes(station.id)) {
+        if (preserveOrder) return;
+        window.STATION_HISTORY = history.filter(id => id !== station.id);
+    } else {
+        window.STATION_HISTORY = history.slice();
+    }
+    window.STATION_HISTORY.push(station.id);
+    while (window.STATION_HISTORY.length > maxLimit) {
+        window.STATION_HISTORY.shift();
+    }
+}
+
 /**
  * 重建常驻侧边栏中的历史车站折叠面板列表
  */
@@ -50,6 +106,9 @@ function rebuildSidebarHistory() {
         panel.style.display = 'none';
     }
     container.innerHTML = '';
+    if (isCgoWmActive()) {
+        return;
+    }
     if (!document.body.classList.contains('legend-pinned')) return;
     window.STATION_HISTORY.forEach(sid => {
         const station = processedStations[sid];
@@ -65,13 +124,13 @@ function rebuildSidebarHistory() {
             sectionTitle = isRail ? sectionTitle.replace('站站', '站 (火车站)') : sectionTitle.replace('站站', '站 (地铁站)');
         }
         div.innerHTML = `
-            <div class="section-header">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="false">
                 <span class="section-title-text"></span>
                 <span class="header-color-squares"></span>
                 <cgo-icon name="expand-more" class="section-arrow"></cgo-icon>
             </div>
             <div class="section-body">
-                <div class="station-history-detail-trigger" style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;cursor:pointer;border:1px dashed var(--divider);margin:10px;border-radius:6px;">点击此处查看详情</div>
+                <div class="station-history-detail-trigger" role="button" tabindex="0" style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;cursor:pointer;border:1px dashed var(--divider);margin:10px;border-radius:6px;">点击此处查看详情</div>
             </div>
         `;
         div.querySelector('.section-title-text').textContent = sectionTitle;
@@ -135,8 +194,10 @@ function getActiveCity() {
         getRailway12306Url: (name) => `https://kyfw.12306.cn/otn/leftTicket/init?linktypeid=dc&fs=${encodeURIComponent(name.replace(/站$/, ''))}`,
         getSuburbanLinks: () => null,
         dataFiles: {
-            stanameCsvUrl: './city/beijing/staname.csv',
-            amapDataUrl: './city/beijing/amap_data.json'
+            // 只有北京本身才回落到北京的站名库（避免其他城市 404）。
+            // 注意：当前城市 ID 是 city/data.js 闭包内的私有变量，这里拿不到，必须用注册表数据判定
+            stanameCsvUrl: ((registryData?.id || 'beijing') === 'beijing') ? './city/beijing/staname.csv' : null,
+            amapDataUrl: ((registryData?.id || 'beijing') === 'beijing') ? './city/beijing/amap_data.json' : null
         },
         formatOwnerName: (name) => name,
         formatCompanyString: (list) => [...new Set(list)].join('，')
@@ -196,13 +257,46 @@ Object.defineProperty(window, 'LINE_SYNC_GROUPS', {
  * 车站 SVG 图标模板字典
  * 包括：换乘站(tsf)、虚拟换乘站(tsfo)、普通站(dot)、暂缓开通站(no)、国铁火车站(rdot)
  */
-// 车站图元模板的唯一真源在 core/station-icons.js，Drunk 编辑模式共用同一份，
+// 车站图元模板的唯一真源在 core/station-icons.js，OpenMap Editor 编辑器共用同一份，
 // 以保证编辑器画布上的图元尺寸与配色就是线路图上的真实效果。
 const { SVGTemplates } = window.CGoStationIcons;
 
 // 折线倒角算法与半径常量的唯一真源在 core/path-geometry.js，
-// Drunk 编辑模式共用同一份实现以保证「所见即所得」。此处仅取引用。
+// OpenMap Editor 编辑器共用同一份实现以保证「所见即所得」。此处仅取引用。
 const { RADIUS_90, RADIUS_45 } = window.CGoPathGeometry;
+
+// 转义、读屏播报、动效偏好与焦点工具的唯一真源在 core/a11y.js（须早于本文件加载）
+const { escapeHtml, safeNameHtml, plainName, announce, prefersReducedMotion, focusElement } = window.CGoA11y;
+
+/**
+ * 交路（way）模型：一条线路的 1～99 条运营交路（stationIds-way1 … -way99）、
+ * 走向与交路的归属、以及「点某个车站该亮哪些交路」的判定，唯一真源都在
+ * core/line-routing.js（须早于本文件加载）。
+ *
+ * 以前这些判断散落在本文件各处，且写死了 way1 / way2：点支线车站时会把
+ * 自己那条交路淡出、只留主干，或者把另一条支线也一起点亮。现在统一走交路模型：
+ *   点主干车站  → 经过它的交路 = 全部交路 → 主线、支线一起亮；
+ *   点支线车站  → 只亮这条交路 → 支线 + 它贯通的主线区段。
+ */
+const CGoRouting = window.CGoLineRouting;
+
+/** 线路的全部交路（缺交路模块时按单交路兜底，保证页面仍可渲染） */
+const lineWays = (line) => (CGoRouting
+    ? CGoRouting.ways(line)
+    : [{ key: 'way1', index: 1, ids: (line && line.stationIds) || [], distances: (line && line.distances) || [] }]);
+
+/** 线路涉及的全部车站（跨交路去重） */
+const lineAllStationIds = (line) => (CGoRouting
+    ? CGoRouting.allStationIds(line)
+    : Array.from(new Set(lineWays(line).reduce((acc, w) => acc.concat(w.ids), []))));
+
+/** 经过某站的交路；同一站可能同时属于多条交路（主干共用区段） */
+const lineWaysOfStation = (line, sid) => (CGoRouting
+    ? CGoRouting.waysOfStation(line, sid)
+    : lineWays(line).filter((w) => w.ids.includes(sid)));
+
+/** 交路显示名（优先 wayNames，其次按首末站名推导） */
+const lineWayLabel = (line, way) => (CGoRouting ? CGoRouting.wayLabel(line, way, processedStations) : '');
 
 /**
  * 规范化 SVG 徽标文件路径
@@ -272,7 +366,7 @@ async function initStaCardSystem() {
  * 应用城市开通时刻表 (城市可选能力)
  *
  * 未开通区段与车站的预计开通时刻由各城 data_opening.js 维护，
- * 共享层 city/shenyang/shared/opening-schedule.js 负责按当前时刻把状态转为
+ * 共享层 core/shared/station/opening-schedule.js 负责按当前时刻把状态转为
  * 已开通或保持未开通。这里只提供通用入口，未接入该能力的城市整段不产生任何影响。
  * 在模块顶层、init() 之前调用：既要早于 processData()，让派生出的车站站型与经停线路
  * 与最终状态一致；也要早于 DOMContentLoaded，好让 core/notice.js 推送「新开通线路」通知时
@@ -282,6 +376,18 @@ function applyOpeningSchedule() {
     if (!window.CGoOpening || typeof window.CGoOpening.applySchedule !== 'function') return;
     const schedule = (typeof CGO_OPENING_SCHEDULE !== 'undefined') ? CGO_OPENING_SCHEDULE : [];
     window.CGoOpening.applySchedule(schedule);
+}
+
+/**
+ * 应用站名更名的定时回退 (城市可选能力)
+ *
+ * 站点数据存的是更名后的现名；更名日之前由 core/shared/station/rename-schedule.js
+ * 按沿革里的 rename 事件把显示名回退成旧名，到点整页刷新即可切换到新名。
+ * 同样要早于 processData()，否则派生数据（站名索引、检索别名）会先按新名建好。
+ */
+function applyRenameSchedule() {
+    if (!window.CGoRenameSchedule || typeof window.CGoRenameSchedule.apply !== 'function') return;
+    window.CGoRenameSchedule.apply();
 }
 
 /**
@@ -367,7 +473,7 @@ async function loadStationAliases() {
     if (!csvUrl) return;
     try {
         const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error("CSV load failed");
+        if (!response.ok) return;
         const [headerLine, ...rows] = (await response.text()).split(/\r?\n/);
         if (!headerLine || !rows.length) return;
 
@@ -439,16 +545,37 @@ function bindSearchAndLegendEvents() {
             }
             return searchIdx === search.length ? 50 : 0;
         };
+        // combobox 状态：当前键盘高亮的候选项，以及结果列表的展开 / 收起
+        const setActiveOption = (option) => {
+            searchResults.querySelectorAll('.search-item.kbd-active').forEach(el => {
+                el.classList.remove('kbd-active');
+                el.setAttribute('aria-selected', 'false');
+            });
+            if (option) {
+                option.classList.add('kbd-active');
+                option.setAttribute('aria-selected', 'true');
+                searchInput.setAttribute('aria-activedescendant', option.id);
+                option.scrollIntoView({ block: 'nearest' });
+            } else {
+                searchInput.removeAttribute('aria-activedescendant');
+            }
+        };
+        const setListOpen = (open) => {
+            searchResults.style.display = open ? 'block' : 'none';
+            searchInput.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (!open) setActiveOption(null);
+        };
         searchInput.oninput = (e) => {
             const rawVal = e.target.value;
             const cleanVal = normalizeSearchText(rawVal);
             searchResults.innerHTML = '';
+            setActiveOption(null);
             if (rawVal.trim().length > 0) {
                 clearBtn.style.display = 'block';
-                searchResults.style.display = 'block';
+                setListOpen(true);
             } else {
                 clearBtn.style.display = 'none';
-                searchResults.style.display = 'none';
+                setListOpen(false);
                 return;
             }
             const matchResults = [];
@@ -467,12 +594,26 @@ function bindSearchAndLegendEvents() {
                         if (maxScore === 100) break;
                     }
                 }
+                if (maxScore < 100 && s.siblings && Array.isArray(s.siblings)) {
+                    for (let sib of s.siblings) {
+                        if (sib.cn && sib.cn.includes(rawVal.trim())) {
+                            maxScore = 100;
+                            break;
+                        }
+                        if (sib.en) {
+                            const sibEnClean = normalizeSearchText(sib.en);
+                            maxScore = Math.max(maxScore, calculateScore(cleanVal, sibEnClean));
+                            if (maxScore === 100) break;
+                        }
+                    }
+                }
                 if (maxScore > 0) {
                     matchResults.push({ station: s, score: maxScore });
                 }
             }
             if (matchResults.length === 0) {
-                searchResults.innerHTML = '<div style="padding:10px;color:var(--text-light);font-size:12px;text-align:center">未找到相关车站</div>';
+                searchResults.innerHTML = '<div role="presentation" style="padding:10px;color:var(--text-light);font-size:12px;text-align:center">未找到相关车站</div>';
+                announce('未找到相关车站');
                 return;
             }
             matchResults.sort((a, b) => {
@@ -480,7 +621,7 @@ function bindSearchAndLegendEvents() {
                 return a.station.cn.length - b.station.cn.length;
             });
             let listHtml = '';
-            matchResults.forEach(item => {
+            matchResults.forEach((item, optionIndex) => {
                 const s = item.station;
                 let svgsHtml = '';
                 if (s.relatedLines) {
@@ -497,15 +638,15 @@ function bindSearchAndLegendEvents() {
                         }
                     });
                 }
-                let nameHtml = s.cn;
-                if (s.en) nameHtml += ` <span style="font-size:12px;color:var(--text-light);">${s.en.replace(/<br>/gi, ' ')}</span>`;
+                let nameHtml = safeNameHtml(s.cn);
+                if (s.en) nameHtml += ` <span lang="en" style="font-size:12px;color:var(--text-light);">${safeNameHtml(s.en.replace(/<br>/gi, ' '))}</span>`;
                 let itemClass = 'search-item';
                 if (s.type === 'no') {
-                    nameHtml += ' <span style="font-size:12px;color:var(--not-open-color);">(暂未开通)</span>';
+                    nameHtml += ' <span style="font-size:12px;color:var(--not-open-text);">(暂未开通)</span>';
                     itemClass += ' pending';
                 }
                 listHtml += `
-                    <div class="${itemClass}" data-sid="${s.id}">
+                    <div class="${itemClass}" data-sid="${escapeHtml(s.id)}" role="option" id="search-option-${optionIndex}" aria-selected="false">
                         ${svgsHtml}
                         <span class="search-item-text">${nameHtml}</span>
                     </div>
@@ -513,11 +654,39 @@ function bindSearchAndLegendEvents() {
             });
             searchResults.innerHTML = listHtml;
             injectInlineSvgs(searchResults);
+            announce(`找到 ${matchResults.length} 个车站`);
+        };
+        // 键盘：上下键在候选项间移动，回车选中（无高亮项时取第一项），Esc 先收起列表
+        searchInput.onkeydown = (e) => {
+            // 输入法组词期间的回车 / 方向键属于候选窗，不接管
+            if (e.isComposing || e.keyCode === 229) return;
+            const options = Array.from(searchResults.querySelectorAll('.search-item'));
+            const isOpen = searchResults.style.display === 'block';
+            const current = searchResults.querySelector('.search-item.kbd-active');
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                if (!isOpen || !options.length) return;
+                e.preventDefault();
+                const idx = options.indexOf(current);
+                const next = e.key === 'ArrowDown'
+                    ? (idx + 1) % options.length
+                    : (idx <= 0 ? options.length - 1 : idx - 1);
+                setActiveOption(options[next]);
+            } else if (e.key === 'Enter') {
+                if (!isOpen || !options.length) return;
+                e.preventDefault();
+                (current || options[0]).click();
+            } else if (e.key === 'Escape') {
+                // 列表未展开时不拦截，交给外层关闭图例面板
+                if (!isOpen) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setListOpen(false);
+            }
         };
         clearBtn.onclick = () => {
             searchInput.value = '';
             searchResults.innerHTML = '';
-            searchResults.style.display = 'none';
+            setListOpen(false);
             clearBtn.style.display = 'none';
             searchInput.focus();
         };
@@ -526,18 +695,30 @@ function bindSearchAndLegendEvents() {
             if (item) {
                 const sid = item.dataset.sid;
                 selectStation(sid);
-                if (document.body.classList.contains('legend-pinned')) {
+                if (isCgoWmActive()) {
+                    if (isCgoWmDesktop() && window.CGoWMAdapter.isSidebar('legend')) {
+                        searchInput.value = '';
+                        setListOpen(false);
+                        clearBtn.style.display = 'none';
+                    } else {
+                        window.CGoWMAdapter.close('legend');
+                        if (document.activeElement === searchInput) searchInput.blur();
+                    }
+                } else if (document.body.classList.contains('legend-pinned')) {
                     searchInput.value = '';
-                    searchResults.style.display = 'none';
+                    setListOpen(false);
                     clearBtn.style.display = 'none';
                 } else {
                     document.getElementById('legend-overlay').style.display = 'none';
-                    if (document.activeElement) document.activeElement.blur();
+                    // selectStation 可能已把焦点移到信息板标题，只在焦点仍留在搜索框时才收起键盘
+                    if (document.activeElement === searchInput) searchInput.blur();
                 }
             }
         };
     }
     if (legendContent) {
+        // 折叠头 / 线路头的 aria-expanded 随容器 class 自动同步（幂等，只挂一次观察器）
+        window.CGoA11y.observeDisclosures(legendContent);
         const gridItems = legendContent.querySelectorAll('.legend-item');
         gridItems.forEach(item => {
             item.onclick = (e) => {
@@ -555,7 +736,7 @@ function bindSearchAndLegendEvents() {
                             if (index === 0) {
                                 const lineData = linesData.find(l => l.id === lineId);
                                 if (lineData) {
-                                    let firstStationId = lineData.hasbranch ? lineData['stationIds-way1'][0] : lineData.stationIds[0];
+                                    let firstStationId = lineAllStationIds(lineData)[0];
                                     if (firstStationId) {
                                         const s = processedStations[firstStationId];
                                         if (s) {
@@ -580,8 +761,17 @@ function bindSearchAndLegendEvents() {
                 } catch (err) {
                     console.error("Legend interaction error", err);
                 } finally {
-                    if (!document.body.classList.contains('legend-pinned')) {
+                    if (isCgoWmActive()) {
+                        if (!isCgoWmDesktop() || !window.CGoWMAdapter.isSidebar('legend')) {
+                            const hadFocus = item.contains(document.activeElement);
+                            window.CGoWMAdapter.close('legend');
+                            if (hadFocus) focusElement(mapContainer);
+                        }
+                    } else if (!document.body.classList.contains('legend-pinned')) {
+                        const hadFocus = item.contains(document.activeElement);
                         document.getElementById('legend-overlay').style.display = 'none';
+                        // 浮层收起后焦点所在的条目已不可见，交给地图本身（方向键可直接平移）
+                        if (hadFocus) focusElement(mapContainer);
                     }
                 }
             };
@@ -614,19 +804,20 @@ function bindSearchAndLegendEvents() {
 const SEARCH_BAR_HTML = `
     <div class="search-container">
         <div class="search-input-wrapper">
-            <input type="text" id="station-search-input" placeholder="请输入需要查找的站名" autocomplete="off">
-            <button id="search-clear-btn" title="清空" style="display:none;">
+            <input type="text" id="station-search-input" placeholder="请输入需要查找的站名" autocomplete="off"
+                role="combobox" aria-label="搜索车站" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results-list">
+            <button type="button" id="search-clear-btn" title="清空" aria-label="清空搜索" style="display:none;">
                 <cgo-icon name="close" size="16"></cgo-icon>
             </button>
         </div>
     </div>
-    <div id="search-results-list"></div>
+    <div id="search-results-list" role="listbox" aria-label="搜索结果"></div>
 `;
 function renderPinModeTree() {
     const container = document.getElementById('legend-content');
     if (!container) return;
     const panel = document.getElementById('info-panel');
-    if (panel && panel.parentElement !== document.body) {
+    if (panel && panel.closest('#legend-content')) {
         document.body.appendChild(panel);
         panel.style.display = 'none';
     }
@@ -636,13 +827,7 @@ function renderPinModeTree() {
     let treeInnerHtml = '<div class="pin-tree-container">';
     sortedLines.forEach(line => {
         if (line.isVirtual || line.name === '中国铁路') return;
-        let stationIds = [];
-        if (line.hasbranch) {
-            const set = new Set([...(line['stationIds-way1'] || []), ...(line['stationIds-way2'] || [])]);
-            stationIds = Array.from(set);
-        } else {
-            stationIds = line.stationIds || [];
-        }
+        const stationIds = lineAllStationIds(line);
         if (stationIds.length === 0) return;
         let stationsHtml = '';
         stationIds.forEach(sid => {
@@ -651,20 +836,20 @@ function renderPinModeTree() {
                 const pendingClass = s.type === 'no' ? 'pending' : '';
                 const extraText = s.type === 'no' ? ' <span style="font-size:10px;opacity:0.7">(未开通)</span>' : '';
                 stationsHtml += `
-                    <div class="tree-station-item ${pendingClass}" data-sid="${sid}">
-                        <div class="tree-station-dot" style="background-color:${s.type === 'no' ? 'var(--not-open-color)' : ''}"></div>
-                        <span>${s.cn}${extraText}</span>
-                    </div>
+                    <button type="button" class="tree-station-item ${pendingClass}" data-sid="${escapeHtml(sid)}" data-ctx-longpress>
+                        <span class="tree-station-dot" style="background-color:${s.type === 'no' ? 'var(--not-open-color)' : ''}"></span>
+                        <span>${safeNameHtml(s.cn)}${extraText}</span>
+                    </button>
                 `;
             }
         });
         treeInnerHtml += `
-            <div class="tree-line-group" data-line-id="${line.id}">
-                <div class="tree-line-header">
-                    <div class="tree-line-color" style="background-color: ${line.color}"></div>
-                    <span class="tree-line-name">${line.name}</span>
+            <div class="tree-line-group" data-line-id="${escapeHtml(line.id)}">
+                <button type="button" class="tree-line-header" aria-expanded="false" data-ctx-longpress>
+                    <span class="tree-line-color" style="background-color: ${escapeHtml(line.color)}"></span>
+                    <span class="tree-line-name">${escapeHtml(line.name)}</span>
                     <cgo-icon name="expand-more" class="tree-arrow"></cgo-icon>
-                </div>
+                </button>
                 <div class="tree-station-list">${stationsHtml}</div>
             </div>
         `;
@@ -687,7 +872,11 @@ function renderPinModeTree() {
                 clearHighlights();
                 lastSelectedStationId = null;
                 const infoPanel = document.getElementById('info-panel');
-                if (infoPanel) infoPanel.style.display = 'none';
+                if (isCgoWmDesktop()) {
+                    window.CGoWMAdapter.deactivateStation({ clearFloat: true });
+                } else if (infoPanel) {
+                    infoPanel.style.display = 'none';
+                }
                 const dynamicContainer = document.getElementById('sidebar-dynamic-content');
                 if (dynamicContainer) {
                     const sections = dynamicContainer.querySelectorAll('.station-history-section');
@@ -697,7 +886,8 @@ function renderPinModeTree() {
                     if (highlightLine(lineId)) {
                         const lineData = linesData.find(l => l.id === lineId);
                         if (lineData) {
-                            let firstStationId = lineData.hasbranch ? lineData['stationIds-way1'][0] : lineData.stationIds[0];
+                            // 交路模型：首站取第一条交路的起点（缺交路时不定位，避免抛错）
+                            let firstStationId = lineAllStationIds(lineData)[0];
                             if (firstStationId && processedStations[firstStationId]) {
                                 const s = processedStations[firstStationId];
                                 currentX = (mapContainer.clientWidth / 2) - (s.x * currentScale);
@@ -730,15 +920,47 @@ function renderPinModeTree() {
 }
 function renderDefaultLegend() {
     const container = document.getElementById('legend-content');
-    const activeLegendConfig = (typeof window !== 'undefined' && window.LEGEND_CONFIG)
+    if (!container) return;
+
+    let activeLegendConfig = (typeof window !== 'undefined' && window.LEGEND_CONFIG)
         || (typeof LEGEND_CONFIG !== 'undefined' ? LEGEND_CONFIG : null)
         || (typeof window !== 'undefined' && window.LEGEND_SECTIONS)
         || (typeof LEGEND_SECTIONS !== 'undefined' ? LEGEND_SECTIONS : null)
         || (getActiveCity().LEGEND_CONFIG)
-        || [];
-    if (!container || !Array.isArray(activeLegendConfig) || activeLegendConfig.length === 0) return;
+        || null;
+
+    // 兼容 legendData 结构（如 beijing_plan 等以 { groups: [{ title, lineIds }] } 格式声明的数据）
+    const activeLegendData = (typeof window !== 'undefined' && window.legendData)
+        || (typeof legendData !== 'undefined' ? legendData : null);
+
+    if ((!activeLegendConfig || !Array.isArray(activeLegendConfig) || activeLegendConfig.length === 0) &&
+        activeLegendData && Array.isArray(activeLegendData.groups)) {
+        activeLegendConfig = [];
+        activeLegendData.groups.forEach(g => {
+            activeLegendConfig.push({ type: 'title', title: g.title });
+            activeLegendConfig.push({
+                type: 'grid',
+                cols: 2,
+                items: (g.lineIds || []).map(id => ({ targets: [id] }))
+            });
+        });
+    }
+
+    // 仍未获取到有效图例时，从 linesData 自动兜底生成全线图例列表
+    if ((!activeLegendConfig || !Array.isArray(activeLegendConfig) || activeLegendConfig.length === 0) &&
+        typeof linesData !== 'undefined' && Array.isArray(linesData) && linesData.length > 0) {
+        activeLegendConfig = [
+            { type: 'title', title: '线路列表', subtitle: 'Lines' },
+            { type: 'grid', cols: 2, items: linesData.map(l => ({ targets: [l.id], name: l.name })) }
+        ];
+    }
+
+    if (!Array.isArray(activeLegendConfig)) {
+        activeLegendConfig = [];
+    }
+
     const panel = document.getElementById('info-panel');
-    if (panel && panel.parentElement !== document.body) {
+    if (panel && panel.closest('#legend-content')) {
         document.body.appendChild(panel);
         panel.style.display = 'none';
     }
@@ -790,18 +1012,18 @@ function renderDefaultLegend() {
                 
                 let colorBlocksHtml = '';
                 if (colors.length > 0) {
-                    colorBlocksHtml = `<div class="legend-color-blocks">${colors.map(c => `<span class="legend-color-block" style="background-color:${c};"></span>`).join('')}</div>`;
+                    colorBlocksHtml = `<span class="legend-color-blocks">${colors.map(c => `<span class="legend-color-block" style="background-color:${c};"></span>`).join('')}</span>`;
                 } else if (item.color) {
-                    colorBlocksHtml = `<div class="legend-color-blocks"><span class="legend-color-block" style="background-color:${item.color};"></span></div>`;
+                    colorBlocksHtml = `<span class="legend-color-blocks"><span class="legend-color-block" style="background-color:${item.color};"></span></span>`;
                 }
                 
                 const displayName = item.name || names.join(' / ') || (targets[0] || '');
                 
                 legendInnerHtml += `
-                    <div class="legend-item" data-targets="${targetStr}">
+                    <button type="button" class="legend-item" data-targets="${targetStr}" data-ctx-longpress>
                         ${colorBlocksHtml}
                         <span class="legend-item-name">${displayName}</span>
-                    </div>
+                    </button>
                 `;
             });
             legendInnerHtml += `</div>`;
@@ -809,7 +1031,9 @@ function renderDefaultLegend() {
     });
     let finalHtml = '';
     finalHtml += createPanelSection('搜索', SEARCH_BAR_HTML, true);
-    finalHtml += createPanelSection('图例', legendInnerHtml, true);
+    if (legendInnerHtml.trim()) {
+        finalHtml += createPanelSection('图例', legendInnerHtml, true);
+    }
     finalHtml += '<div id="sidebar-dynamic-content"></div>';
     container.innerHTML = finalHtml;
     injectInlineSvgs(container);
@@ -821,7 +1045,7 @@ function createPanelSection(title, content, isExpanded = true) {
     const collapsedClass = isExpanded ? '' : 'collapsed';
     return `
         <div class="panel-section ${collapsedClass}" ${idStr} ${sectionId}>
-            <div class="section-header">
+            <div class="section-header" role="button" tabindex="0" aria-expanded="${isExpanded ? 'true' : 'false'}">
                 <span>${title}</span>
                 <cgo-icon name="expand-more" class="section-arrow"></cgo-icon>
             </div>
@@ -835,9 +1059,10 @@ function createPanelSection(title, content, isExpanded = true) {
  * 渲染图例面板 (根据是否固定侧边栏自动选择平铺或树状树状结构)
  */
 function renderLegend() {
-    const isPinned = document.body.classList.contains('legend-pinned');
     const isDesktop = window.innerWidth > 640;
-    if (isPinned && isDesktop) {
+    const isWmSidebar = isCgoWmDesktop() && window.CGoWMAdapter.isSidebar('legend');
+    const isPinned = document.body.classList.contains('legend-pinned');
+    if (isDesktop && (isWmSidebar || isPinned)) {
         renderPinModeTree();
     } else {
         renderDefaultLegend();
@@ -853,7 +1078,7 @@ function renderLegend() {
  */
 function processData() {
     if (typeof stationsData === 'undefined' || typeof linesData === 'undefined') {
-        alert("数据加载失败");
+        showToast("数据加载失败", "error");
         return;
     }
     for (let key in stationsData) {
@@ -863,14 +1088,9 @@ function processData() {
         };
     }
     linesData.forEach(line => {
-        let allStationIds = [];
-        if (line.hasbranch) {
-            const set = new Set([...line['stationIds-way1'], ...line['stationIds-way2']]);
-            allStationIds = Array.from(set);
-        } else {
-            allStationIds = line.stationIds || [];
-        }
-        allStationIds.forEach((sid, index) => {
+        // 多交路（branch）线路跨全部交路去重后再统计：一个车站只计一次经停，
+        // 否则主干共用区段的车站会被重复 unshift 上同一条线路的标志色。
+        lineAllStationIds(line).forEach((sid, index) => {
             if (processedStations[sid]) {
                 const s = processedStations[sid];
                 s.codes.push(`${line.name}#${index + 1}`);
@@ -906,41 +1126,56 @@ function renderLines() {
         // 同一条线路的各段分别绘制时，后画段的白色外描边会盖住先画段的实体色，
         // 在 Y 形分歧处留下白缝；因此先把各层收集起来，再按 外描边 → 实体 → 纹理 → 热区 的顺序统一入组
         const layers = { outer: [], inner: [], overlay: [], interaction: [] };
-        const drawSegment = (points, segmentClass) => {
+        // segmentKey：该段走向在数据里的键（pathPoints / pathPoints-main / pathPoints-branchN），
+        // 高亮时按「交路 → 走向段」的归属逐段增减透明度，不再用位置或硬编码 way1/way2 判段。
+        const drawSegment = (points, segmentClass, segmentKey) => {
             if (!points || points.length < 2) return;
             const d = generateRoundedPath(points, isStrict);
             // 外描边底色（隔离不同相交线路，增强立体可读性）
+            // noOuter：跳过白色外描边。双色并行线路（如川西 M-TR 的左蓝右绿）需要两条描边
+            // 直接贴合，若各自带 7px 白边，后画的一条会把前一条的颜色边缘盖住，露出约 0.8px 的白缝。
             const pathOuter = document.createElementNS("http://www.w3.org/2000/svg", "path");
             pathOuter.setAttribute("d", d);
             pathOuter.setAttribute("class", `line-visual-outer ${segmentClass}`);
-            pathOuter.setAttribute("stroke", "var(--map-bg)");
+            if (segmentKey) pathOuter.setAttribute("data-seg-key", segmentKey);
+            pathOuter.setAttribute("stroke", line.noOuter ? "none" : "var(--map-bg)");
             pathOuter.setAttribute("stroke-width", "7");
             // 内描边（线路实体主题色）
             const pathInner = document.createElementNS("http://www.w3.org/2000/svg", "path");
             pathInner.setAttribute("d", d);
             pathInner.setAttribute("class", `line-visual-inner ${segmentClass}`);
+            if (segmentKey) pathInner.setAttribute("data-seg-key", segmentKey);
             pathInner.setAttribute("stroke", line.color);
             pathInner.setAttribute("stroke-width", "5.4");
             layers.outer.push(pathOuter);
             layers.inner.push(pathInner);
             // 叠加虚线/市郊纹理
-            if (line.overlayStyle) {
+            // overlayStyle 为单层（旧写法）；overlayStyles 为多层叠加，按数组顺序自下而上绘制。
+            // 多层用于「底色带 + 白色虚线段 + 同色细芯」这类轨道纹理，单层表达不了。
+            const overlayList = [];
+            if (line.overlayStyle) overlayList.push(line.overlayStyle);
+            if (Array.isArray(line.overlayStyles)) overlayList.push(...line.overlayStyles);
+            overlayList.forEach((ov, ovIndex) => {
+                if (!ov) return;
                 const pathOverlay = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 pathOverlay.setAttribute("d", d);
-                pathOverlay.setAttribute("class", `line-visual-overlay ${segmentClass}`);
-                pathOverlay.setAttribute("stroke", line.overlayStyle.color);
-                pathOverlay.setAttribute("stroke-width", line.overlayStyle.width);
-                pathOverlay.setAttribute("stroke-opacity", line.overlayStyle.opacity);
-                pathOverlay.setAttribute("stroke-dasharray", line.overlayStyle.dashArray);
+                pathOverlay.setAttribute("class",
+                    `line-visual-overlay line-visual-overlay-${ovIndex} ${segmentClass}`);
+                if (segmentKey) pathOverlay.setAttribute("data-seg-key", segmentKey);
+                pathOverlay.setAttribute("stroke", ov.color);
+                pathOverlay.setAttribute("stroke-width", ov.width);
+                pathOverlay.setAttribute("stroke-opacity", ov.opacity);
+                pathOverlay.setAttribute("stroke-dasharray", ov.dashArray);
                 pathOverlay.setAttribute("fill", "none");
-                pathOverlay.setAttribute("stroke-linecap", "butt");
+                pathOverlay.setAttribute("stroke-linecap", ov.linecap || "butt");
                 layers.overlay.push(pathOverlay);
-            }
+            });
             // 交互判定层 (透明加宽热区)
             const pathInteraction = document.createElementNS("http://www.w3.org/2000/svg", "path");
             pathInteraction.setAttribute("d", d);
             pathInteraction.setAttribute("class", "line-interaction");
             pathInteraction.setAttribute("data-line-id", line.id);
+            if (segmentKey) pathInteraction.setAttribute("data-seg-key", segmentKey);
             pathInteraction.setAttribute("stroke", "transparent");
             pathInteraction.setAttribute("stroke-width", "15");
             pathInteraction.setAttribute("fill", "none");
@@ -976,10 +1211,10 @@ function renderLines() {
             });
             layers.interaction.push(pathInteraction);
         };
-        // 走向来源的判定统一在 core/path-geometry.js（Drunk 编辑模式共用同一份），
-        // 避免两边各写一份判定后悄悄漂移。
+        // 走向来源的判定统一在 core/path-geometry.js → core/line-routing.js（与 OpenMap Editor 共用），
+        // 每段走向只出现一次并带自己的段键，多个交路重叠在同一区间时不会重复绘制。
         window.CGoPathGeometry.lineSegments(line, processedStations)
-            .forEach(seg => drawSegment(seg.points, seg.cls));
+            .forEach(seg => drawSegment(seg.points, seg.cls, seg.key));
         layers.outer.forEach(p => visualGroup.appendChild(p));
         layers.inner.forEach(p => visualGroup.appendChild(p));
         layers.overlay.forEach(p => visualGroup.appendChild(p));
@@ -1060,9 +1295,16 @@ function renderStations() {
         stationDiv.style.left = s.x + 'px';
         stationDiv.style.top = s.y + 'px';
         stationDiv.dataset.sid = id;
+        // 地图上的车站节点不进 Tab 序列（数百个停靠点），键盘入口由搜索与图例的线路 → 车站树承担
+        const stationLabel = plainName(s.cn) + (s.type === 'no' ? '（未开通）' : '');
+        stationDiv.setAttribute('role', 'button');
+        stationDiv.setAttribute('tabindex', '-1');
+        stationDiv.setAttribute('aria-label', stationLabel);
         // 城市可自定义站点图元画法（如上海式短横与换乘胶囊）；未实现时回落到通用模板
         const city = getActiveCity();
-        const customIcon = typeof city.renderStationIcon === 'function' ? city.renderStationIcon(s, id) : null;
+        // 胶囊 / 哑铃等明确指定形状的通用图元不交给城市钩子（规则见 core/station-icons.js isExplicitGlyph）
+        const explicitGlyph = window.CGoStationIcons?.isExplicitGlyph?.(s.type);
+        const customIcon = (!explicitGlyph && typeof city.renderStationIcon === 'function') ? city.renderStationIcon(s, id) : null;
         if (customIcon && customIcon.html) {
             stationDiv.innerHTML = customIcon.html;
             if (customIcon.className) stationDiv.className += ' ' + customIcon.className;
@@ -1084,6 +1326,9 @@ function renderStations() {
         labelDiv.className = `label-group type-${s.type}`;
         labelDiv.id = getDomId('label', id);
         labelDiv.dataset.sid = id;
+        labelDiv.setAttribute('role', 'button');
+        labelDiv.setAttribute('tabindex', '-1');
+        labelDiv.setAttribute('aria-label', stationLabel);
         const distV = 5.2, distH = 6, distD = 6;
         let left = s.x, top = s.y, transform = "", textAlign = "center", transformOriginX = "50%";
         switch (s.align) {
@@ -1107,11 +1352,63 @@ function renderStations() {
         labelDiv.style.textAlign = textAlign;
         let scaleCn = s.textScale?.cn || 1;
         let scaleEn = s.textScale?.en || 1;
+        const codeBadge = s.code ? (window.CGoStationIcons?.renderStationCodeBadge?.(s.code, s.lineColors?.[0]) || `<span class="station-code-pill" style="background:${s.lineColors?.[0] || 'var(--station-stroke)'};">${s.code}</span>`) : '';
+        const amenitiesHtml = (s.amenities && Array.isArray(s.amenities)) ? (window.CGoStationIcons?.renderAmenitiesHtml?.(s.amenities) || '') : '';
+        const mainColor = s.color || '';
+        const mainColorStyle = mainColor ? `color:${mainColor} !important;` : '';
         labelDiv.innerHTML = `
-            <span class="stacn" style="transform:scaleX(${scaleCn});transform-origin:${transformOriginX} center;">${s.cn}</span>
-            <span class="staen" style="transform:scaleX(${scaleEn});transform-origin:${transformOriginX} center;">${s.en}</span>
+            <span class="stacn" style="${mainColorStyle}transform:scaleX(${scaleCn});transform-origin:${transformOriginX} center;">${codeBadge}${safeNameHtml(s.cn)}${amenitiesHtml}</span>
+            <span class="staen" lang="en" style="${mainColorStyle}transform:scaleX(${scaleEn});transform-origin:${transformOriginX} center;">${safeNameHtml(s.en)}</span>
         `;
         labelsLayer.appendChild(labelDiv);
+
+        // 渲染同址异名站（siblings 莫斯科型换乘，共用同一个站点图元，各自拥有独立站名与朝向）
+        if (s.siblings && Array.isArray(s.siblings)) {
+            s.siblings.forEach((sib, sibIdx) => {
+                if (!sib || (!sib.cn && !sib.en)) return;
+                const sibDiv = document.createElement('div');
+                sibDiv.className = `label-group type-${s.type} station-sibling-label`;
+                sibDiv.id = `${getDomId('label', id)}_sib_${sibIdx}`;
+                sibDiv.dataset.sid = id;
+                sibDiv.dataset.siblingIndex = String(sibIdx);
+                sibDiv.setAttribute('role', 'button');
+                sibDiv.setAttribute('tabindex', '-1');
+                sibDiv.setAttribute('aria-label', `${plainName(sib.cn || '')} (${stationLabel})`);
+
+                let sibLeft = s.x, sibTop = s.y;
+                let sibTransform = "", sibTextAlign = "center", sibTransformOriginX = "50%";
+                const sibAlign = sib.align || (s.align === 'top-left' ? 'bottom-right' : 'bottom');
+                switch (sibAlign) {
+                    case 'top': sibTop -= distV; sibTransform = "translate(-50%, -100%)"; break;
+                    case 'bottom': sibTop += distV; sibTransform = "translate(-50%, 0)"; break;
+                    case 'left': sibLeft -= distH; sibTransform = "translate(-100%, -50%)"; sibTextAlign = "right"; sibTransformOriginX = "100%"; break;
+                    case 'right': sibLeft += distH; sibTransform = "translate(0, -50%)"; sibTextAlign = "left"; sibTransformOriginX = "0%"; break;
+                    case 'top-left': sibLeft -= distD; sibTop -= distD; sibTransform = "translate(-100%, -100%)"; sibTextAlign = "right"; sibTransformOriginX = "100%"; break;
+                    case 'top-right': sibLeft += distD; sibTop -= distD; sibTransform = "translate(0, -100%)"; sibTextAlign = "left"; sibTransformOriginX = "0%"; break;
+                    case 'bottom-left': sibLeft -= distD; sibTop += distD; sibTransform = "translate(-100%, 0)"; sibTextAlign = "right"; sibTransformOriginX = "100%"; break;
+                    case 'bottom-right': sibLeft += distD; sibTop += distD; sibTransform = "translate(0, 0)"; sibTextAlign = "left"; sibTransformOriginX = "0%"; break;
+                    default: sibTop += distV; sibTransform = "translate(-50%, 0)";
+                }
+                if (sib.offset) {
+                    if (sib.offset.x) sibLeft += sib.offset.x;
+                    if (sib.offset.y) sibTop += sib.offset.y;
+                }
+                sibDiv.style.left = sibLeft + 'px';
+                sibDiv.style.top = sibTop + 'px';
+                sibDiv.style.transform = sibTransform;
+                sibDiv.style.textAlign = sibTextAlign;
+
+                const sibScaleCn = sib.textScale?.cn || 1;
+                const sibScaleEn = sib.textScale?.en || 1;
+                const sibColor = sib.color || (sib.lineId && Array.isArray(linesData) ? linesData.find(l => l.id === sib.lineId)?.color : '') || '';
+                const sibColorStyle = sibColor ? `color:${sibColor} !important;` : '';
+                sibDiv.innerHTML = `
+                    <span class="stacn" style="${sibColorStyle}transform:scaleX(${sibScaleCn});transform-origin:${sibTransformOriginX} center;">${safeNameHtml(sib.cn || '')}</span>
+                    <span class="staen" lang="en" style="${sibColorStyle}transform:scaleX(${sibScaleEn});transform-origin:${sibTransformOriginX} center;">${safeNameHtml(sib.en || '')}</span>
+                `;
+                labelsLayer.appendChild(sibDiv);
+            });
+        }
     }
 }
 
@@ -1138,12 +1435,39 @@ function renderScatteredObjects() {
         if (item.file) {
             const img = document.createElement('img');
             img.src = getSvgPath(item.file);
+            img.alt = ''; // 纯装饰图
             img.style.cssText = "width:100%; height:100%; display:block;";
             img.draggable = false;
             div.appendChild(img);
         }
         layer.appendChild(div);
     });
+}
+
+// 焦点管理：信息板打开时把焦点移到标题，关闭时归还到触发元素
+let panelFocusReturnEl = null;   // 打开信息板前持有焦点的元素
+let pendingPanelFocus = false;   // 固定侧栏形态下，信息板要等吸附完成后才可聚焦
+
+function focusPanelTitle() {
+    pendingPanelFocus = false;
+    const panel = document.getElementById('info-panel');
+    if (!panel) return;
+    const title = panel.querySelector('.panel-cn-name') || panel.querySelector('.panel-header');
+    if (title && title.offsetParent !== null && focusElement(title)) return;
+    const fallback = panel.querySelector('.tab-item.active, .tab-item')
+        || panel.closest('.cgowm-window')?.querySelector('.cgowm-btn-minimize, .cgowm-titlebar')
+        || panel;
+    if (fallback && !fallback.hasAttribute('tabindex')) fallback.setAttribute('tabindex', '-1');
+    focusElement(fallback);
+}
+
+function restorePanelFocus() {
+    const target = panelFocusReturnEl;
+    panelFocusReturnEl = null;
+    // 触发元素已被重建或随面板收起而不可见时，退回检索面板入口，再退回地图本身
+    if (focusElement(target)) return;
+    if (focusElement(document.getElementById('mz-menu'))) return;
+    focusElement(mapContainer);
 }
 
 /**
@@ -1162,6 +1486,14 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
     hideLineTooltipNow();
     const s = processedStations[sid];
     if (!s) return;
+    // 触发点在地图内（指针点选车站）或页面本身（URL 直达）时不挪焦点，地图快捷键照常可用，只做读屏播报；
+    // 从搜索、图例树、换乘跳转等控件触发时才把焦点带到信息板标题。
+    const focusTrigger = document.activeElement;
+    const triggerInPanel = Boolean(focusTrigger && infoPanel && infoPanel.contains(focusTrigger));
+    const shouldMoveFocus = Boolean(focusTrigger && focusTrigger !== document.body
+        && focusTrigger !== document.documentElement && !mapContainer.contains(focusTrigger));
+    // 在信息板内部跳转（如换乘跳转）时沿用最初的触发元素
+    if (shouldMoveFocus && !triggerInPanel) panelFocusReturnEl = focusTrigger;
     lastSelectedStationId = sid;
     clearHighlights();
     const activate = (targetSid) => {
@@ -1171,6 +1503,7 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
         if (nodeEl) nodeEl.classList.add('active');
         const labelEl = document.getElementById(`label_${targetSid}`);
         if (labelEl) labelEl.classList.add('active');
+        document.querySelectorAll(`.label-group[data-sid="${targetSid}"]`).forEach(el => el.classList.add('active'));
         if (targetS.relatedLines) targetS.relatedLines.forEach(lineId => highlightLine(lineId, sid));
     };
     activate(sid);
@@ -1181,15 +1514,36 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
         VIRTUAL_FREE_TRANSFER_MAP[sid].forEach(partnerSid => activate(partnerSid));
     }
     renderUserModePanel(s, initialTabIndex);
+    const stationPlainName = plainName(s.cn);
+    if (infoPanel) infoPanel.setAttribute('aria-label', `${stationPlainName} 车站信息`);
+    announce(`已打开 ${stationPlainName} 的车站信息`);
     const isPinned = document.body.classList.contains('legend-pinned');
     const panel = document.getElementById('info-panel');
     const dynamicContainer = document.getElementById('sidebar-dynamic-content');
     const viewportW = mapContainer.clientWidth;
     const viewportH = mapContainer.clientHeight;
-    if (window.innerWidth > 640 && isPinned && dynamicContainer) {
+    if (isCgoWmDesktop()) {
+        document.body.classList.remove('mobile-split-active');
+        recordStationHistory(s, { preserveOrder: true });
+        rebuildSidebarHistory();
+        window.CGoWMAdapter.openStation(s.id, buildStationWindowMeta(s));
+        mapContent.classList.add('animate-zoom');
+        const focus = getViewportCenter();
+        currentX = focus.x - (s.x * currentScale);
+        currentY = focus.y - (s.y * currentScale);
+        const zoomVal = document.getElementById('zoom-val');
+        const mzSlider = document.getElementById('mz-slider');
+        if (mzSlider) mzSlider.value = currentScale;
+        if (zoomVal) zoomVal.innerText = Math.round(currentScale * 100) + '%';
+        enforceBoundaries();
+        updateMapTransform();
+        if (shouldMoveFocus) focusPanelTitle();
+    } else if (window.innerWidth > 640 && isPinned && dynamicContainer) {
         document.body.classList.remove('pinned-hidden');
         const overlay = document.getElementById('legend-overlay');
         if (overlay) overlay.style.display = 'block';
+        // 吸附是异步的（面板节点会被挪进历史分区），聚焦推迟到 dockStationPanel 完成时
+        pendingPanelFocus = shouldMoveFocus;
         dockStationPanel(s);
         panel.style.display = 'block';
         panel.style.opacity = '1';
@@ -1200,11 +1554,14 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
         enforceBoundaries();
         updateMapTransform();
     } else {
-        if (dynamicContainer) {
+        if (isCgoWmActive()) {
+            recordStationHistory(s);
+        } else if (dynamicContainer) {
             dockStationPanel(s);
         }
-        if (panel.parentElement !== document.body) {
-            document.body.appendChild(panel);
+        const fallbackParent = document.body;
+        if (panel && panel.parentElement !== fallbackParent) {
+            fallbackParent.appendChild(panel);
         }
         const isMobile = window.innerWidth <= 640;
         if (isMobile) {
@@ -1236,6 +1593,7 @@ function selectStation(sid, pageX, pageY, initialTabIndex = 0) {
         if (zoomVal) zoomVal.innerText = Math.round(currentScale * 100) + '%';
         enforceBoundaries();
         updateMapTransform();
+        if (shouldMoveFocus) focusPanelTitle();
     }
 }
 function bindEvents() {
@@ -1248,6 +1606,10 @@ function bindEvents() {
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             hideLineTooltipNow();
+            if (isCgoWmActive()) {
+                window.CGoWMAdapter.toggle('legend');
+                return;
+            }
             const isPinned = document.body.classList.contains('legend-pinned');
             const isHidden = document.body.classList.contains('pinned-hidden');
             if (isPinned) {
@@ -1283,7 +1645,14 @@ function bindEvents() {
         });
     }
     const closeLegend = () => {
+        if (isCgoWmActive()) {
+            window.CGoWMAdapter.close('legend');
+            return;
+        }
+        // 焦点在图例面板内时，关闭后归还给检索面板入口按钮
+        const focusWasInLegend = Boolean(legendModal && legendModal.contains(document.activeElement));
         resetMapState();
+        if (focusWasInLegend && menuBtn) focusElement(menuBtn);
         if (document.body.classList.contains('legend-pinned')) {
             document.body.classList.add('pinned-hidden');
         } else {
@@ -1295,6 +1664,41 @@ function bindEvents() {
     };
     if (legendClose) legendClose.addEventListener('click', (e) => { e.stopPropagation(); closeLegend(); });
     if (legendOverlay) legendOverlay.addEventListener('click', (e) => { if (e.target === legendOverlay) closeLegend(); });
+    // Esc 关闭：监听挂在面板自身，只有焦点位于其内时才会触发，不影响地图快捷键
+    if (legendModal) {
+        legendModal.addEventListener('keydown', (e) => {
+            if (isCgoWmActive()) return;
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
+            e.stopPropagation();
+            closeLegend();
+        });
+    }
+    // 跳转链接（跳到搜索 / 跳到线路列表）：两者都在图例面板内，先展开面板再落焦
+    document.querySelectorAll('.skip-link[data-skip-target]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const wantLines = link.dataset.skipTarget === 'lines';
+            if (isCgoWmActive()) {
+                if (!window.CGoWMAdapter.isOpen('legend')) {
+                    window.CGoWMAdapter.open('legend');
+                }
+            } else {
+                const legendVisible = legendOverlay && legendOverlay.style.display === 'block'
+                    && !document.body.classList.contains('pinned-hidden');
+                if (!legendVisible && menuBtn) menuBtn.click();
+            }
+            // 打开面板的流程会在 100ms 后聚焦搜索框，这里排在其后
+            setTimeout(() => {
+                const sectionId = wantLines ? 'section-legend-tree' : 'section-search';
+                document.getElementById(sectionId)?.classList.remove('collapsed');
+                if (wantLines) {
+                    const firstLine = document.querySelector('#legend-content .tree-line-header, #legend-content .legend-item');
+                    if (focusElement(firstLine)) return;
+                }
+                focusElement(document.getElementById('station-search-input'));
+            }, 160);
+        });
+    });
     if (document.getElementById('station-search-input')) {
         bindSearchAndLegendEvents();
     }
@@ -1375,6 +1779,11 @@ function bindEvents() {
     const stopPropagation = (e) => { e.stopPropagation(); };
     const infoPanel = document.getElementById('info-panel');
     if (infoPanel) {
+        infoPanel.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
+            e.stopPropagation();
+            resetMapState();
+        });
         infoPanel.addEventListener('touchstart', stopPropagation, { passive: true });
         infoPanel.addEventListener('touchmove', stopPropagation, { passive: true });
         infoPanel.addEventListener('touchend', stopPropagation, { passive: true });
@@ -1391,15 +1800,112 @@ function bindEvents() {
 function initLegendPin() {
     const pinBtn = document.getElementById('legend-pin-btn');
     const overlay = document.getElementById('legend-overlay');
+    if (window.CGoWMAdapter) {
+        window.CGoWMAdapter.init?.();
+        if (isCgoWmActive()) {
+            document.body.classList.remove('legend-pinned');
+            document.body.classList.remove('pinned-hidden');
+            if (overlay) overlay.style.display = 'none';
+            if (!cgoWmPanelsRegistered) {
+                cgoWmPanelsRegistered = true;
+                const legendModalEl = document.querySelector('#legend-overlay .legend-modal');
+                if (legendModalEl) {
+                    window.CGoWMAdapter.registerPanel({
+                        id: 'legend',
+                        title: '搜索与线路',
+                        icon: 'search',
+                        className: 'openmap-legend-window',
+                        content: {
+                            kind: 'factory',
+                            mount: (contentEl) => {
+                                contentEl.appendChild(legendModalEl);
+                            }
+                        },
+                        allowModes: ['float', 'sidebar'],
+                        sidebarSide: 'left',
+                        mobileMode: 'fullscreen',
+                        mobileShowTitleBar: true,
+                        defaultWidth: 320,
+                        defaultHeight: 560,
+                        minWidth: 260,
+                        minHeight: 240,
+                        resizable: true,
+                        autoHeight: false,
+                        showMinimize: false,
+                        open: window.CGoWMAdapter.shouldAutoOpenLegend(),
+                        onOpen: () => {
+                            renderLegend();
+                            const input = document.getElementById('station-search-input');
+                            if (input && window.innerWidth > 640) {
+                                setTimeout(() => {
+                                    try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+                                }, 80);
+                            }
+                        },
+                        onClose: () => {
+                            const menuEl = document.getElementById('mz-menu');
+                            if (legendModalEl.contains(document.activeElement) && menuEl) {
+                                focusElement(menuEl);
+                            }
+                        },
+                        onModeChange: () => {
+                            renderLegend();
+                        }
+                    });
+                }
+
+                const stationPanelEl = document.getElementById('info-panel');
+                if (stationPanelEl && typeof window.CGoWMAdapter.configureStationManager === 'function') {
+                    window.CGoWMAdapter.configureStationManager({
+                        element: stationPanelEl,
+                        mobileHome: document.body,
+                        getHistoryIds: () => (window.STATION_HISTORY || []).filter(sid => processedStations[sid]),
+                        getHistoryLimit: getStationHistoryLimit,
+                        getStationMeta: (sid) => processedStations[sid] ? buildStationWindowMeta(processedStations[sid]) : null,
+                        onSelect: (sid) => {
+                            if (sid && processedStations[sid]) {
+                                selectStation(sid);
+                            }
+                        },
+                        onDeactivate: (opts) => {
+                            resetMapState({ fromCgoWm: true, preserveSidebarStations: true, ...(opts || {}) });
+                        },
+                        onRemoveHistory: (sid) => {
+                            window.STATION_HISTORY = (window.STATION_HISTORY || []).filter(id => id !== sid);
+                        }
+                    });
+                }
+            }
+
+            if (pinBtn && pinBtn.dataset.cgowmBound !== 'true') {
+                pinBtn.dataset.cgowmBound = 'true';
+                pinBtn.addEventListener('click', (e) => {
+                    if (window.innerWidth <= 640) return;
+                    e.stopPropagation();
+                    window.CGoWMAdapter.toggleDock('legend');
+                });
+            }
+            renderLegend();
+            return;
+        }
+    }
     if (!pinBtn || !overlay) return;
+
+    const isLegendPinnedInStorage = () => (localStorage.getItem('cgo_openmap_legend_pinned') || localStorage.getItem('nal_legend_pinned')) === 'true';
+    const setLegendPinnedInStorage = (pinned) => {
+        try {
+            localStorage.setItem('cgo_openmap_legend_pinned', pinned ? 'true' : 'false');
+            localStorage.setItem('nal_legend_pinned', pinned ? 'true' : 'false');
+        } catch (e) {}
+    };
 
     // Attach listener unconditionally so it works after resize
     pinBtn.addEventListener('click', (e) => {
         if (window.innerWidth <= 640) return;
         e.stopPropagation();
-        const currentState = localStorage.getItem('nal_legend_pinned') === 'true';
+        const currentState = isLegendPinnedInStorage();
         const isPinned = !currentState;
-        localStorage.setItem('nal_legend_pinned', isPinned);
+        setLegendPinnedInStorage(isPinned);
         updateBtnUI(isPinned);
         if (isPinned) {
             document.body.classList.add('legend-pinned');
@@ -1458,6 +1964,9 @@ function initLegendPin() {
             pinBtn.innerHTML = `<cgo-icon name="pin-angle" size="18"></cgo-icon>`;
             pinBtn.title = "固定面板";
         }
+        // 切换按钮：名称固定为「固定面板」，状态由 aria-pressed 表达
+        pinBtn.setAttribute('aria-label', '固定面板');
+        pinBtn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
     };
 
     // Initial state setup
@@ -1465,11 +1974,11 @@ function initLegendPin() {
         document.body.classList.remove('legend-pinned');
         document.body.classList.remove('pinned-hidden');
         pinBtn.style.display = 'none';
-        updateBtnUI(localStorage.getItem('nal_legend_pinned') === 'true');
+        updateBtnUI(isLegendPinnedInStorage());
         return;
     }
 
-    const startPinned = localStorage.getItem('nal_legend_pinned') === 'true';
+    const startPinned = isLegendPinnedInStorage();
     updateBtnUI(startPinned);
     if (startPinned) {
         document.body.classList.add('legend-pinned');
@@ -1575,6 +2084,15 @@ function setMapView(view) {
 }
 
 /**
+ * 读取当前地图视图（平移与缩放）。与 setMapView 对称：功能模块要基于"当前在哪"
+ * 做相对位移（如浮层打开后把地图让开）时，需要先拿到现状，故留这一个最小的读取口。
+ * @returns {{x:number, y:number, scale:number}}
+ */
+function getMapView() {
+    return { x: currentX, y: currentY, scale: currentScale };
+}
+
+/**
  * 应用 CSS Transform 将平移和缩放属性同步到 mapContent DOM
  */
 function localUpdateMapTransform() {
@@ -1592,7 +2110,9 @@ function markMapMoving() {
     if (!mapContent.classList.contains('is-moving')) mapContent.classList.add('is-moving');
     clearTimeout(mapMovingTimer);
     // 带 CSS 过渡的移动（按钮缩放、飞跃定位、切城滑动）要等过渡结束再撤销
-    const settle = mapContent.classList.contains('nb-glide') || document.documentElement.classList.contains('nb-fadein') ? 950
+    // 「减少动态效果」下飞跃 / 缩放的 CSS 过渡已被全局样式压掉，画面一步到位，无需等过渡结束
+    const settle = prefersReducedMotion() ? 220
+        : mapContent.classList.contains('nb-glide') || document.documentElement.classList.contains('nb-fadein') ? 950
         : mapContent.classList.contains('animate-zoom') ? 450 : 220;
     mapMovingTimer = setTimeout(() => mapContent.classList.remove('is-moving'), settle);
 }
@@ -1633,7 +2153,14 @@ function localEnforceBoundaries() {
         if (isSplitMode) {
             currentY = (containerH * 0.4 - mapH) / 2;
         } else {
-            currentY = topOffset + (containerH - topOffset - mapH) / 2;
+            // 地图比可视区小：整图居中。底部遮挡同样要扣掉 —— 早先只有上面的 clamp 分支
+            // 用了 bottomOffset（水平侧也一直按 availW 算），唯独这里漏了，于是浮层一开，
+            // 居中的整图下半截就被压在浮层底下，看着像"没避让"。
+            // 可用区被遮挡压得比地图还小时，退化成顶边贴住标题栏，别让地图往标题栏里钻。
+            const availH = containerH - topOffset - bottomOffset;
+            currentY = availH >= mapH
+                ? topOffset + (availH - mapH) / 2
+                : topOffset;
         }
     }
 }
@@ -1683,7 +2210,7 @@ function showPanelAt(pageX, pageY) {
 
 /**
  * 高亮指定线路及其关联同组线路 (Line Highlighting)
- * 作用：克隆线路矢量至 highlight-layer 图层并使其他线路淡化；处理 Y 型支线分支淡化。
+ * 作用：克隆线路矢量至 highlight-layer 图层并使其他线路淡化；按「交路」让位局部区段。
  * @param {string} lineId - 线路 ID
  * @param {string} [currentStationId=null] - 当前选中车站 ID
  * @param {boolean} [fromSync=false] - 是否由同组联动发起
@@ -1693,40 +2220,39 @@ function highlightLine(lineId, currentStationId = null, fromSync = false) {
     if (el) {
         el.classList.add('active');
         const lineData = linesData.find(l => l.id === lineId);
-        if (lineData && lineData.hasbranch && currentStationId) {
-            const ids1 = lineData['stationIds-way1'] || [];
-            const ids2 = lineData['stationIds-way2'] || [];
-            const inWay1 = ids1.includes(currentStationId);
-            const inWay2 = ids2.includes(currentStationId);
-            const segWay1 = el.querySelectorAll('.seg-way1');
-            const segWay2 = el.querySelectorAll('.seg-way2');
-            segWay1.forEach(p => p.style.opacity = '1');
-            segWay2.forEach(p => p.style.opacity = '1');
-            // 淡化另一条交路时，只停靠该交路的车站也要一起淡化，
-            // 否则会出现走向已经变浅、站点与站名却还亮着的割裂感；
-            // 若该站还有别的线路经过（那些线路并未淡化），则保持原样。
-            const dimExclusive = (dimIds, keepIds) => {
-                const keep = new Set(keepIds);
-                dimIds.forEach(sid => {
-                    if (keep.has(sid)) return;
-                    const s = processedStations[sid];
-                    if (s && (s.relatedLines || []).some(id => id !== lineId)) return;
-                    ['node_', 'label_'].forEach(prefix => {
-                        const node = document.getElementById(prefix + sid);
-                        if (node) node.style.opacity = '0.1';
-                    });
+        // 交路方案：点中车站时只保留「经过它的交路」所覆盖的走向段与车站。
+        //   · 主干共用区段归属全部交路 ⇒ 点主干车站时经过它的就是全部交路，主线支线一起亮；
+        //   · 某条交路独有的区段只归属于它 ⇒ 点支线车站时只亮「支线 + 它贯通的主线」。
+        // 段键来自 core/line-routing.js 的 segments()，每段走向只画一次、只亮一次，
+        // 主支线或多个 way 重叠在同一区间时也不会被重复点亮/叠加。
+        const plan = (lineData && CGoRouting)
+            ? CGoRouting.plan(lineData, currentStationId, processedStations)
+            : null;
+        if (plan && !plan.allLit) {
+            el.querySelectorAll('[data-seg-key]:not(.line-interaction)').forEach(p => {
+                const key = p.getAttribute('data-seg-key');
+                p.style.opacity = plan.litSegKeys.has(key) ? '1' : '0.1';
+            });
+            // 只在被淡化的交路上停靠的车站也一起淡化，否则会出现「走向已经变浅、
+            // 站点与站名却还亮着」的割裂感；若该站还有**会画线的**其它线路经过
+            // （那些线路并未淡化），则保持原样。判定收敛在 core/line-routing.js：
+            // 只落点的线路（isPointOnly，如北京「中国铁路」）不算「别的线路」，
+            // 否则北京 S2 点延庆站时沙城站的站名会一直亮着（分支走向却已淡化）。
+            const keepsStationLit = (station) => (CGoRouting
+                ? CGoRouting.hasOtherDrawnLine(station, lineId, linesData)
+                : (station.relatedLines || []).some(id => id !== lineId));
+            plan.dimStationIds.forEach(sid => {
+                const s = processedStations[sid];
+                if (s && keepsStationLit(s)) return;
+                const node = document.getElementById('node_' + sid);
+                if (node) node.style.opacity = '0.1';
+                // 同址异名站（siblings，如莫斯科型换乘）共用图元但各有独立站名，
+                // 只按 label_<id> 淡化会漏掉它们的站名，所以按 data-sid 一起处理；
+                // clearHighlights() 清的就是 .label-group 的内联 opacity，能被还原。
+                document.querySelectorAll(`.label-group[data-sid="${sid}"]`).forEach(el => {
+                    el.style.opacity = '0.1';
                 });
-            };
-            // 车站同时属于两条交路（位于共用主干）时，按 way1 为主线处理：
-            // 车站详情面板判定上/下一站也是先查 way1 再回落 way2，两边保持一致，
-            // 否则会出现面板只报主线、图上却把支线也点亮的矛盾。
-            if (inWay1) {
-                segWay2.forEach(p => p.style.opacity = '0.1');
-                dimExclusive(ids2, ids1);
-            } else if (inWay2) {
-                segWay1.forEach(p => p.style.opacity = '0.1');
-                dimExclusive(ids1, ids2);
-            }
+            });
         }
         const highlightLayer = document.getElementById('highlight-layer');
         if (highlightLayer) {
@@ -1735,8 +2261,16 @@ function highlightLine(lineId, currentStationId = null, fromSync = false) {
                 // 高亮层只是线路的视觉副本，不能继承 active 状态；否则原线路和副本会分别应用阴影滤镜，
                 // 换乘站关联线路越多，Android Edge 上看到的阴影叠加层就越多。
                 clone.classList.remove('active');
-                const interactPath = clone.querySelector('.line-interaction');
-                if (interactPath) interactPath.remove();
+                const interactPath = clone.querySelectorAll('.line-interaction');
+                interactPath.forEach(p => p.remove());
+                // 让位（淡化）的区段不再进高亮层：它们本来就只是被压暗的背景，
+                // 再叠一层 10% 透明度的副本会让「这条支线到底亮没亮」变得含糊，
+                // 也违背「同一区间只高亮一次」的要求。
+                if (plan && plan.dimSegKeys.size) {
+                    clone.querySelectorAll('[data-seg-key]').forEach(p => {
+                        if (plan.dimSegKeys.has(p.getAttribute('data-seg-key'))) p.remove();
+                    });
+                }
                 highlightLayer.appendChild(clone);
             }
         }
@@ -1813,7 +2347,7 @@ function generateTransferHtml(stationId) {
         return sortedList.map(item => {
             const styleStr = item.svgclr ? `--svgclr:${item.svgclr}; --svgtext:${item.svgtext};` : '';
             return item.svg ?
-                `<span class="svg-icon-placeholder line-badge transfer-link" data-jump-sid="${item.targetSid}" data-src="${item.svg}" style="display:inline-block; margin-left:2px; margin-top:6px; vertical-align:middle; cursor:pointer; ${styleStr}"></span>` :
+                `<span class="svg-icon-placeholder line-badge transfer-link" role="button" tabindex="0" aria-label="前往 ${escapeHtml(item.name)} 换乘车站" data-jump-sid="${escapeHtml(item.targetSid)}" data-src="${item.svg}" style="display:inline-block; margin-left:2px; margin-top:6px; vertical-align:middle; cursor:pointer; ${styleStr}"></span>` :
                 `<span class="text-badge" style="display:inline-block; margin-left:2px; margin-top:6px;">${item.name}</span>`;
         }).join('');
     };
@@ -1871,14 +2405,11 @@ function renderUserModePanel(station, initialTabIndex = 0) {
         return sName;
     };
     linesData.forEach(line => {
-        let isStationOnLine = false;
-        if (line.isPointOnly) {
-            isStationOnLine = line.stationIds.includes(station.id);
-        } else if (line.hasbranch) {
-            isStationOnLine = line['stationIds-way1'].includes(station.id) || line['stationIds-way2'].includes(station.id);
-        } else {
-            isStationOnLine = line.stationIds.includes(station.id);
-        }
+        // 交路模型：车站只要落在任意一条交路上（stationIds-way1 … -way99）就算经停本线
+        const stationWays = lineWaysOfStation(line, station.id);
+        const isStationOnLine = line.isPointOnly
+            ? (line.stationIds || []).includes(station.id)
+            : stationWays.length > 0;
         if (isStationOnLine) {
             const lineMeta = getLineSvgMeta(line.id) || {};
             const defaultMeta = {
@@ -1896,7 +2427,7 @@ function renderUserModePanel(station, initialTabIndex = 0) {
             const isRwyLine = line.id === 'Rwy' || line.id === 'Rwy2';
             const hasDistanceData = (line.distances && line.distances.length > 0) ||
                 (line.distances2 && line.distances2.length > 0) ||
-                (line['distances-way1'] && line['distances-way1'].length > 0);
+                lineWays(line).some(w => w.distances && w.distances.length > 0);
             if (line.isPointOnly && !hasDistanceData) {
                 relatedLinesInfo.push({
                     name: line.name,
@@ -1917,25 +2448,41 @@ function renderUserModePanel(station, initialTabIndex = 0) {
             let prevInfo = "无";
             let nextInfo = "无";
             const isLoop = line.isLoop === true;
-            if (line.hasbranch) {
-                const dists1 = line['distances-way1'] || line.distances || [];
-                const ids1 = line['stationIds-way1'] || [];
-                let idx = ids1.indexOf(station.id);
-                if (idx !== -1) {
-                    if (idx > 0) prevInfo = getInfoStr(ids1[idx - 1], dists1[idx - 1], station.id);
-                    if (idx < ids1.length - 1) nextInfo = getInfoStr(ids1[idx + 1], dists1[idx], station.id);
-                } else {
-                    const dists2 = line['distances-way2'] || [];
-                    const ids2 = line['stationIds-way2'] || [];
-                    idx = ids2.indexOf(station.id);
-                    if (idx !== -1) {
-                        if (idx > 0) prevInfo = getInfoStr(ids2[idx - 1], dists2[idx - 1], station.id);
-                        if (idx < ids2.length - 1) nextInfo = getInfoStr(ids2[idx + 1], dists2[idx], station.id);
-                    }
-                }
+            const routeWays = lineWays(line);
+            if (routeWays.length > 1) {
+                // 多交路：逐条交路取前后站，按目标站去重（core/line-routing.js 的 neighbors）。
+                // 不同交路在这一站的行车方向可能相反（厦门 BRT 快5路与快2/快7 同段反向，
+                // 前埔枢纽站既是快3/快5 的终点又是快6/快9 的起点），只并排列出站名会得到
+                // 「上一站 洪文 / 下一站 洪文」这种读不通的行。因此只在**确实需要区分**时
+                // 才补注候选所属的交路名（wayNames，缺省按首末站推导）：
+                //   · 同一方向出现多个候选（分岔方向不同）；或
+                //   · 上一站与下一站是同一座车站（终点/起点同站，靠交路区分来去方向）。
+                // 其余情况（如花桥这种只被一条交路经过的端部站、所有交路同向的共用主干站）
+                // 仍保持原来的一行干净显示，不添冗余标注。
+                const nb = CGoRouting.neighbors(line, station.id);
+                const prevIds = new Set(nb.prev.map(p => p.id));
+                const showWay = nb.prev.length > 1 || nb.next.length > 1
+                    || nb.next.some(n => prevIds.has(n.id));
+                const renderSide = (items) => {
+                    if (!items.length) return "";
+                    const rows = items.map(it => {
+                        const html = getInfoStr(it.id, it.distance, station.id);
+                        if (!showWay) return html;
+                        const labels = it.wayKeys.map(key => lineWayLabel(line, key)).filter(Boolean);
+                        return labels.length
+                            ? `${html} <span style="color:var(--text-light);font-size:10px;">· ${labels.join("/")}</span>`
+                            : html;
+                    });
+                    // 多候选时每个候选单独一行：值栏很窄，挤在一行会把「· 快5路」折到下一行
+                    return rows.join(items.length > 1 ? '<br>' : '　/　');
+                };
+                const prevList = renderSide(nb.prev);
+                const nextList = renderSide(nb.next);
+                if (prevList) prevInfo = prevList;
+                if (nextList) nextInfo = nextList;
             } else {
-                const ids = line.stationIds;
-                const dists = line.distances || [];
+                const ids = (routeWays[0] && routeWays[0].ids) || [];
+                const dists = (routeWays[0] && routeWays[0].distances) || line.distances || [];
                 const distsReverse = line.distances2;
                 const idx = ids.indexOf(station.id);
                 const len = ids.length;
@@ -1969,7 +2516,11 @@ function renderUserModePanel(station, initialTabIndex = 0) {
                 svgtext: defaultMeta.svgtext,
                 isPointOnly: false,
                 prev: prevInfo, next: nextInfo, company: finalCompany,
-                lineColor: line.color, staConfig: staConfig, scheduleUrl: timeUrl
+                lineColor: line.color, staConfig: staConfig, scheduleUrl: timeUrl,
+                // 该站经过的交路（branch 线路才有意义；单交路时为空，面板不渲染该行）
+                ways: routeWays.length > 1
+                    ? Array.from(new Set(stationWays.map(w => lineWayLabel(line, w)).filter(Boolean)))
+                    : []
             });
         }
     });
@@ -2059,18 +2610,18 @@ function renderUserModePanel(station, initialTabIndex = 0) {
     }
 
     // 兜底：若 StationBoard 引擎未就绪，使用内联基础渲染流程
-    let enNameDisplay = station.en.replace(/<br>/gi, ' ');
-    if (station.cn === '首经贸') enNameDisplay = station.en.replace(/<br>/gi, '<span class="special-br"></span>');
-    const headerLeftHtml = `<div class="header-name-group"><div class="panel-cn-name">${station.cn}</div><div class="panel-en-name">${enNameDisplay}</div></div>`;
+    let enNameDisplay = (station.en || '').replace(/<br>/gi, ' ');
+    if (station.cn === '首经贸') enNameDisplay = (station.en || '').replace(/<br>/gi, '<span class="special-br"></span>');
+    const headerLeftHtml = `<div class="header-name-group"><div class="panel-cn-name" role="heading" aria-level="2" tabindex="-1">${station.cn}</div><div class="panel-en-name" lang="en">${enNameDisplay}</div></div>`;
     infoPanel.style.height = '';
     const expandBtnHtml = (window.innerWidth <= 640)
-        ? `<button class="panel-expand-btn" title="展开/收起">
+        ? `<button class="panel-expand-btn" title="展开/收起" aria-label="展开或收起面板">
                  <cgo-icon name="expand-less" size="18"></cgo-icon>
                </button>`
         : '';
     infoPanel.innerHTML = `
-        <div class="panel-header">
-            <button class="panel-close-btn" title="关闭面板">
+        <div class="panel-header" data-cgowm-drag-handle>
+            <button class="panel-close-btn" title="关闭面板" aria-label="关闭面板">
                 <cgo-icon name="close" size="24"></cgo-icon>
             </button>
             ${expandBtnHtml}
@@ -2080,7 +2631,7 @@ function renderUserModePanel(station, initialTabIndex = 0) {
         
         <div class="panel-tabs-container">
             ${tabsNavHtml}
-            <button class="panel-share-btn" title="分享车站信息">
+            <button class="panel-share-btn" title="分享车站信息" aria-label="分享车站信息">
                 <cgo-icon name="external" size="20"></cgo-icon>
             </button>
         </div>
@@ -2106,7 +2657,7 @@ function renderUserModePanel(station, initialTabIndex = 0) {
             const targetPane = infoPanel.querySelector(`.tab-pane[data-tab-index="${targetIndex}"]`);
             if (targetPane) targetPane.classList.add('active');
 
-            const footerScheduleBtn = infoPanel.querySelector('#footer-schedule-btn');
+            const footerScheduleBtn = infoPanel.querySelector('#footer-schedule-btn') || infoPanel._cgoSheetFooter?.querySelector('#footer-schedule-btn');
             if (footerScheduleBtn) {
                 let targetUrl = null;
                 if (targetIndex !== 'station-info') {
@@ -2131,6 +2682,8 @@ function renderUserModePanel(station, initialTabIndex = 0) {
             }
         });
     });
+    // 选项卡语义与方向键（须在上面的 click 监听之后绑定）
+    window.CGoA11y.enhanceTabs(infoPanel);
     const shareBtn = infoPanel.querySelector('.panel-share-btn');
     if (shareBtn) {
         shareBtn.addEventListener('click', (e) => {
@@ -2255,11 +2808,25 @@ async function renderStationCardsInPanel(panel, targetStation) {
     }, 50);
 }
 
-function resetMapState() {
+function resetMapState(opts = {}) {
     hideLineTooltipNow();
     const infoPanel = document.getElementById('info-panel');
     const dynamicContainer = document.getElementById('sidebar-dynamic-content');
-    if (infoPanel && (window.innerWidth <= 640 || !document.body.classList.contains('legend-pinned'))) {
+    // 焦点仍在信息板内时，关闭后归还给当初的触发元素；焦点已在别处（如点了地图）则不打扰
+    const focusWasInPanel = Boolean(infoPanel && document.activeElement && infoPanel.contains(document.activeElement));
+    pendingPanelFocus = false;
+    infoPanel?._tabSwipeCleanup?.();
+    if (infoPanel) infoPanel._tabSwipeCleanup = null;
+    infoPanel?._mobileSheetDragCleanup?.();
+    if (infoPanel) infoPanel._mobileSheetDragCleanup = null;
+    if (isCgoWmDesktop()) {
+        if (!opts?.fromCgoWm) {
+            window.CGoWMAdapter.deactivateStation({ clearFloat: true });
+        }
+        if (infoPanel && !opts?.fromMinimize && !opts?.preserveSidebarStations && !window.CGoWMAdapter.hasStationSidebar?.()) {
+            infoPanel.style.display = 'none';
+        }
+    } else if (infoPanel && (window.innerWidth <= 640 || !document.body.classList.contains('legend-pinned'))) {
         infoPanel.style.display = 'none';
     }
     const selector = document.getElementById('station-selector');
@@ -2271,7 +2838,9 @@ function resetMapState() {
     document.body.classList.remove('mobile-panel-docked-full');
     clearHighlights();
     lastSelectedStationId = null;
-    if (window.innerWidth > 640 && document.body.classList.contains('legend-pinned') && dynamicContainer) {
+    if (isCgoWmDesktop()) {
+        rebuildSidebarHistory();
+    } else if (window.innerWidth > 640 && document.body.classList.contains('legend-pinned') && dynamicContainer) {
         const sections = dynamicContainer.querySelectorAll('.station-history-section');
         sections.forEach(sec => sec.classList.add('collapsed'));
     }
@@ -2280,6 +2849,8 @@ function resetMapState() {
     updateMapTransform();
     updateShareMeta(null); // Restore original title/meta
     setTimeout(() => mapContent.classList.remove('animate-zoom'), 300);
+    if (focusWasInPanel) restorePanelFocus();
+    else panelFocusReturnEl = null;
 }
 
 
@@ -2290,257 +2861,41 @@ function resetMapState() {
  */
 function initMobileSheetDrag() {
     if (window.innerWidth > 640) return;
-
     const panel = document.getElementById('info-panel');
-    if (!panel) return;
-
-    // 清理旧监听（避免重复绑定）
-    if (panel._mobileSheetDragCleanup) {
-        panel._mobileSheetDragCleanup();
-    }
-
-    // ── 常量 ──────────────────────────────────────────────────────────
-    const STAGE_STEP_MIN_DISTANCE = 26;   // px：换档最小净位移
-    const STAGE_STEP_MIN_VELOCITY = 0.6;  // px/ms：换档最小速度
-    const EXTREME_FLICK_VELOCITY  = 1.8;  // px/ms：允许跨档甩动速度
-    const VELOCITY_STALE_MS       = 90;   // ms：停顿超过此值，速度归零
-    const SETTLE_OMEGA            = 14;   // rad/s：落位弹簧角频率（临界阻尼）
-    const SETTLE_MAX_DURATION     = 900;  // ms：落位动画最长时长
-    const STAGES = ['collapsed', 'half', 'full'];
-
-    // ── 档位计算 ─────────────────────────────────────────────────────
-    function getDetents() {
-        const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-        // 90px = 20px 把手感应区 + 70px panel-header min-height，与 CSS 一致
-        const COLLAPSED_EXPOSE = 90;
-        // safe-area-inset-top 无法直接通过 JS getComputedStyle 读取，
-        // 安全区高度用 env() 在 CSS 中已处理， JS 这里暗设 0
-        const safeTop = 0;
-        return {
-            full:      safeTop + 60,
-            half:      vh * 0.40,
-            // 确保 collapsed 至少在 half 档以下
-            collapsed: Math.max(vh * 0.40 + COLLAPSED_EXPOSE, vh - COLLAPSED_EXPOSE)
-        };
-    }
-
-    function getCurrentStage() {
-        if (document.body.classList.contains('panel-sheet-collapsed')) return 'collapsed';
-        if (document.body.classList.contains('mobile-panel-expanded'))  return 'full';
-        return 'half';
-    }
-
-    function applyStage(stageName, animate) {
-        const detents = getDetents();
-        const targetTop = detents[stageName];
-
-        // 更新 body 类
-        document.body.classList.remove('panel-sheet-collapsed', 'mobile-panel-expanded', 'mobile-panel-docked-full');
-        if (stageName === 'collapsed') {
-            document.body.classList.add('panel-sheet-collapsed');
-        } else if (stageName === 'full') {
-            document.body.classList.add('mobile-panel-expanded');
-            // 落位完成后开启顶部填色
-            setTimeout(() => {
-                if (document.body.classList.contains('mobile-panel-expanded')) {
-                    document.body.classList.add('mobile-panel-docked-full');
-                }
-            }, animate ? 420 : 0);
-        }
-        // mobile-split-active 在所有三档都保持（是面板"打开"的标记）
-        if (!document.body.classList.contains('mobile-split-active')) {
+    if (!panel || !window.CGoMobileSheet) return;
+    panel._mobileSheetDragCleanup?.();
+    panel._tabSwipeCleanup?.();
+    panel._tabSwipeCleanup = window.CGoPanelTabSwipe?.attach(panel);
+    let mapFollow = null;
+    panel._mobileSheetDragCleanup = window.CGoMobileSheet.attach(panel, {
+        getStage: () => document.body.classList.contains('panel-sheet-collapsed') ? 'collapsed'
+            : document.body.classList.contains('mobile-panel-expanded') ? 'full' : 'half',
+        getDetents: () => {
+            const vh = window.visualViewport?.height || window.innerHeight;
+            return { full: 60, half: vh * 0.40, collapsed: Math.max(vh * 0.40 + 90, vh - 90) };
+        },
+        onStage: stage => {
+            document.body.classList.toggle('panel-sheet-collapsed', stage === 'collapsed');
+            document.body.classList.toggle('mobile-panel-expanded', stage === 'full');
+            document.body.classList.remove('mobile-panel-docked-full');
             document.body.classList.add('mobile-split-active');
-        }
-        return targetTop;
-    }
-
-    // ── 弹簧落位动画 ─────────────────────────────────────────────────
-    let settleRaf = null;
-    function animateSettle(startTop, targetTop, releaseVelocity, onDone) {
-        if (settleRaf) { cancelAnimationFrame(settleRaf); settleRaf = null; }
-        const distance = targetTop - startTop;
-        let t = 0;
-        let lastTs = null;
-        // 临界阻尼：x(t) = (startTop - targetTop + v0/ω * t) * e^(-ωt) + targetTop
-        function frame(ts) {
-            if (!lastTs) lastTs = ts;
-            t += Math.min(ts - lastTs, 32); // 最大单帧 32ms 防跳变
-            lastTs = ts;
-            // 临界阻尼位移
-            const omega = SETTLE_OMEGA;
-            const x0 = startTop - targetTop;          // 初始偏移
-            const v0 = releaseVelocity || 0;           // 初始速度
-            const A = x0;
-            const B = v0 + omega * x0;
-            const exp = Math.exp(-omega * t / 1000);
-            const pos = targetTop + (A + B * t / 1000) * exp;
-            panel.style.top = pos + 'px';
-            if (t < SETTLE_MAX_DURATION && Math.abs(pos - targetTop) > 0.3) {
-                settleRaf = requestAnimationFrame(frame);
-            } else {
-                panel.style.top = '';
-                if (onDone) onDone();
+        },
+        onStart: () => {
+            document.body.classList.remove('mobile-panel-docked-full');
+            mapContent.classList.remove('animate-zoom');
+        },
+        onGeometry: ({ top, dragging }) => {
+            // 跟手时只平移既有图层，保持当前缩放，不逐帧重算车站或线路。
+            if (!mapFollow) mapFollow = { top, y: currentY };
+            currentY = mapFollow.y + (top - mapFollow.top) / 2;
+            mapContent.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) scale(${currentScale})`;
+            if (!dragging) {
+                mapFollow = null;
+                document.body.classList.toggle('mobile-panel-docked-full', document.body.classList.contains('mobile-panel-expanded'));
+                markMapMoving();
             }
         }
-        settleRaf = requestAnimationFrame(frame);
-    }
-
-    // ── 拖拽状态 ─────────────────────────────────────────────────────
-    const DRAG_START_THRESHOLD = 6;   // 位移超过该值才判定为拖拽；以下视为轻点，交给 click
-    let drag = null;
-
-    function onPointerDown(e) {
-        if (window.innerWidth > 640) return;
-        const target = e.target;
-        // 按钮 / 链接 / 表单控件上按下时不接管：一旦面板捕获指针，浏览器就会把随后的
-        // click 派发给面板而不是该控件，导致面板内按钮（底栏、标题栏关闭等）全都点不动
-        if (target.closest('button, a, input, select, textarea, label')) return;
-        const isGrabber = target.closest('.sheet-grabber, .panel-header');
-        const isContent = !isGrabber;
-
-        // 内容区：只有当面板是半屏或全屏时才接管（且向上拖才能升档）
-        // 把手/头部：任何时候都可以拖
-        if (isContent) {
-            const currentStage = getCurrentStage();
-            if (currentStage === 'collapsed') return; // 收起时内容不可见，不处理
-        }
-
-        // 阻止触摸事件触发浏览器滚动（仅在把手上）
-        if (isGrabber) e.preventDefault();
-
-        if (settleRaf) { cancelAnimationFrame(settleRaf); settleRaf = null; }
-        // 禁用 CSS transition （必须用 important 才能覆盖带 !important 的 CSS 规则）
-        panel.style.setProperty('transition', 'none', 'important');
-
-        const startRect = panel.getBoundingClientRect();
-        drag = {
-            startY:    e.clientY,
-            startTop:  startRect.top,
-            currentTop: startRect.top,
-            lastY:     e.clientY,
-            lastAt:    performance.now(),
-            velocity:  0,
-            startStage: getCurrentStage(),
-            isGrabber,
-            pointerId: e.pointerId,
-            captured:  false      // 指针捕获与拖拽态延迟到真正拖动时（见 onPointerMove）
-        };
-    }
-
-    function onPointerMove(e) {
-        if (!drag) return;
-        const detents = getDetents();
-        const dy = e.clientY - drag.startY;
-        // 轻点不进入拖拽：只有位移超过阈值才捕获指针并切到拖拽态，
-        // 否则 click 会被派发到面板上，面板内的按钮就点不动了
-        if (!drag.captured) {
-            if (Math.abs(dy) < DRAG_START_THRESHOLD) return;
-            panel.setPointerCapture && panel.setPointerCapture(drag.pointerId);
-            drag.captured = true;
-            document.body.classList.add('panel-sheet-dragging');
-            document.body.classList.remove('mobile-panel-docked-full');   // 拖拽时收回顶部填色
-        }
-        const rawTop = drag.startTop + dy;
-        const clamped = Math.max(detents.full, Math.min(detents.collapsed, rawTop));
-
-        const now = performance.now();
-        const elapsed = Math.max(1, now - drag.lastAt);
-        const instant = (e.clientY - drag.lastY) / elapsed;
-        drag.velocity = elapsed > VELOCITY_STALE_MS
-            ? instant
-            : drag.velocity * 0.6 + instant * 0.4;
-        drag.lastY = e.clientY;
-        drag.lastAt = now;
-        drag.currentTop = clamped;
-
-        // 必须用 important 才能覆盖带 !important 的 CSS body 类选择器规则
-        panel.style.setProperty('top', clamped + 'px', 'important');
-    }
-
-    function onPointerUp(e) {
-        if (!drag) return;
-        if (drag.captured) {
-            panel.releasePointerCapture && panel.releasePointerCapture(drag.pointerId);
-            document.body.classList.remove('panel-sheet-dragging');
-        }
-        // 恢复 transition：先清除内联属性，再交回 CSS 控制
-        panel.style.removeProperty('transition');
-        panel.style.removeProperty('top');
-
-        const detents = getDetents();
-        const dy = e.clientY - drag.startY;
-        const releaseVelocity = performance.now() - drag.lastAt > VELOCITY_STALE_MS ? 0 : drag.velocity;
-        const committed = Math.abs(dy) >= STAGE_STEP_MIN_DISTANCE
-            || Math.abs(releaseVelocity) >= STAGE_STEP_MIN_VELOCITY;
-        let nextStage;
-
-        if (Math.abs(dy) < 7 && drag.isGrabber) {
-            // 轻点把手：三档循环
-            if (drag.startStage === 'full') {
-                nextStage = 'half';
-            } else if (drag.startStage === 'half') {
-                nextStage = 'full';
-            } else {
-                nextStage = 'half'; // collapsed → half
-            }
-        } else if (!committed) {
-            nextStage = drag.startStage;
-        } else {
-            const travel = detents.collapsed - detents.full;
-            const extremeDist = Math.max(120, travel * 0.28);
-            const fast = Math.abs(releaseVelocity) >= EXTREME_FLICK_VELOCITY && Math.abs(dy) >= extremeDist;
-            const goingUp = fast ? releaseVelocity < 0 : dy < 0;
-            const startIdx = STAGES.indexOf(drag.startStage);
-            if (goingUp) {
-                nextStage = fast ? 'full' : STAGES[Math.min(STAGES.length - 1, startIdx + 1)];
-            } else {
-                nextStage = fast ? 'collapsed' : STAGES[Math.max(0, startIdx - 1)];
-            }
-        }
-
-        const currentTop = drag.currentTop;
-        drag = null;
-
-        const targetTop = applyStage(nextStage, true);
-        animateSettle(currentTop, targetTop, releaseVelocity);
-    }
-
-    function onPointerCancel(e) {
-        if (!drag) return;
-        if (drag.captured) {
-            panel.releasePointerCapture && panel.releasePointerCapture(drag.pointerId);
-            document.body.classList.remove('panel-sheet-dragging');
-        }
-        panel.style.removeProperty('transition');
-        panel.style.removeProperty('top');
-        // 就近吸附
-        const detents = getDetents();
-        const pos = drag.currentTop;
-        const midFH = (detents.full + detents.half) / 2;
-        const midHC = (detents.half + detents.collapsed) / 2;
-        let stage;
-        if (pos < midFH) stage = 'full';
-        else if (pos < midHC) stage = 'half';
-        else stage = 'collapsed';
-        const currentTop = drag.currentTop;
-        drag = null;
-        const targetTop = applyStage(stage, true);
-        animateSettle(currentTop, targetTop, 0);
-    }
-
-    panel.addEventListener('pointerdown',   onPointerDown,  { passive: false });
-    panel.addEventListener('pointermove',   onPointerMove,  { passive: true });
-    panel.addEventListener('pointerup',     onPointerUp);
-    panel.addEventListener('pointercancel', onPointerCancel);
-
-    // 注册清理函数
-    panel._mobileSheetDragCleanup = () => {
-        panel.removeEventListener('pointerdown',   onPointerDown);
-        panel.removeEventListener('pointermove',   onPointerMove);
-        panel.removeEventListener('pointerup',     onPointerUp);
-        panel.removeEventListener('pointercancel', onPointerCancel);
-        if (settleRaf) cancelAnimationFrame(settleRaf);
-    };
+    });
 }
 
 function handleShare(station, lineId = "") {
@@ -2614,7 +2969,7 @@ function showToast(message, type = 'success') {
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 13px;
-            z-index: 10000;
+            z-index: 110000;
             transition: opacity 0.3s;
             pointer-events: none;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
@@ -2622,6 +2977,7 @@ function showToast(message, type = 'success') {
         document.body.appendChild(toast);
     }
     toast.innerText = message;
+    announce(message);
     toast.style.opacity = '1';
 
     if (window.toastTimer) clearTimeout(window.toastTimer);
@@ -2662,8 +3018,8 @@ function updateShareMeta(station) {
 /**
  * 平滑贝塞尔曲线折线倒角算法 (Corner Rounding & Smoothing Algorithm)
  *
- * 实现已抽至 `core/path-geometry.js`，由本引擎与 Drunk 编辑模式共用——
- * 编辑器预览与实际渲染必须是逐字节相同的 path 指令，否则在 Drunk 里调出来的
+ * 实现已抽至 `core/path-geometry.js`，由本引擎与 OpenMap Editor 编辑器共用——
+ * 编辑器预览与实际渲染必须是逐字节相同的 path 指令，否则在编辑器里调出来的
  * 走向与圆角上线后会是另一个样子。此处保留同名同签名的薄封装，调用方无需改动。
  *
  * @param {Array<{x: number, y: number, r?: number}>} points - 折线点阵坐标数组
@@ -2704,7 +3060,11 @@ function createSvgPath(d, color, width) {
  * 显示线路悬停徽标提示 (Tooltip)
  */
 function handleTooltipShow(lineName) {
-    const meta = getLineSvgMeta(lineName);
+    // 城市可用 getTooltipBadge(lineName) 覆盖悬停徽标，例如双色共线段只挂一个蓝绿标
+    const city = getActiveCity();
+    const override = city && typeof city.getTooltipBadge === 'function'
+        ? city.getTooltipBadge(lineName) : null;
+    const meta = override || getLineSvgMeta(lineName);
     if (meta && meta.svg) {
         lineTooltip.innerHTML = '';
         const span = document.createElement('span');
@@ -2735,7 +3095,7 @@ function triggerUpdateZoom(newScale) {
 }
 
 function adjustPanelPosition() {
-    if (window.innerWidth <= 640) return;
+    if (window.innerWidth <= 640 || isCgoWmDesktop()) return;
     const infoPanel = document.getElementById('info-panel');
     if (!infoPanel) return;
     const rect = infoPanel.getBoundingClientRect();
@@ -2809,14 +3169,14 @@ async function initGeoSystem() {
  */
 function findNearestStation() {
     if (!isGeoLoaded) {
-        alert("地图数据加载中，请稍后再试...");
+        showToast("地图数据加载中，请稍后再试...", "warning");
         return;
     }
     const btn = document.getElementById('locate-btn');
     const originalIcon = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:currentColor;"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>`;
     btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:currentColor;animation:spin 1s linear infinite;"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>`;
     if (!navigator.geolocation) {
-        alert("您的浏览器不支持定位功能");
+        showToast("您的浏览器不支持定位功能", "warning");
         btn.innerHTML = originalIcon;
         return;
     }
@@ -2851,12 +3211,10 @@ function findNearestStation() {
         btn.innerHTML = originalIcon;
         if (nearestSid) {
             let distText = minDist < 1000 ? `${Math.round(minDist)}米` : `${(minDist / 1000).toFixed(1)}公里`;
-            if (minDist > 50000) {
-                if (!confirm(`离您最近的车站是【${nearestName}】，距离 ${distText}。\n距离较远，是否跳转？`)) return;
-            }
+            showToast(`离您最近的车站是【${nearestName}】(约 ${distText})`, "info");
             selectStation(nearestSid);
         } else {
-            alert("无法定位最近车站 (数据匹配失败)");
+            showToast("无法定位最近车站 (数据匹配失败)", "warning");
         }
     };
     const errorCallback = (error) => {
@@ -2868,7 +3226,7 @@ function findNearestStation() {
             case 2: msg = "位置不可用 (请检查 GPS 或网络)"; break;
             case 3: msg = "定位请求超时 (请在开阔地带重试)"; break;
         }
-        alert(msg);
+        showToast(msg, "warning");
     };
     watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, geoOptions);
 }
@@ -2944,10 +3302,7 @@ function getSchematicMetersPerPixel() {
     }
     const ratios = [];
     if (typeof linesData !== "undefined" && linesData && processedStations) {
-        const waysOf = (line) => {
-            if (line.hasbranch) return [line["stationIds-way1"], line["stationIds-way2"]];
-            return [line.stationIds];
-        };
+        const waysOf = (line) => lineWays(line).map(w => w.ids);
         linesData.forEach((line) => {
             waysOf(line).forEach((ids) => {
                 if (!ids) return;
@@ -3008,6 +3363,7 @@ function initTheme() {
     let tooltipTimer = null;
     const showTooltip = (text) => {
         tooltip.innerText = text;
+        announce(text);
         tooltip.classList.add('show');
         if (tooltipTimer) clearTimeout(tooltipTimer);
         tooltipTimer = setTimeout(() => {
@@ -3094,9 +3450,13 @@ function applyTheme(theme) {
  */
 function initContextMenu() {
     window.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('#theme-btn, .theme-btn')) return;
+        if (e.target.closest('.cgowm-window, .cgowm-sidebar, .cgowm-modal-overlay, .cgowm-overlay')
+            && !e.target.closest('[data-ctx-longpress]')) {
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
-        if (e.target.closest('#theme-btn, .theme-btn')) return false;
         showMenu(e.clientX, e.clientY, e.target);
         return false;
     }, { capture: true });
@@ -3318,7 +3678,8 @@ function initContextMenu() {
         isDrag = false;
         longPressTimer = setTimeout(() => {
             if (!isDrag) {
-                if (e.target.closest('#theme-btn, .theme-btn, button, input, select')) return;
+                // 图例里由 div 改成 button 的条目带 data-ctx-longpress，长按菜单行为与改造前保持一致
+                if (e.target.closest('#theme-btn, .theme-btn, button:not([data-ctx-longpress]), input, select')) return;
                 if (navigator.vibrate) {
                     try { navigator.vibrate(50); } catch (_) {}
                 }
@@ -3533,6 +3894,8 @@ function showStationSelector(targetElement, candidates) {
     if (oldSelector) oldSelector.remove();
     const selector = document.createElement('div');
     selector.id = 'station-selector';
+    selector.setAttribute('role', 'group');
+    selector.setAttribute('aria-label', '选择同名车站');
     const labelLeft = parseFloat(targetElement.style.left);
     const labelTop = parseFloat(targetElement.style.top);
     selector.style.left = labelLeft + 'px';
@@ -3547,6 +3910,7 @@ function showStationSelector(targetElement, candidates) {
     });
     candidates.forEach(s => {
         let iconHtml = '';
+        let lineNames = [];
         if (s.relatedLines && s.relatedLines.length > 0) {
             let validLines = s.relatedLines
                 .map(lid => linesData.find(l => l.id === lid))
@@ -3559,6 +3923,7 @@ function showStationSelector(targetElement, candidates) {
             if (hasChinaRail && hasOthers) {
                 validLines = validLines.filter(l => l.name !== '中国铁路');
             }
+            lineNames = validLines.map(l => l.name);
             validLines.forEach(line => {
                 const svgFile = line.svg || (LINE_META[line.name] && LINE_META[line.name].svg);
                 const meta = getLineSvgMeta(svgFile || line.id || line.name);
@@ -3567,9 +3932,11 @@ function showStationSelector(targetElement, candidates) {
             });
         }
         if (!iconHtml) {
-            iconHtml = `<span class="selector-text-badge">${s.id}</span>`;
+            iconHtml = `<span class="selector-text-badge">${escapeHtml(s.id)}</span>`;
         }
-        html += `<div class="selector-item" data-sid="${s.id}" title="${s.cn} (${s.id})">${iconHtml}</div>`;
+        const itemName = plainName(s.cn);
+        const itemLabel = lineNames.length ? `${itemName}（${lineNames.join('、')}）` : `${itemName}（${s.id}）`;
+        html += `<button type="button" class="selector-item" data-sid="${escapeHtml(s.id)}" title="${escapeHtml(itemName)} (${escapeHtml(s.id)})" aria-label="${escapeHtml(itemLabel)}" data-ctx-longpress>${iconHtml}</button>`;
     });
     selector.innerHTML = html;
     selector.addEventListener('pointerdown', (e) => {
@@ -3599,13 +3966,20 @@ function showStationSelector(targetElement, candidates) {
  */
 function initPanelDrag() {
     const panel = document.getElementById('info-panel');
+    if (!panel) return;
+    // 信息板每次渲染都会重新调用本函数：先清掉上一轮挂在 document 上的监听，避免越积越多
+    if (panel._panelDragCleanup) {
+        panel._panelDragCleanup();
+        panel._panelDragCleanup = null;
+    }
+    if (isCgoWmDesktop()) return;
     const header = panel.querySelector('.panel-header');
     const ghost = document.getElementById('drag-ghost');
-    if (!panel || !header) return;
+    if (!header) return;
     let isDragging = false;
     let startX, startY, initialLeft, initialTop;
     const canDrag = () => window.innerWidth > 640 && !document.body.classList.contains('legend-pinned');
-    header.addEventListener('mousedown', (e) => {
+    const onMouseDown = (e) => {
         if (!canDrag()) return;
         if (e.target.closest('button') || e.target.closest('a')) return;
         isDragging = true;
@@ -3617,8 +3991,8 @@ function initPanelDrag() {
         panel.classList.remove('panel-adjust-anim');
         document.body.style.cursor = 'move';
         e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => {
+    };
+    const onMouseMove = (e) => {
         if (!isDragging) return;
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
@@ -3634,17 +4008,18 @@ function initPanelDrag() {
         if (newTop + panelH > viewportH) newTop = viewportH - panelH;
         panel.style.left = newLeft + 'px';
         panel.style.top = newTop + 'px';
+        if (!ghost) return;
         if (e.clientX < 100) {
             ghost.classList.add('active');
         } else {
             ghost.classList.remove('active');
         }
-    });
+    };
     const stopDrag = (e) => {
         if (isDragging) {
             isDragging = false;
             document.body.style.cursor = '';
-            if (ghost.classList.contains('active')) {
+            if (ghost && ghost.classList.contains('active')) {
                 ghost.classList.remove('active');
                 if (typeof lastSelectedStationId !== 'undefined' && processedStations[lastSelectedStationId]) {
                     dockStationPanel(processedStations[lastSelectedStationId], true);
@@ -3654,7 +4029,19 @@ function initPanelDrag() {
             }
         }
     };
+    header.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', stopDrag);
+    // 注册清理函数（做法同 initMobileSheetDrag）
+    panel._panelDragCleanup = () => {
+        header.removeEventListener('mousedown', onMouseDown);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', stopDrag);
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.cursor = '';
+        }
+    };
 }
 
 /**
@@ -3671,12 +4058,16 @@ function dockStationPanel(station, forcePin = false) {
     if (isDesktop && forcePin && !isPinnedNow) {
         document.body.classList.add('legend-pinned');
         document.body.classList.remove('pinned-hidden');
-        localStorage.setItem('nal_legend_pinned', 'true');
+        try {
+            localStorage.setItem('cgo_openmap_legend_pinned', 'true');
+            localStorage.setItem('nal_legend_pinned', 'true');
+        } catch (e) {}
         const pinBtn = document.getElementById('legend-pin-btn');
         if (pinBtn) {
             pinBtn.classList.add('active');
             pinBtn.innerHTML = `<cgo-icon name="unpin-angle" size="18"></cgo-icon>`;
             pinBtn.title = "取消固定";
+            pinBtn.setAttribute('aria-pressed', 'true');
         }
         const overlay = document.getElementById('legend-overlay');
         if (overlay) overlay.style.display = 'block';
@@ -3685,7 +4076,7 @@ function dockStationPanel(station, forcePin = false) {
     const panel = document.getElementById('info-panel');
     const dynamicContainer = document.getElementById('sidebar-dynamic-content');
     if (!panel || !dynamicContainer || !station) return;
-    const savedLimit = localStorage.getItem('nal_sidebar_history_limit');
+    const savedLimit = localStorage.getItem('cgo_openmap_history_limit') || localStorage.getItem('nal_sidebar_history_limit');
     const MAX_HISTORY_LIMIT = savedLimit ? parseInt(savedLimit, 10) : 5;
     let delayTime = 0;
     if (!window.STATION_HISTORY.includes(station.id) && window.STATION_HISTORY.length >= MAX_HISTORY_LIMIT) {
@@ -3737,6 +4128,8 @@ function dockStationPanel(station, forcePin = false) {
                 newSectionDom.classList.add('collapsed');
             }
         }
+        // 面板已挪进历史分区并显示，此时才能把焦点交给标题
+        if (pendingPanelFocus) focusPanelTitle();
     }, delayTime);
 }
 
@@ -3812,7 +4205,7 @@ function initInputControls() {
             zoomToPoint(currentScale + zoomStep, e.clientX, e.clientY);
             return;
         }
-        const wheelMode = localStorage.getItem('nal_pref_wheel_mode') || 'smart';
+        const wheelMode = localStorage.getItem('cgo_openmap_wheel_mode') || localStorage.getItem('nal_pref_wheel_mode') || 'smart';
         const doPan = () => {
             panMap(-e.deltaX * 1.5, -e.deltaY * 1.5);
         };
@@ -3946,7 +4339,16 @@ function initInputControls() {
         }
     });
     document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.defaultPrevented) return;
+        // 带修饰键的组合属于浏览器 / 系统快捷键（如 Ctrl+S、Cmd+[、Alt+D），不接管
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        // 仅当焦点在页面本身或地图容器内时生效，避免与面板、表单控件、滑块自身的键盘操作冲突
+        const target = e.target;
+        if (!target || typeof target.closest !== 'function') return;
+        const focusOnPage = target === document.body || target === document.documentElement;
+        if (!focusOnPage && !slider.contains(target)) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable
+            || target.closest('[role="slider"], [contenteditable="true"]')) return;
         const panStep = 50;
         const zoomStep = 0.2;
         switch (e.key) {
@@ -3970,6 +4372,9 @@ initContextMenu();
 
 // 开通时刻的应用要早于渲染，也要早于 DOMContentLoaded（notice.js 在后者推送新开通通知）
 applyOpeningSchedule();
+
+// 站名更名的定时回退同样要早于渲染：更名日之前显示旧名，到点刷新后显示新名
+applyRenameSchedule();
 
 init();
 
@@ -3998,7 +4403,53 @@ init();
         const isActuallyActive = activeStationId && domNode && domNode.classList.contains('active');
         const activeStation = isActuallyActive && processedStations ? processedStations[activeStationId] : null;
 
-        const userWantsPin = localStorage.getItem('nal_legend_pinned') === 'true';
+        if (isCgoWmActive()) {
+            const infoPanelEl = document.getElementById('info-panel');
+            document.body.classList.remove('legend-pinned', 'pinned-hidden');
+            document.body.classList.remove('mobile-panel-expanded', 'panel-sheet-collapsed', 'panel-sheet-dragging', 'mobile-panel-docked-full');
+            window.CGoWMAdapter.syncViewport();
+            renderLegend();
+            if (isMobile) {
+                if (activeStation) {
+                    renderUserModePanel(activeStation);
+                    if (infoPanelEl) infoPanelEl.style.display = 'flex';
+                    document.body.classList.add('mobile-split-active');
+                    setTimeout(() => {
+                        const viewportH = window.innerHeight;
+                        const targetVisualY = viewportH * 0.2;
+                        const targetVisualX = window.innerWidth / 2;
+                        if (typeof currentScale !== 'undefined') {
+                            currentX = targetVisualX - (activeStation.x * currentScale);
+                            currentY = targetVisualY - (activeStation.y * currentScale);
+                            if (typeof updateMapTransform === 'function') updateMapTransform();
+                        }
+                    }, 50);
+                } else {
+                    document.body.classList.remove('mobile-split-active');
+                    if (infoPanelEl) infoPanelEl.style.display = 'none';
+                }
+            } else {
+                document.body.classList.remove('mobile-split-active');
+                if (activeStation) {
+                    renderUserModePanel(activeStation);
+                    window.CGoWMAdapter.openStation(activeStation.id, buildStationWindowMeta(activeStation));
+                    const focus = getViewportCenter();
+                    currentX = focus.x - (activeStation.x * currentScale);
+                    currentY = focus.y - (activeStation.y * currentScale);
+                    if (typeof updateMapTransform === 'function') updateMapTransform();
+                } else {
+                    window.CGoWMAdapter.deactivateStation({ clearFloat: true });
+                    window.CGoWMAdapter.syncStationSidebarHistory?.();
+                    if (infoPanelEl && !window.CGoWMAdapter.hasStationSidebar?.()) infoPanelEl.style.display = 'none';
+                }
+            }
+            document.body.style.overflow = '';
+            if (typeof enforceBoundaries === 'function') enforceBoundaries();
+            lastWidth = currentWidth;
+            return;
+        }
+
+        const userWantsPin = (localStorage.getItem('cgo_openmap_legend_pinned') || localStorage.getItem('nal_legend_pinned')) === 'true';
         const overlay = document.getElementById('legend-overlay');
         const infoPanel = document.getElementById('info-panel');
         const pinBtn = document.getElementById('legend-pin-btn');
@@ -4114,6 +4565,7 @@ init();
     window.updateMapTransform = updateMapTransform;
     window.getScaleLimits = getScaleLimits;
     window.setMapView = setMapView;
+    window.getMapView = getMapView;
     // 供城市或扩展模块在自定义边界规则中复用引擎自带的边界限制
     window.localEnforceBoundaries = localEnforceBoundaries;
     window.stationsData = typeof stationsData !== 'undefined' ? stationsData : undefined;

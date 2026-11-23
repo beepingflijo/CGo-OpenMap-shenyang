@@ -7,6 +7,17 @@
  * 官网编号按线路站序递增或递减，2 号线在蒲河路之后切换为市区段编号，单独列出第二段规则。
  */
 const SYMTC_STATION_INFO_BASE = "https://www.symtc.com/wwmhm/stationInfo2";
+
+/**
+ * 车站层级图（剖面图）资源前缀。
+ *
+ * 官网「站点信息」页的车站层级图以官网车站编号直接命名，例如
+ * https://www.symtc.com/wwmhm/icons//czcjt/0215.png
+ * 注意 icons 与 czcjt 之间的双斜杠是官网自身拼装写法（其前端做了 replace("//","/")
+ * 后仍会再拼一次），不可精简为单斜杠以免日后官网调整时路径失配。
+ */
+const SYMTC_STATION_LEVEL_BASE = "https://www.symtc.com/wwmhm/icons//czcjt";
+
 const SYMTC_OFFICIAL_STATION_ID_RULES = {
     "SYM01": [
         { fromIndex: 0, officialStationId: 121, step: 2 }
@@ -31,13 +42,33 @@ const SYMTC_OFFICIAL_STATION_ID_RULES = {
 
 const GLOBAL_SCHEDULE_DATA = {};
 
+/**
+ * 线路站序（跨交路去重，保持首次出现顺序）。
+ * 交路数不再固定为两条，故统一走核心的交路模型；模型未就绪时退回旧的 way1 / way2。
+ */
+function cgoLineStationIds(line) {
+    const routing = typeof window !== "undefined" ? window.CGoLineRouting : null;
+    if (routing) return routing.allStationIds(line);
+    return line.hasbranch
+        ? [...new Set([...(line["stationIds-way1"] || []), ...(line["stationIds-way2"] || [])])]
+        : (line.stationIds || []);
+}
+
+/**
+ * 车站层级图地址表（本地车站 ID → 官网剖面图 URL）。
+ *
+ * 换乘站在多条线路下各有官网编号，此处取先遍历到的线路编号（与核心「官网查询」
+ * 按钮取首个可用项的口径一致）；未能匹配官网编号的车站（有轨电车、国铁、未纳入
+ * 官网编号体系的在建站）不进入本表，由消费方按「无图不渲染」处理。
+ */
+const SHENYANG_STATION_LEVEL_MAP = {};
+window.SHENYANG_STATION_LEVEL_MAP = SHENYANG_STATION_LEVEL_MAP;
+
 Object.entries(SYMTC_OFFICIAL_STATION_ID_RULES).forEach(([lineId, rules]) => {
     const line = linesData.find((item) => item.id === lineId);
     if (!line) return;
 
-    const stationIds = line.hasbranch
-        ? [...new Set([...(line["stationIds-way1"] || []), ...(line["stationIds-way2"] || [])])]
-        : (line.stationIds || []);
+    const stationIds = cgoLineStationIds(line);
 
     stationIds.forEach((stationId, index) => {
         const rule = rules.find((item) => index >= item.fromIndex
@@ -56,6 +87,53 @@ Object.entries(SYMTC_OFFICIAL_STATION_ID_RULES).forEach(([lineId, rules]) => {
 
         (GLOBAL_SCHEDULE_DATA[lineId] ||= {})[stationId]
             = `${SYMTC_STATION_INFO_BASE}?${params.toString()}`;
+
+        // 顺带登记该站的官网层级图；先到先得，避免换乘站被后遍历的线路覆盖
+        if (!SHENYANG_STATION_LEVEL_MAP[stationId]) {
+            SHENYANG_STATION_LEVEL_MAP[stationId]
+                = `${SYMTC_STATION_LEVEL_BASE}/${officialStationId}.png`;
+        }
+    });
+});
+
+/**
+ * 浑南现代有轨电车实时到站查询（盛京通 / mtii.cn）。
+ *
+ * 官网已把车站详情统一到 arrival.html，参数为：
+ *   mode=simple   精简展示
+ *   line          官网线路号（不带 HNT 前缀）
+ *   station       官网站名，必须与官网配置逐字全等，否则页面会回落到末站
+ * 例：https://www.mtii.cn/shengjingtong_API/arrival.html?mode=simple&line=5&station=奥体游泳馆
+ *
+ * 官网 1/3/5 号线的站名与本地 data_stations.js 的 cn 完全一致（2026-10 逐站核对），
+ * 故直接以本地站名拼参。日后若本地改名，须同步官网节点名称，否则该站链接会失准。
+ */
+const MTII_TRAM_ARRIVAL_BASE = "https://www.mtii.cn/shengjingtong_API/arrival.html";
+
+/** 本地有轨线路 ID → 官网线路号 */
+const SHENYANG_TRAM_OFFICIAL_LINE_MAP = {
+    HNT1: "1",
+    HNT3: "3",
+    HNT5: "5"
+};
+
+Object.entries(SHENYANG_TRAM_OFFICIAL_LINE_MAP).forEach(([lineId, officialLineId]) => {
+    const line = linesData.find((item) => item.id === lineId);
+    if (!line) return;
+
+    const stationIds = cgoLineStationIds(line);
+
+    stationIds.forEach((stationId) => {
+        const station = stationsData[stationId];
+        if (!station?.cn) return;
+
+        const params = new URLSearchParams({
+            mode: "simple",
+            line: officialLineId,
+            station: station.cn
+        });
+        (GLOBAL_SCHEDULE_DATA[lineId] ||= {})[stationId]
+            = `${MTII_TRAM_ARRIVAL_BASE}?${params.toString()}`;
     });
 });
 
@@ -79,10 +157,12 @@ const SHENYANG_TRAMWAY_TIMETABLE = {
             { stationName: "会展中心", first: "10:10" }
         ]
     },
+    // HNT5：2026-10-25 起末班提前（李石寨 20:00、奥体中心 21:20）。
+    // lastBefore 为调整前末班，lastEffectiveFrom 之前仍按旧值展示，避免提前生效。
     HNT5: {
         endpoints: [
-            { stationId: "T501", stationName: "奥体中心", first: "06:30", last: "22:00" },
-            { stationId: "T529", stationName: "李石寨", first: "05:30", last: "21:00" }
+            { stationId: "T501", stationName: "奥体中心", first: "06:30", last: "21:20", lastBefore: "22:00", lastEffectiveFrom: "2026-10-25" },
+            { stationId: "T529", stationName: "李石寨", first: "05:30", last: "20:00", lastBefore: "21:00", lastEffectiveFrom: "2026-10-25" }
         ]
     }
 };

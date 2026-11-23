@@ -1,0 +1,541 @@
+/**
+ * 开放地图编辑器 (OpenMap Editor) - 统一视口漫游与坐标变换层
+ * 整合 CAD 级坐标吸附与平滑触控手势，统一视口计算
+ */
+
+window.OpenMapEditor = window.OpenMapEditor || {};
+
+window.OpenMapEditor.ViewportLayer = (function () {
+    'use strict';
+
+    var MIN_SCALE = 0.05;
+    var MAX_SCALE = 6.0;
+
+    var ZOOM_K_WHEEL = 0.0012;   // 鼠标滚轮一格 (deltaY=120) ≈ 15%
+    var ZOOM_K_PINCH = 0.008;    // 触控板捏合
+
+    var dom = {
+        viewport: null,
+        svg: null,
+        viewLayer: null
+    };
+
+    var state = {
+        scale: 1.0,
+        pan: { x: 0, y: 0 },
+        canvasSize: { width: 2000, height: 1500 },
+        gridSize: 5,
+        gridVisible: false,
+        snapEnabled: false,
+        slope: { m: 1, n: 1 }
+    };
+
+    var listeners = [];
+    var isPanning = false;
+    var lastPointer = { x: 0, y: 0 };
+    var activePointers = new Map();
+    var lastPinchDist = 0;
+    var lastPinchMid = null;
+    // 空格拖拽平移状态：keydown 置位、keyup / blur 复位。
+    // 必须在 IIFE 内显式声明 —— 否则 mousedown 读它会抛 ReferenceError，
+    // 普通左键点击也一并失效（严格模式下未声明变量不可读取）。
+    var spaceHeld = false;
+    // 平移拖拽会话：{ startX, startY, panX, panY }。窗口外松开鼠标时靠它兜底。
+    var panDrag = null;
+
+    /** 当前焦点是否在输入类控件上（此时空格属于正常输入，不能当平移快捷键） */
+    function isTypingTarget(target) {
+        if (!target || typeof target.matches !== 'function') return false;
+        try {
+            return target.matches('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+        } catch (err) {
+            return false;
+        }
+    }
+
+    /** 平移光标：空格按住或正在拖拽时显示手形 */
+    function setPanCursor(on) {
+        if (!dom.viewport) return;
+        if (on || spaceHeld) dom.viewport.classList.add('panning');
+        else dom.viewport.classList.remove('panning');
+    }
+
+    function notify() {
+        var info = {
+            scale: state.scale,
+            pan: { x: state.pan.x, y: state.pan.y },
+            percentText: Math.round(state.scale * 100) + '%'
+        };
+        for (var i = 0; i < listeners.length; i++) {
+            try {
+                listeners[i](info);
+            } catch (err) {
+                console.error('[ViewportLayer] 回调失败:', err);
+            }
+        }
+    }
+
+    function applyTransform() {
+        if (!dom.viewLayer) return;
+        dom.viewLayer.setAttribute(
+            'transform',
+            'translate(' + state.pan.x + ', ' + state.pan.y + ') scale(' + state.scale + ')'
+        );
+        notify();
+    }
+
+    /**
+     * 屏幕客户端坐标转换为 SVG 世界坐标
+     * @param {number} clientX
+     * @param {number} clientY
+     * @returns {{x: number, y: number}}
+     */
+    function screenToWorld(clientX, clientY) {
+        if (!dom.viewport) return { x: clientX, y: clientY };
+        var rect = dom.viewport.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left - state.pan.x) / state.scale,
+            y: (clientY - rect.top - state.pan.y) / state.scale
+        };
+    }
+
+    /**
+     * SVG 世界坐标转换为屏幕客户端坐标
+     * @param {number} worldX
+     * @param {number} worldY
+     * @returns {{x: number, y: number}}
+     */
+    function worldToScreen(worldX, worldY) {
+        if (!dom.viewport) return { x: worldX, y: worldY };
+        var rect = dom.viewport.getBoundingClientRect();
+        return {
+            x: rect.left + state.pan.x + worldX * state.scale,
+            y: rect.top + state.pan.y + worldY * state.scale
+        };
+    }
+
+    /**
+     * 以视口内某一客户端点为锚缩放
+     */
+    function zoomToPoint(targetScale, clientX, clientY) {
+        if (!dom.viewport) return;
+        var next = Math.min(Math.max(targetScale, MIN_SCALE), MAX_SCALE);
+        if (Math.abs(next - state.scale) < 1e-6) return;
+        var rect = dom.viewport.getBoundingClientRect();
+        var mx = clientX - rect.left;
+        var my = clientY - rect.top;
+        state.pan.x = mx - (mx - state.pan.x) * (next / state.scale);
+        state.pan.y = my - (my - state.pan.y) * (next / state.scale);
+        state.scale = next;
+        applyTransform();
+    }
+
+    /**
+     * 按平移差值漫游画布
+     */
+    function panBy(dx, dy) {
+        state.pan.x += dx;
+        state.pan.y += dy;
+        applyTransform();
+    }
+
+    /**
+     * 以视口中心为锚按倍率缩放
+     */
+    function zoomBy(factor) {
+        if (!dom.viewport) return;
+        var rect = dom.viewport.getBoundingClientRect();
+        zoomToPoint(state.scale * factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+
+    /**
+     * 自适应充满视口并居中展示
+     */
+    function fitCanvas(width, height) {
+        if (!dom.viewport) return;
+        var w = Number(width) > 0 ? Number(width) : state.canvasSize.width;
+        var h = Number(height) > 0 ? Number(height) : state.canvasSize.height;
+        state.canvasSize.width = w;
+        state.canvasSize.height = h;
+
+        var vpW = dom.viewport.clientWidth;
+        var vpH = dom.viewport.clientHeight;
+        if (!vpW || !vpH) return;
+
+        var padding = 60;
+        var fitScale = Math.min((vpW - padding) / w, (vpH - padding) / h);
+        state.scale = Math.min(Math.max(fitScale, MIN_SCALE), 1.2);
+        state.pan.x = (vpW - w * state.scale) / 2;
+        state.pan.y = (vpH - h * state.scale) / 2;
+        applyTransform();
+        if (window.OpenMapEditor.GridLayer) {
+            window.OpenMapEditor.GridLayer.render({
+                width: w,
+                height: h,
+                scale: state.scale,
+                gridSize: state.gridSize
+            });
+        }
+    }
+
+    /**
+     * 复位至 100% 原始比例居中
+     */
+    function resetView() {
+        if (!dom.viewport) return;
+        var vpW = dom.viewport.clientWidth;
+        var vpH = dom.viewport.clientHeight;
+        state.scale = 1.0;
+        state.pan.x = (vpW - state.canvasSize.width) / 2;
+        state.pan.y = (vpH - state.canvasSize.height) / 2;
+        applyTransform();
+    }
+
+    /**
+     * 将视口平移居中到指定的 SVG 世界坐标点
+     * @param {number} worldX
+     * @param {number} worldY
+     * @param {number} [targetScale]
+     */
+    function centerOn(worldX, worldY, targetScale) {
+        if (!dom.viewport) return;
+        var vpW = dom.viewport.clientWidth;
+        var vpH = dom.viewport.clientHeight;
+        if (!vpW || !vpH) return;
+        if (targetScale !== undefined && targetScale !== null) {
+            state.scale = Math.min(Math.max(targetScale, MIN_SCALE), MAX_SCALE);
+        }
+        state.pan.x = vpW / 2 - worldX * state.scale;
+        state.pan.y = vpH / 2 - worldY * state.scale;
+        applyTransform();
+    }
+
+    function effectiveGridStep() {
+        if (window.OpenMapEditor && window.OpenMapEditor.GridLayer &&
+            typeof window.OpenMapEditor.GridLayer.getEffectiveGridSize === 'function') {
+            return window.OpenMapEditor.GridLayer.getEffectiveGridSize() || state.gridSize || 5;
+        }
+        return state.gridSize || 5;
+    }
+
+    /**
+     * 网格吸附计算（对齐实际 LOD 网格步长）
+     */
+    function snapPoint(x, y) {
+        if (!state.snapEnabled) return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+        var g = effectiveGridStep();
+        return {
+            x: Math.round(x / g) * g,
+            y: Math.round(y / g) * g
+        };
+    }
+
+    /** 当前生效的吸附步长（供绘制工具在 45° 约束后继续对齐网格） */
+    function getSnapStep() {
+        return effectiveGridStep();
+    }
+
+    /**
+     * Shift 射线吸附（沿 0/90° 或斜率比例射线约束）
+     */
+    function snapPointToRays(from, to, slopeRatio) {
+        if (!from) return snapPoint(to.x, to.y);
+        var g = state.snapEnabled ? effectiveGridStep() : 1;
+        var dx = to.x - from.x, dy = to.y - from.y;
+        if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
+            return { x: Math.round(from.x * 100) / 100, y: Math.round(from.y * 100) / 100 };
+        }
+        var s = slopeRatio || state.slope || { m: 1, n: 1 };
+        var cands = [
+            { A: 1, B: 0 }, { A: -1, B: 0 }, { A: 0, B: 1 }, { A: 0, B: -1 },
+            { A: s.m, B: s.n }, { A: -s.m, B: s.n }, { A: s.m, B: -s.n }, { A: -s.m, B: -s.n },
+            { A: s.n, B: s.m }, { A: -s.n, B: s.m }, { A: s.n, B: -s.m }, { A: -s.n, B: -s.m }
+        ];
+        var dist = Math.hypot(dx, dy) || 1;
+        var best = cands[0], bestCos = -2;
+        for (var i = 0; i < cands.length; i++) {
+            var c = cands[i], len = Math.hypot(c.A, c.B) || 1;
+            var cos = (dx * c.A + dy * c.B) / (dist * len);
+            if (cos > bestCos) { bestCos = cos; best = c; }
+        }
+        var step = Math.hypot(best.A, best.B) || 1;
+        var along = (dx * best.A + dy * best.B) / step;
+        var k = Math.max(1, Math.round(Math.abs(along) / step / g)) * g;
+        var x = from.x + best.A * k, y = from.y + best.B * k;
+        return state.snapEnabled
+            ? { x: Math.round(x / g) * g, y: Math.round(y / g) * g }
+            : { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+    }
+
+    // ==========================================================================
+    // 操作模式
+    //   map    地图模式（默认）：滚轮缩放，左键按住空白处拖动画布，Shift + 拖动框选
+    //   design 设计软件模式：滚轮智能识别（鼠标缩放 / 触控板平移），左键拖动空白处框选，
+    //          空格或中键拖动画布
+    // ==========================================================================
+    var NAV_KEY = 'openmap_editor_nav_mode';
+    var navMode = null;
+    function getNavMode() {
+        if (navMode) return navMode;
+        var v = null;
+        try { v = localStorage.getItem(NAV_KEY); } catch (e) { v = null; }
+        navMode = (v === 'design') ? 'design' : 'map';
+        return navMode;
+    }
+    function setNavMode(m) {
+        navMode = (m === 'design') ? 'design' : 'map';
+        try { localStorage.setItem(NAV_KEY, navMode); } catch (e) { }
+        if (dom.viewport) {
+            dom.viewport.classList.remove('nav-map', 'nav-design');
+            dom.viewport.classList.add(navMode === 'map' ? 'nav-map' : 'nav-design');
+        }
+        notify();
+        return navMode;
+    }
+
+    /**
+     * 由编辑器在「左键按下空白处」时调用，开始拖动画布。
+     * @param {MouseEvent} e mousedown 事件
+     * @param {Function} [onTap] 没有拖动就松开（单击空白处）时回调，用于取消选中
+     */
+    function startPan(e, onTap) {
+        panDrag = {
+            startX: e.clientX, startY: e.clientY,
+            panX: state.pan.x, panY: state.pan.y,
+            moved: false, onTap: onTap || null
+        };
+        isPanning = true;
+        setPanCursor(true);
+        e.preventDefault();
+    }
+
+    /**
+     * 滚轮事件监听器（支持鼠标滚轮与 macOS 触控板智能区分）
+     */
+    function onWheel(e) {
+        e.preventDefault();
+
+        var factorFor = function (k) {
+            var f = Math.exp(-e.deltaY * k);
+            return Math.max(0.75, Math.min(1.33, f));
+        };
+
+        // 触控板捏合缩放（macOS 表现为 ctrlKey + wheel）
+        if (e.ctrlKey) {
+            zoomToPoint(state.scale * factorFor(ZOOM_K_PINCH), e.clientX, e.clientY);
+            return;
+        }
+
+        // 地图模式：滚轮（含触控板双指滑动）一律缩放，平移交给左键拖动空白处
+        if (getNavMode() === 'map') { zoomToPoint(state.scale * factorFor(ZOOM_K_WHEEL), e.clientX, e.clientY); return; }
+
+        var mode = localStorage.getItem('openmap_editor_wheel_mode') ||
+            localStorage.getItem('cgo_openmap_wheel_mode') ||
+            localStorage.getItem('nal_pref_wheel_mode') || 'smart';
+        var doPan = function () { panBy(-e.deltaX * 1.5, -e.deltaY * 1.5); };
+        var doZoom = function () { zoomToPoint(state.scale * factorFor(ZOOM_K_WHEEL), e.clientX, e.clientY); };
+
+        if (mode === 'zoom') { doZoom(); return; }
+        if (mode === 'pan') { doPan(); return; }
+
+        // smart 模式：识别是否有横向分量或平滑滚动
+        var isTouchpad = (function () {
+            if (Math.abs(e.deltaX) > 0) return true;
+            if (e.deltaMode === 1) return false;
+            if (e.wheelDelta !== undefined) {
+                if (Math.abs(e.wheelDelta) % 120 === 0) return false;
+                if (Math.abs(e.wheelDelta) < 100) return true;
+            }
+            return Math.abs(e.deltaY) < 40;
+        })();
+
+        if (isTouchpad) doPan(); else doZoom();
+    }
+
+    /**
+     * 绑定画布与视口交互事件
+     */
+    function init(viewportEl, svgEl, viewLayerEl) {
+        dom.viewport = viewportEl;
+        dom.svg = svgEl;
+        dom.viewLayer = viewLayerEl;
+
+        if (!dom.viewport) return;
+
+        dom.viewport.addEventListener('wheel', onWheel, { passive: false });
+        setNavMode(getNavMode());
+
+        // 漫游拖拽支持（中键或按住空格拖拽）
+        window.addEventListener('keydown', function (e) {
+            if (e.code !== 'Space' || isTypingTarget(e.target)) return;
+            if (typeof document !== 'undefined' && typeof document.querySelector === 'function' &&
+                document.querySelector('cgo-modal.open')) return;
+            if (typeof e.preventDefault === 'function') e.preventDefault();
+            spaceHeld = true;
+            setPanCursor(true);
+        });
+
+        // 触屏双指捏合缩放与双指平移
+        var pinchStats = function () {
+            var pts = Array.from(activePointers.values());
+            if (pts.length < 2) return null;
+            var a = pts[0], b = pts[1];
+            return {
+                dist: Math.hypot(b.x - a.x, b.y - a.y) || 1,
+                mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+            };
+        };
+        dom.viewport.addEventListener('pointerdown', function (e) {
+            if (e.pointerType !== 'touch') return;
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (activePointers.size === 2) {
+                var st = pinchStats();
+                lastPinchDist = st ? st.dist : 0;
+                lastPinchMid = st ? st.mid : null;
+            }
+        });
+        dom.viewport.addEventListener('pointermove', function (e) {
+            if (e.pointerType !== 'touch' || !activePointers.has(e.pointerId)) return;
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (activePointers.size === 2) {
+                var st = pinchStats();
+                if (st && lastPinchDist > 0 && lastPinchMid) {
+                    var ratio = st.dist / lastPinchDist;
+                    var dx = st.mid.x - lastPinchMid.x;
+                    var dy = st.mid.y - lastPinchMid.y;
+                    if (dx || dy) panBy(dx, dy);
+                    if (Math.abs(ratio - 1) > 1e-4) zoomToPoint(state.scale * ratio, st.mid.x, st.mid.y);
+                }
+                lastPinchDist = st ? st.dist : 0;
+                lastPinchMid = st ? st.mid : null;
+            }
+        });
+        var clearTouchPointer = function (e) {
+            if (e.pointerType !== 'touch') return;
+            activePointers.delete(e.pointerId);
+            if (activePointers.size < 2) {
+                lastPinchDist = 0;
+                lastPinchMid = null;
+            }
+        };
+        dom.viewport.addEventListener('pointerup', clearTouchPointer);
+        dom.viewport.addEventListener('pointercancel', clearTouchPointer);
+
+        window.addEventListener('keyup', function (e) {
+            if (e.code !== 'Space') return;
+            activePointers.clear();
+            lastPinchDist = 0;
+            lastPinchMid = null;
+            spaceHeld = false;
+            setPanCursor(!!panDrag);
+        });
+
+        dom.viewport.addEventListener('mousedown', function (e) {
+            var wantPan = (e.button === 1) || (e.button === 0 && spaceHeld);
+            if (!wantPan) return;
+            if (e.target && typeof e.target.closest === 'function' && e.target.closest('.viewport-hud')) return;
+            panDrag = {
+                startX: e.clientX, startY: e.clientY,
+                panX: state.pan.x, panY: state.pan.y
+            };
+            isPanning = true;
+            setPanCursor(true);
+            e.preventDefault();              // 压掉浏览器中键「自动滚动」圆钮与拖选文字
+        });
+
+        window.addEventListener('mousemove', function (e) {
+            if (!panDrag) return;
+            // 兜底：在窗口外松开鼠标时收不到 mouseup，避免平移「粘住」
+            if (e.buttons === 0) {
+                panDrag = null;
+                isPanning = false;
+                setPanCursor(false);
+                return;
+            }
+            if (Math.abs(e.clientX - panDrag.startX) + Math.abs(e.clientY - panDrag.startY) > 3) panDrag.moved = true;
+            state.pan.x = panDrag.panX + (e.clientX - panDrag.startX);
+            state.pan.y = panDrag.panY + (e.clientY - panDrag.startY);
+            applyTransform();
+        });
+
+        window.addEventListener('mouseup', function (e) {
+            if (!panDrag) return;
+            if (e.button !== 0 && e.button !== 1) return;
+            var tap = (!panDrag.moved && typeof panDrag.onTap === 'function') ? panDrag.onTap : null;
+            panDrag = null;
+            if (tap) tap();
+            isPanning = false;
+            setPanCursor(false);             // 空格仍按住时 setPanCursor 会保留手形光标
+        });
+
+        // 失焦（切标签页、弹窗抢焦点）时如果漏了 keyup，空格会被"卡住"，
+        // 表现为左键点击全被当成平移、画不了东西 —— 这里兜底复位。
+        window.addEventListener('blur', function () {
+            activePointers.clear();
+            lastPinchDist = 0;
+            lastPinchMid = null;
+            spaceHeld = false;
+            panDrag = null;
+            isPanning = false;
+            if (dom.viewport) dom.viewport.classList.remove('panning');
+        });
+
+        // 响应窗口尺寸重排
+        window.addEventListener('resize', function () {
+            applyTransform();
+        });
+    }
+
+    function onTransform(fn) {
+        if (typeof fn === 'function') listeners.push(fn);
+    }
+
+    return {
+        init: init,
+        screenToWorld: screenToWorld,
+        worldToScreen: worldToScreen,
+        zoomBy: zoomBy,
+        zoomToPoint: zoomToPoint,
+        panBy: panBy,
+        fitCanvas: fitCanvas,
+        resetView: resetView,
+        centerOn: centerOn,
+        applyTransform: applyTransform,
+        snapPoint: snapPoint,
+        getSnapStep: getSnapStep,
+        snapPointToRays: snapPointToRays,
+        onTransform: onTransform,
+        getScale: function () { return state.scale; },
+        getNavMode: getNavMode,
+        setNavMode: setNavMode,
+        startPan: startPan,
+        getPan: function () { return { x: state.pan.x, y: state.pan.y }; },
+        getGridSize: function () { return state.gridSize || 5; },
+        getCanvasSize: function () { return { width: state.canvasSize.width, height: state.canvasSize.height }; },
+        isGridVisible: function () { return !!state.gridVisible; },
+        setGrid: function (visible) {
+            state.gridVisible = !!visible;
+            state.snapEnabled = state.gridVisible;
+            if (window.OpenMapEditor.GridLayer) {
+                window.OpenMapEditor.GridLayer.setVisible(state.gridVisible);
+            }
+        },
+        setGridVisible: function (visible) {
+            this.setGrid(visible);
+        },
+        setGridSize: function (g) {
+            state.gridSize = Number(g) || 5;
+            if (window.OpenMapEditor.GridLayer) {
+                window.OpenMapEditor.GridLayer.setGridSize(state.gridSize);
+            }
+        },
+        setSnap: function (enabled) {
+            state.snapEnabled = !!enabled;
+        },
+        setSnapEnabled: function (en) { state.snapEnabled = !!en; },
+        setSlope: function (m, n) { state.slope = { m: m, n: n }; }
+    };
+})();
+
+// 保留全局别名兼容
+window.ViewportLayer = window.OpenMapEditor.ViewportLayer;

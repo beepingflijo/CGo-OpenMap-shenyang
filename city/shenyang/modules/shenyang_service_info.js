@@ -3,7 +3,7 @@
  *
  * 取数逻辑（有轨端点表、季节阈值、位置与出入口）留在本模块；
  * 「归一化行 → HTML」「终点站代号解析」「季节标签差异判定」交由共享渲染层处理
- * （city/shenyang/shared/timetable-renderer.js）。
+ * （core/shared/station/timetable-renderer.js）。
  *
  * 本模块同时渲染「位置」「首末班车」「出入口」三行，故用 renderCardShell +
  * renderInfoRow 自行组合，而非直接调用 renderCard。
@@ -58,6 +58,17 @@
         }).filter((row) => row.destination && (row.first || row.last));
     }
 
+    /**
+     * 有轨末班：若端点声明了 lastEffectiveFrom，则在其生效日前回退到 lastBefore。
+     * 用于调图预告：数据可提前写入新时刻，但生效前仍展示旧值。
+     */
+    function effectiveLast(info) {
+        if (!info.lastEffectiveFrom) return info.last || "";
+        const from = new Date(`${info.lastEffectiveFrom}T00:00:00+08:00`).getTime();
+        if (Number.isNaN(from) || Date.now() >= from) return info.last || "";
+        return info.lastBefore || info.last || "";
+    }
+
     /** 有轨：端点站始发时刻 → 归一化行（该表不区分工作日/节假日与夏冬） */
     function tramwayRows(lineId) {
         const infos = getTramwayOriginInfos(lineId);
@@ -66,7 +77,7 @@
         return infos.map((info) => ({
             destination: info.stationName || "",
             first: info.first || "",
-            last: info.last || "",
+            last: effectiveLast(info),
             mode: "origin",
             note: timetable.dailySinglePair ? "每日1对" : ""
         })).filter((row) => row.destination && (row.first || row.last));
